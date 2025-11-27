@@ -22,6 +22,25 @@
 - `DEPLOY_PATH` — `/home/t/tdsta/avito.vsepeski.ru/public_html`
 - `DEPLOY_KEY` — приватный SSH-ключ (формат PEM). Публичную часть положить на сервер в `~/.ssh/authorized_keys`.
 
+## Avito API (OAuth)
+- Переменные среды: см. `.env.example` (`AVITO_CLIENT_ID`, `AVITO_CLIENT_SECRET`, `AVITO_REFRESH_TOKEN`, `AVITO_API_URL`).
+- Redirect URL: `https://avito.vsepeski.ru/oauth/callback.php` (реализован в `oauth/callback.php`).
+- После одобрения приложения:
+  1. Авторизация: `https://api.avito.ru/oauth?response_type=code&client_id=ВАШ_ID&redirect_uri=https://avito.vsepeski.ru/oauth/callback.php`.
+  2. Обмен кода на токен:
+     ```bash
+     curl -u CLIENT_ID:CLIENT_SECRET \
+       -d "grant_type=authorization_code&code=ПОЛУЧЕННЫЙ_CODE&redirect_uri=https://avito.vsepeski.ru/oauth/callback.php" \
+       https://api.avito.ru/token
+     ```
+  3. Обновление токена:
+     ```bash
+     curl -u CLIENT_ID:CLIENT_SECRET \
+       -d "grant_type=refresh_token&refresh_token=ВАШ_REFRESH_TOKEN" \
+       https://api.avito.ru/token
+     ```
+  4. Хранить `client_id`, `client_secret`, `refresh_token` только в `.env`/секретах, не коммитить.
+
 ## Быстрый старт (локально)
 ```bash
 git clone https://github.com/Web-A1/avito.git
