@@ -12,5 +12,6 @@ rsync -az --delete \
   --exclude '.git' \
   --exclude '.github' \
   --exclude '.env' \
+  --exclude 'deploy_key*' \
   --exclude 'node_modules' \
   ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
