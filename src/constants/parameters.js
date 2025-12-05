@@ -1,0 +1,107 @@
+/**
+ * Константы для параметров генерации объявлений
+ * Все диапазоны значений для технических характеристик и других параметров
+ */
+
+// Диапазоны для технических характеристик (Блок 7)
+export const BLOCK_7_RANGES = {
+  // Объем (м³)
+  VOLUME: {
+    min: 1000,
+    max: 100000
+  },
+  
+  // Содержание ХПЧ (%)
+  XPC: {
+    min: 0,
+    max: 3,
+    precision: 2 // до сотых
+  },
+  
+  // Содержание ГП (%)
+  GP: {
+    min: 0.1,
+    max: 2.0,
+    step: 0.1 // шаг 0.1%
+  },
+  
+  // Коэффициент ПНР
+  PNR: {
+    min: 0.50,
+    max: 1.00,
+    step: 0.05 // шаг 0.05
+  },
+  
+  // Коэффициент 𝜓
+  PSI: {
+    min: 0.10,
+    max: 2.00,
+    step: 0.10 // шаг 0.10
+  }
+};
+
+// Параметры для вариаций объявлений
+export const VARIATION_PARAMETERS = {
+  // PriceFor (единица измерения цены)
+  PRICE_FOR: ['м³', 'тонну'],
+  
+  // Color (цвет песка)
+  COLOR: ['Белый', 'Жёлтый', 'Серый'],
+  
+  // Кратность цены
+  PRICE_STEP: 50
+};
+
+// Фиксированные параметры
+export const FIXED_PARAMETERS = {
+  // Минимальный заказ (м³)
+  MIN_SALE_QUANTITY: 20,
+  
+  // Доступность
+  AVAILABILITY: 'В наличии',
+  
+  // Форма продажи
+  PACKAGING_TYPE: 'Россыпью',
+  
+  // BulkMaterialSubType (на начальном этапе)
+  BULK_MATERIAL_SUBTYPE: 'Карьерный'
+};
+
+/**
+ * Генерирует случайное число в диапазоне
+ * @param {number} min - Минимальное значение
+ * @param {number} max - Максимальное значение
+ * @param {number} precision - Количество знаков после запятой (опционально)
+ * @returns {number} Случайное число
+ */
+export function randomInRange(min, max, precision = 0) {
+  const value = Math.random() * (max - min) + min;
+  return precision > 0 ? parseFloat(value.toFixed(precision)) : Math.floor(value);
+}
+
+/**
+ * Генерирует случайное число с шагом
+ * @param {number} min - Минимальное значение
+ * @param {number} max - Максимальное значение
+ * @param {number} step - Шаг
+ * @returns {number} Случайное число с учетом шага
+ */
+export function randomWithStep(min, max, step) {
+  const steps = Math.floor((max - min) / step) + 1;
+  const randomStep = Math.floor(Math.random() * steps);
+  return parseFloat((min + randomStep * step).toFixed(step.toString().split('.')[1]?.length || 0));
+}
+
+/**
+ * Генерирует цену с учетом кратности
+ * @param {number} basePrice - Базовая цена
+ * @param {number} min - Минимальная цена
+ * @param {number} max - Максимальная цена
+ * @param {number} step - Шаг (кратность)
+ * @returns {number} Цена, округленная до шага
+ */
+export function generatePrice(basePrice, min, max, step) {
+  const price = randomInRange(min, max);
+  return Math.round(price / step) * step; // Округляем до кратности step
+}
+
