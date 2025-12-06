@@ -1,0 +1,55 @@
+{
+  "//hint_materials": [
+    "sand // песок",
+    "gravel // щебень, гравий (добавить стратегию)",
+    "other // для будущих материалов"
+  ],
+  "//hint_sand_ids": [
+    "kariern_neseyan_nemyt_pesok // Песок карьерный немытый",
+    "kariern_seyan_nemyt_pesok // Песок карьерный сеяный немытый",
+    "kariern_seyan_myt_pesok_1.5 // Песок карьерный сеяный мытый (мелкий, модуль 1.0–1.5)",
+    "kariern_seyan_myt_pesok_2 // Песок карьерный сеяный мытый (средний, модуль 1.5–2.0)",
+    "kariern_seyan_myt_pesok_2.5 // Песок карьерный сеяный мытый (крупный, модуль 2.0–2.5)"
+  ],
+  "//hint_addresses": [
+    "odin → Московская область, Одинцово",
+    "vidn → Московская область, Видное",
+    "domo → Московская область, Домодедово",
+    "podl → Московская область, Подольск",
+    "bron → Московская область, Бронницы"
+  ],
+  "//hint_titles": [
+    "Песок",
+    "Песок карьерный",
+    "Купить песок",
+    "Песок с доставкой",
+    "Песок доставка"
+  ],
+  "aliases": {
+    "materials": {
+      "karier_neseyan_nemyt_pesok": "karier_neseyan_nemyt_pesok",
+      "karier_seyan_nemyt_pesok": "karier_seyan_nemyt_pesok",
+      "karier_seyan_myt_pesok_1.5": "karier_seyan_myt_pesok_1.5",
+      "karier_seyan_myt_pesok_2": "karier_seyan_myt_pesok_2",
+      "karier_seyan_myt_pesok_2.5": "karier_seyan_myt_pesok_2.5"
+    },
+    "addresses": {
+      "odin": "Московская область, Одинцово",
+      "vidn": "Московская область, Видное",
+      "domo": "Московская область, Домодедово",
+      "podl": "Московская область, Подольск",
+      "bron": "Московская область, Бронницы"
+    }
+  },
+  "tasks": [
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "count": 1,
+      "addresses": ["odin"],
+      "titles": [],
+      "photos": [],
+      "date": "05.12"
+    }
+  ]
+}

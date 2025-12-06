@@ -5,8 +5,8 @@
 
 export const SAND_TYPES = {
   // Немытый несеяный карьерный песок
-  NEMYTYY_NESEYANYY: {
-    id: 'NEMYTYY_NESEYANYY',
+  'karier_neseyan_nemyt_pesok': {
+    id: 'karier_neseyan_nemyt_pesok',
     name: 'Немытый несеяный карьерный песок',
     displayName: 'Песок карьерный немытый',
     compactionCoefficient: 1.40, // т/м³
@@ -18,8 +18,8 @@ export const SAND_TYPES = {
   },
   
   // Сеяный немытый карьерный песок
-  SEYANYY_NEMYTYY: {
-    id: 'SEYANYY_NEMYTYY',
+  'karier_seyan_nemyt_pesok': {
+    id: 'karier_seyan_nemyt_pesok',
     name: 'Сеяный немытый карьерный песок',
     displayName: 'Песок карьерный сеяный немытый',
     compactionCoefficient: 1.70, // т/м³
@@ -31,8 +31,8 @@ export const SAND_TYPES = {
   },
   
   // Сеяный мытый карьерный песок (мелкий МК 1.0-1.5)
-  SEYANYY_MYTYY_FINE: {
-    id: 'SEYANYY_MYTYY_FINE',
+  'karier_seyan_myt_pesok_1.5': {
+    id: 'karier_seyan_myt_pesok_1.5',
     name: 'Сеяный мытый карьерный песок (мелкий)',
     displayName: 'Песок карьерный сеяный мытый',
     moduleOfCoarseness: { min: 1.0, max: 1.5 },
@@ -45,8 +45,8 @@ export const SAND_TYPES = {
   },
   
   // Сеяный мытый карьерный песок (средний МК 1.5-2.0)
-  SEYANYY_MYTYY_MEDIUM: {
-    id: 'SEYANYY_MYTYY_MEDIUM',
+  'karier_seyan_myt_pesok_2': {
+    id: 'karier_seyan_myt_pesok_2',
     name: 'Сеяный мытый карьерный песок (средний)',
     displayName: 'Песок карьерный сеяный мытый',
     moduleOfCoarseness: { min: 1.5, max: 2.0 },
@@ -59,8 +59,8 @@ export const SAND_TYPES = {
   },
   
   // Сеяный мытый карьерный песок (крупный МК 2.0-2.5)
-  SEYANYY_MYTYY_COARSE: {
-    id: 'SEYANYY_MYTYY_COARSE',
+  'karier_seyan_myt_pesok_2.5': {
+    id: 'karier_seyan_myt_pesok_2.5',
     name: 'Сеяный мытый карьерный песок (крупный)',
     displayName: 'Песок карьерный сеяный мытый',
     moduleOfCoarseness: { min: 2.0, max: 2.5 },
@@ -89,4 +89,3 @@ export function getSandType(id) {
 export function getAllSandTypes() {
   return SAND_TYPES;
 }
-

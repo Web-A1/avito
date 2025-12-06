@@ -11,11 +11,11 @@ export const BLOCK_7_RANGES = {
     max: 100000
   },
   
-  // Содержание ХПЧ (%)
+  // Содержание ХПЧ (без единицы изменения - только значение)
   XPC: {
-    min: 0,
-    max: 3,
-    precision: 2 // до сотых
+    min: 0.01,
+    max: 9.99,
+    step: 0.01 // шаг 0.01
   },
   
   // Содержание ГП (%)
@@ -35,8 +35,8 @@ export const BLOCK_7_RANGES = {
   // Коэффициент 𝜓
   PSI: {
     min: 0.10,
-    max: 2.00,
-    step: 0.10 // шаг 0.10
+    max: 3.00,
+    step: 0.01 // шаг 0.10
   }
 };
 
@@ -104,4 +104,5 @@ export function generatePrice(basePrice, min, max, step) {
   const price = randomInRange(min, max);
   return Math.round(price / step) * step; // Округляем до кратности step
 }
+
 

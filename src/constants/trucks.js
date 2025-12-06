@@ -43,3 +43,4 @@ export function getRandomTruckBrand() {
   return TRUCK_BRANDS[Math.floor(Math.random() * TRUCK_BRANDS.length)];
 }
 
+
