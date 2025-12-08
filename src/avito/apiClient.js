@@ -1,7 +1,7 @@
-const DEFAULT_API_URL = 'https://api.avito.ru';
+export const DEFAULT_API_URL = 'https://api.avito.ru';
 const TOKEN_SLACK_MS = 30_000; // обновляем токен за 30с до истечения
 
-class AvitoApiClient {
+export class AvitoApiClient {
   constructor({ clientId, clientSecret, refreshToken, apiUrl = DEFAULT_API_URL, fetchImpl }) {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -78,5 +78,3 @@ class AvitoApiClient {
     return data;
   }
 }
-
-module.exports = { AvitoApiClient, DEFAULT_API_URL };

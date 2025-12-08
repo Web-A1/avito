@@ -127,6 +127,8 @@ export function generateBlock7Params(sandTypeId, sandTypeDisplayName) {
     volume: generateVolume(),
     truckBrand: getRandomTruckBrand(),
     truckNumber: generateTruckNumber(),
+    // Объединенный идентификатор для дубль-чека (марка + номер)
+    truck: '',
     xpc: generateXPC(),
     gp: generateGP(),
     density: generateDensity(sandTypeId),
@@ -135,6 +137,7 @@ export function generateBlock7Params(sandTypeId, sandTypeDisplayName) {
     pnr: generatePNR(),
     psi: generatePSI()
   };
+  params.truck = `${params.truckBrand} ${params.truckNumber}`;
   
   return params;
 }
@@ -163,7 +166,7 @@ export function generateBlock7ForDuplicateCheck(sandTypeId, sandTypeDisplayName)
   // Возвращаем только параметры для проверки дублей (9 параметров)
   return {
     volume: params.volume,
-    truck: `${params.truckBrand} ${params.truckNumber}`, // Марка + номер как один параметр
+    truck: params.truck, // Марка + номер как один параметр
     xpc: params.xpc,
     gp: params.gp,
     density: params.density,
@@ -173,5 +176,3 @@ export function generateBlock7ForDuplicateCheck(sandTypeId, sandTypeDisplayName)
     psi: params.psi
   };
 }
-
-

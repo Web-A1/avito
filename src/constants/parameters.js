@@ -93,16 +93,16 @@ export function randomWithStep(min, max, step) {
 }
 
 /**
- * Генерирует цену с учетом кратности
+ * Генерирует цену от basePrice до basePrice+100 с шагом 30
  * @param {number} basePrice - Базовая цена
- * @param {number} min - Минимальная цена
- * @param {number} max - Максимальная цена
- * @param {number} step - Шаг (кратность)
- * @returns {number} Цена, округленная до шага
+ * @returns {number} Случайная цена в заданном диапазоне
  */
-export function generatePrice(basePrice, min, max, step) {
-  const price = randomInRange(min, max);
-  return Math.round(price / step) * step; // Округляем до кратности step
+export function generatePrice(basePrice) {
+  const priceStep = 30;
+  const maxDelta = 100;
+  const stepsCount = Math.floor(maxDelta / priceStep);
+  const stepIndex = Math.floor(Math.random() * (stepsCount + 1));
+  const delta = stepIndex * priceStep;
+  const price = basePrice + delta;
+  return Math.min(price, basePrice + maxDelta);
 }
-
-
