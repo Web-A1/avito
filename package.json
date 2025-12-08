@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "generate": "node bin/generate-xml.js",
-    "photo:variants": "node bin/generate-photo-variants.js"
+    "photo:variants": "node bin/generate-photo-variants.js",
+    "photos:upload": "node bin/upload-photos.js"
   },
   "dependencies": {
     "sharp": "^0.33.3",

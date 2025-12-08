@@ -16,10 +16,19 @@ const __dirname = path.dirname(__filename);
 
 const DEFAULT_SOURCE_DIR = path.resolve(__dirname, '..', 'data', 'photos', 'source');
 const DEFAULT_VARIANTS_DIR = path.resolve(__dirname, '..', 'data', 'photos', 'variants');
+const DEFAULT_PLAN_PATH = path.resolve(__dirname, '..', 'data', 'plan.json');
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const opts = { input: '', out: '', count: 50, patternOpacity: '', textWatermark: '', textOpacity: '' };
+  const opts = {
+    input: '',
+    out: '',
+    count: 50,
+    patternOpacity: '',
+    textWatermark: '',
+    textOpacity: '',
+    plan: ''
+  };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--input' && args[i + 1]) {
@@ -34,9 +43,33 @@ function parseArgs() {
       opts.textWatermark = args[++i];
     } else if (arg === '--text-opacity' && args[i + 1]) {
       opts.textOpacity = parseFloat(args[++i]);
+    } else if (arg === '--plan' && args[i + 1]) {
+      opts.plan = args[++i];
     }
   }
   return opts;
+}
+
+function sumAdsFromPlan(planPath) {
+  try {
+    const raw = fs.readFileSync(planPath, 'utf8');
+    const json = JSON.parse(raw);
+    const tasks = json.tasks || [];
+    let total = 0;
+    tasks.forEach((t) => {
+      if (Array.isArray(t.slots) && t.slots.length) {
+        t.slots.forEach((slot) => {
+          if (Number.isFinite(slot.count)) total += slot.count;
+        });
+      } else if (Number.isFinite(t.count)) {
+        total += t.count;
+      }
+    });
+    return total || 0;
+  } catch (e) {
+    console.warn(`Не удалось прочитать план ${planPath}: ${e.message}`);
+    return 0;
+  }
 }
 
 function randomBetween(min, max) {
@@ -255,21 +288,70 @@ async function generateVariants({
 async function main() {
   try {
     const opts = parseArgs();
+    const planPath = opts.plan || (fs.existsSync(DEFAULT_PLAN_PATH) ? DEFAULT_PLAN_PATH : '');
+    const aliases = (() => {
+      if (!planPath) return { materials: {}, photos: {} };
+      try {
+        const raw = fs.readFileSync(planPath, 'utf8');
+        const json = JSON.parse(raw);
+        return json.aliases || { materials: {}, photos: {} };
+      } catch {
+        return { materials: {}, photos: {} };
+      }
+    })();
 
-    // Если input не указан — берем первый файл из data/photos/source
-    if (!opts.input) {
-      if (!fs.existsSync(DEFAULT_SOURCE_DIR)) {
-        throw new Error(`Папка с исходниками не найдена: ${DEFAULT_SOURCE_DIR}`);
+    // Собираем список исходников
+    let sources = [];
+    if (opts.input) {
+      sources = [opts.input];
+    } else {
+      // Если в плане есть tasks — используем materialId/photoKey для путей
+      if (planPath) {
+        try {
+          const raw = fs.readFileSync(planPath, 'utf8');
+          const plan = JSON.parse(raw);
+          const tasks = plan.tasks || [];
+          const photoAliases = aliases.photos || {};
+          const materialAliases = aliases.materials || {};
+          const folders = new Set();
+          tasks.forEach((t) => {
+            const materialId = materialAliases[t.materialId] || t.materialId;
+            const photoKey = t.photoKey || materialId;
+            const resolved =
+              photoAliases[photoKey] ||
+              path.resolve(DEFAULT_SOURCE_DIR, materialId || photoKey, 'originals');
+            folders.add(resolved);
+          });
+          folders.forEach((folder) => {
+            if (fs.existsSync(folder)) {
+              const files = fs
+                .readdirSync(folder)
+                .filter((name) => name.match(/\.(jpg|jpeg|png)$/i))
+                .map((name) => path.join(folder, name));
+              sources.push(...files);
+            }
+          });
+        } catch (e) {
+          console.warn(`Не удалось разобрать план ${planPath}: ${e.message}`);
+        }
       }
-      const candidates = fs
-        .readdirSync(DEFAULT_SOURCE_DIR)
-        .filter((name) => name.match(/\.(jpg|jpeg|png)$/i))
-        .map((name) => path.join(DEFAULT_SOURCE_DIR, name));
-      if (!candidates.length) {
-        throw new Error(`В ${DEFAULT_SOURCE_DIR} нет исходных файлов (jpg/png)`);
+
+      // Fallback: если ничего не нашли — читаем базовую папку source
+      if (!sources.length) {
+        if (!fs.existsSync(DEFAULT_SOURCE_DIR)) {
+          throw new Error(`Папка с исходниками не найдена: ${DEFAULT_SOURCE_DIR}`);
+        }
+        sources = fs
+          .readdirSync(DEFAULT_SOURCE_DIR)
+          .filter((name) => name.match(/\.(jpg|jpeg|png)$/i))
+          .map((name) => path.join(DEFAULT_SOURCE_DIR, name));
+        if (!sources.length) {
+          throw new Error(`В ${DEFAULT_SOURCE_DIR} нет исходных файлов (jpg/png)`);
+        }
+        console.log(`--input не указан, используем все файлы из ${DEFAULT_SOURCE_DIR}`);
+      } else {
+        console.log(`Исходники из плана: найдено файлов ${sources.length}`);
       }
-      opts.input = candidates[0];
-      console.log(`--input не указан, используем первый файл: ${opts.input}`);
     }
 
     // Если out не указан — кладем в data/photos/variants/<имя_файла>/
@@ -277,8 +359,24 @@ async function main() {
       opts.out = DEFAULT_VARIANTS_DIR;
     }
 
-    await generateVariants(opts);
-    console.log(`Готово: сгенерировано ${opts.count} вариантов в ${opts.out}`);
+    // Если указан план — вычисляем суммарное количество объявлений и распределяем по исходникам
+    let perFileCount = opts.count;
+    if (planPath) {
+      const totalFromPlan = sumAdsFromPlan(planPath);
+      if (totalFromPlan > 0 && sources.length > 0) {
+        perFileCount = Math.ceil(totalFromPlan / sources.length);
+        console.log(`По плану ${totalFromPlan} объявлений, источников ${sources.length}, на файл по ${perFileCount}`);
+      }
+    }
+
+    for (const srcPath of sources) {
+      await generateVariants({
+        ...opts,
+        input: srcPath,
+        count: perFileCount
+      });
+    }
+    console.log(`Готово: сгенерированы варианты для ${sources.length} исходников, по ${perFileCount} шт.`);
   } catch (err) {
     console.error(err.message || err);
     process.exit(1);
