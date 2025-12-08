@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "generate": "node bin/generate-xml.js"
+    "generate": "node bin/generate-xml.js",
+    "photo:variants": "node bin/generate-photo-variants.js"
   },
   "dependencies": {
+    "sharp": "^0.33.3",
     "xlsx": "^0.18.5"
   }
 }
