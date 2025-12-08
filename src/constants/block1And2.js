@@ -148,3 +148,4 @@ export function getBlock2WithHeading(sandTypeId) {
   ];
   return `<p><strong>${heading}</strong></p>${BLOCK_2_NEMYTYY_NESEYANYY_HTML}`;
 }
+
