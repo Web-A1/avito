@@ -1,66 +1,34 @@
 # Авито масспостинг (авторазмещение)
 
-Локальная разработка → пуш в GitHub → автодеплой на Beget (`avito.vsepeski.ru`).
+## Статус
+- API-интеграция с Авито пока не работает (ждём поддержки). Используем локальную генерацию XML и ручную загрузку в интерфейс Авито.
+- Автодеплой из GitHub на Beget настроен: пуш в `main` выкладывает файлы на `avito.vsepeski.ru`.
 
-## Что внутри (первый шаг)
-- `deploy/` — скрипты деплоя.
-- `.github/workflows/deploy.yml` — черновик GitHub Actions (потребуются секреты).
-- `.gitignore` — базовый набор для Node/PHP.
+## Как сейчас работаем (локально)
+1. Установить зависимости: `npm install` (Node 18+).
+2. Настроить план задач в `data/plan.json`: материал/ID, интервалы публикаций (`slots`) с датой/временем `DateBegin` и общим `count`, распределение по адресам (5 утверждённых, можно алисы) через `locations` с `count` (штуки) или `percent` (от `slot.count`), интервалы между объявлениями `intervalMinMinutes` / `intervalMaxMinutes` (по умолчанию рандом 1–6 минут внутри слота).
+   - Пример: в 09:00 — 50 объявлений, 30 шт на Троицк, 40% на Домодедово, 10% на Подольск; в 20:00 — 20 объявлений с другим распределением. Формат `DateBegin`: `dd.MM.yyyy HH:mm`. Проценты берём от `slot.count` (целая часть), остаток добавляем к последней локации с указанным count/percent.
+3. Если есть актуальные объявления из Авито, положить один `.xlsx` (последняя выгрузка текущих активных объявлений) в `data/current/` — это слепок, его не правим; он подмешается, чтобы учесть уже опубликованные и избежать дублей/удалений.
+4. Сгенерировать фид:
+   ```bash
+   npm run generate -- --date 05.12
+   # или: node bin/generate-xml.js --plan data/plan.json --date 05.12 --current-dir data/current
+   ```
+   - Параметр `--date` нужен только как метка для имени файла/ID; если не указать, подставится текущая дата в формате `dd.MM`.
+5. Забрать `output/ads_<date>.xml` и загрузить вручную через интерфейс Авито.
 
-## Минимальный стек
-Стартуем без жёсткой привязки: можно держать статический фронт или легкий Node/PHP-бэкенд. По мере реализации выберем конкретный runtime. Для генератора и API-клиента удобен Node.js.
+## Что внутри
+- `bin/generate-xml.js` — CLI генератора XML: читает план, текущие объявления из XLSX, генерирует объявления и пишет в `output/`.
+- `src/generators/*`, `src/constants/*`, `src/algorithms/*`, `src/validators/*`, `src/xml/xmlGenerator.js` — логика генерации объявлений (пока песок) и сборка XML.
+- `docs/swagger/*.json`, `docs/api_structure.md` — конспекты по API Авито (готовим на будущее).
+- `deploy/`, `.github/workflows/deploy.yml` — автодеплой на Beget (rsync по SSH).
 
-## Деплой (общая схема)
-1. Пуш в `main` → GitHub Actions.
-2. CI прогоняет проверки (линты/тесты — добавим позже).
-3. `rsync` по SSH выкладывает файлы в `/home/t/tdsta/avito.vsepeski.ru/public_html`.
-4. `.env` хранится только на сервере, не коммитится.
+## Автодеплой (работает)
+- Ветка `main` → GitHub Actions → выкладка в `/home/t/tdsta/avito.vsepeski.ru/public_html` на `tdsta.beget.tech`.
+- Секреты в GitHub Actions: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH`, `DEPLOY_KEY` (приватный SSH-ключ, публичный в `~/.ssh/authorized_keys`).
+- `.env` хранится только на сервере, не коммитится.
 
-## Секреты для CI (нужно завести в GitHub → Settings → Secrets → Actions)
-- `DEPLOY_HOST` — `tdsta.beget.tech`
-- `DEPLOY_USER` — `tdsta`
-- `DEPLOY_PATH` — `/home/t/tdsta/avito.vsepeski.ru/public_html`
-- `DEPLOY_KEY` — приватный SSH-ключ (формат PEM). Публичную часть положить на сервер в `~/.ssh/authorized_keys`.
-
-## Avito API (OAuth)
-- Переменные среды: см. `.env.example` (`AVITO_CLIENT_ID`, `AVITO_CLIENT_SECRET`, `AVITO_REFRESH_TOKEN`, `AVITO_API_URL`).
-- Redirect URL: `https://avito.vsepeski.ru/oauth/callback.php` (реализован в `oauth/callback.php`).
-- Подробная документация по авторизации: см. [Авторизация](docs/api_structure.md#авторизация) в `docs/api_structure.md`.
-- После одобрения приложения:
-  1. Авторизация: `https://avito.ru/oauth?response_type=code&client_id=ВАШ_ID&scope=items:info,autoload:reports`.
-     - Скоуп `items:info`: см. [Объявления](docs/api_structure.md#объявления)
-     - Скоуп `autoload:reports`: см. [Автозагрузка](docs/api_structure.md#автозагрузка)
-  2. Обмен кода на токен:
-     ```bash
-     curl -L -X POST 'https://api.avito.ru/token/' \
-       -H 'Content-Type: application/x-www-form-urlencoded' \
-       --data-urlencode 'grant_type=authorization_code' \
-       --data-urlencode 'client_id=<CLIENT_ID>' \
-       --data-urlencode 'client_secret=<CLIENT_SECRET>' \
-       --data-urlencode 'code=<AUTHORIZATION_CODE>'
-     ```
-  3. Обновление токена:
-     ```bash
-     curl -L -X POST 'https://api.avito.ru/token/' \
-       -H 'Content-Type: application/x-www-form-urlencoded' \
-       --data-urlencode 'grant_type=refresh_token' \
-       --data-urlencode 'client_id=<CLIENT_ID>' \
-       --data-urlencode 'client_secret=<CLIENT_SECRET>' \
-       --data-urlencode 'refresh_token=<REFRESH_TOKEN>'
-     ```
-  4. Хранить `client_id`, `client_secret`, `refresh_token` только в `.env`/секретах, не коммитить.
-
-## Быстрый старт (локально)
-```bash
-git clone https://github.com/Web-A1/avito.git
-cd avito
-# разработка, затем:
-git add .
-git commit -m "init"
-git push origin main
-```
-
-## Дальше
-- Определить точный стек (Node/PHP) и добавить сборку/линты.
-- Добавить шаблоны объявлений, генератор текстов, клиент Avito API.
-- Настроить A/B и логи модерации.
+## Что отложено (когда включат API)
+- Настройка OAuth: `AVITO_CLIENT_ID`, `AVITO_CLIENT_SECRET`, `AVITO_REFRESH_TOKEN`, `AVITO_API_URL`, редирект `https://avito.vsepeski.ru/oauth/callback.php`.
+- Подключение API-клиента (`src/avito/apiClient.js`) и автоматизация автозагрузки.
+- Линты/тесты и дополнительная инфраструктура CI.

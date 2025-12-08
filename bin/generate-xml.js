@@ -58,6 +58,59 @@ function resolveAddresses(addresses = [], aliases = {}) {
   return addresses.map((addr) => map[addr] || addr);
 }
 
+function randomInt(min, max) {
+  const lo = Math.ceil(min);
+  const hi = Math.floor(max);
+  return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+}
+
+function buildLocationPlan(totalCount, locations = [], aliases = {}) {
+  if (!locations.length) {
+    return [{ address: 'Московская область, Троицк', count: totalCount }];
+  }
+  // Явные counts
+  const result = locations.map((loc) => ({
+    address: loc.address || loc.addr,
+    count: Number.isFinite(loc.count) ? loc.count : null,
+    percent: Number.isFinite(loc.percent) ? loc.percent : null
+  }));
+
+  let remaining = totalCount;
+  // Сначала фиксированные count
+  result.forEach((loc) => {
+    if (loc.count && loc.count > 0) {
+      remaining -= loc.count;
+    }
+  });
+  // Затем проценты
+  const percentTotal = result.reduce((sum, loc) => sum + (loc.percent || 0), 0);
+  result.forEach((loc) => {
+    if (!loc.count && loc.percent) {
+      const share = Math.floor((totalCount * loc.percent) / 100);
+      loc.count = share;
+      remaining -= share;
+    }
+  });
+  // Оставшиеся объявления отдаем последней локации с заданием или первой
+  if (remaining > 0) {
+    const target = [...result].reverse().find((loc) => loc.count !== null) || result[0];
+    target.count = (target.count || 0) + remaining;
+  }
+
+  // Резолвим алиасы адресов
+  return result
+    .filter((loc) => loc.count > 0)
+    .map((loc) => ({
+      address: resolveAddresses([loc.address], aliases)[0],
+      count: loc.count
+    }));
+}
+
+function formatDateLabel(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}`;
+}
+
 async function main() {
   const { count, date, currentDir, plan } = parseArgs();
 
@@ -87,9 +140,9 @@ async function main() {
     tasks = [
       {
         material: 'sand',
-        materialId: 'NEMYTYY_NESEYANYY',
+        materialId: 'karier_neseyan_nemyt_pesok',
         count,
-        addresses: ['Московская область, Одинцово'],
+        addresses: ['Московская область, Троицк'],
         titles: TOP_5_TITLES,
         photos: ['https://disk.yandex.ru/i/example-photo']
       }
@@ -98,40 +151,73 @@ async function main() {
 
   const generatedAds = [];
   for (const task of tasks) {
-    const baseDate = parseDateTime(task.startAt || task.date);
-    const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
-    const addressesResolved = resolveAddresses(
-      task.addresses && task.addresses.length ? task.addresses : ['Московская область, Одинцово'],
-      aliases
-    );
-    const ads = generateAds({
-      material: task.material || 'sand',
-      materialId: materialIdResolved,
-      count: task.count || 1,
-      titles: task.titles && task.titles.length ? task.titles : TOP_5_TITLES,
-      addresses: addressesResolved,
-      photos: task.photos || [],
-      currentAds
-    });
-    // Расставляем время публикации: не чаще 1 объявление в 2 минуты
-    if (baseDate) {
-      ads.forEach((ad, idx) => {
-        const dt = new Date(baseDate.getTime() + idx * 2 * 60 * 1000);
-        ad.dateBegin = formatDateTime(dt);
-      });
+    const slots = task.slots && task.slots.length ? task.slots : [{ DateBegin: task.DateBegin, count: task.count }];
+    for (const slot of slots) {
+      const baseDate = parseDateTime(slot.DateBegin);
+      const minInterval =
+        Number.isFinite(slot.intervalMinMinutes) && slot.intervalMinMinutes > 0
+          ? slot.intervalMinMinutes
+          : Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
+            ? task.intervalMinMinutes
+            : 1;
+      const maxIntervalCandidate =
+        Number.isFinite(slot.intervalMaxMinutes) && slot.intervalMaxMinutes > 0
+          ? slot.intervalMaxMinutes
+          : Number.isFinite(slot.intervalMinutes) && slot.intervalMinutes > 0
+            ? slot.intervalMinutes
+            : Number.isFinite(task.intervalMaxMinutes) && task.intervalMaxMinutes > 0
+              ? task.intervalMaxMinutes
+              : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
+                ? task.intervalMinutes
+                : 6;
+      const maxInterval = Math.max(minInterval, maxIntervalCandidate);
+      const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
+      const locationsPlan = buildLocationPlan(
+        slot.count || task.count || 1,
+        slot.locations || task.locations || task.addresses || [],
+        aliases
+      );
+
+      const slotAds = [];
+      for (const loc of locationsPlan) {
+        const ads = generateAds({
+          material: task.material || 'sand',
+          materialId: materialIdResolved,
+          count: loc.count,
+          titles: task.titles && task.titles.length ? task.titles : TOP_5_TITLES,
+          addresses: [loc.address],
+          photos: task.photos || [],
+          currentAds
+        });
+        slotAds.push(...ads);
+      }
+
+      // Расставляем время публикации с заданным интервалом
+      if (baseDate) {
+        let currentDt = baseDate;
+        slotAds.forEach((ad, idx) => {
+          ad.dateBegin = formatDateTime(currentDt);
+          if (idx < slotAds.length - 1) {
+            const step = randomInt(minInterval, maxInterval);
+            currentDt = new Date(currentDt.getTime() + step * 60 * 1000);
+          }
+        });
+      }
+
+      generatedAds.push(...slotAds);
     }
-    generatedAds.push(...ads);
   }
 
   // Собираем итоговый массив: сначала уже существующие, потом новые
   const allAds = [...currentAds, ...generatedAds];
 
-  const xml = generateXml(allAds, date);
+  const dateLabel = date || formatDateLabel(new Date());
+  const xml = generateXml(allAds, dateLabel);
   const outputDir = path.resolve(__dirname, '..', 'output');
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
-  const filePath = path.join(outputDir, `ads_${date || 'test'}.xml`);
+  const filePath = path.join(outputDir, `ads_${dateLabel}.xml`);
   fs.writeFileSync(filePath, xml, 'utf8');
 
   console.log(`Сгенерировано новых: ${generatedAds.length}, всего в XML: ${allAds.length} -> ${filePath}`);
