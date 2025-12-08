@@ -36,7 +36,7 @@ export const BLOCK_7_RANGES = {
   PSI: {
     min: 0.10,
     max: 3.00,
-    step: 0.01 // шаг 0.10
+    step: 0.01 // шаг 0.01
   }
 };
 

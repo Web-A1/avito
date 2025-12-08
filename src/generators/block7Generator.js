@@ -105,12 +105,10 @@ function generatePNR() {
 
 /**
  * Генерирует коэффициент 𝜓
- * @returns {number} 𝜓 от 0.10 до 2.00, шаг 0.10
+ * @returns {number} 𝜓 от 0.10 до 3.00, шаг 0.01
  */
 function generatePSI() {
-  // Исправляем: в документации указано до 2.00, но в parameters.js указано до 3.00
-  // Используем значение из документации (до 2.00)
-  return randomWithStep(0.10, 2.00, 0.10);
+  return randomWithStep(BLOCK_7_RANGES.PSI.min, BLOCK_7_RANGES.PSI.max, BLOCK_7_RANGES.PSI.step);
 }
 
 /**

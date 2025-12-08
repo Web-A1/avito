@@ -99,7 +99,7 @@ async function main() {
   const generatedAds = [];
   for (const task of tasks) {
     const baseDate = parseDateTime(task.startAt || task.date);
-    const materialIdResolved = resolveMaterialId(task.materialId || 'kariern_neseyan_nemyt_pesok', aliases);
+    const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
     const addressesResolved = resolveAddresses(
       task.addresses && task.addresses.length ? task.addresses : ['Московская область, Одинцово'],
       aliases
