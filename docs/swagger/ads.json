@@ -1,0 +1,242 @@
+{
+    "components": {
+      "schemas": {
+        "Account": {
+          "properties": {
+            "actualAddress": {
+              "description": "Фактический адрес (для почты)",
+              "type": "string"
+            },
+            "contact": {
+              "description": "Контактное лицо",
+              "properties": {
+                "name": {
+                  "description": "Имя контактного лица",
+                  "type": "string"
+                },
+                "phone": {
+                  "description": "Телефон контактного лица",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "phone"
+              ],
+              "type": "object"
+            },
+            "inn": {
+              "description": "ИНН организации или ИП",
+              "type": "string"
+            },
+            "kpp": {
+              "description": "КПП организации",
+              "type": "string"
+            },
+            "legalAddress": {
+              "description": "Юридический адрес или адрес регистрации",
+              "type": "string"
+            },
+            "longName": {
+              "description": "Полное наименование организации или ИП",
+              "type": "string"
+            },
+            "manager": {
+              "description": "Персональный менеджер",
+              "nullable": true,
+              "properties": {
+                "email": {
+                  "description": "Email менеджера",
+                  "type": "string"
+                },
+                "name": {
+                  "description": "Имя менеджера",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "email"
+              ],
+              "type": "object"
+            },
+            "ogrn": {
+              "description": "ОГРН или ОГРНИП",
+              "type": "string"
+            },
+            "shortName": {
+              "description": "Краткое название аккаунта",
+              "type": "string"
+            }
+          },
+          "required": [
+            "inn",
+            "shortName",
+            "longName",
+            "ogrn",
+            "kpp",
+            "legalAddress",
+            "actualAddress",
+            "contact"
+          ],
+          "type": "object"
+        },
+        "Error": {
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "message",
+            "code"
+          ],
+          "type": "object"
+        },
+        "V1GetAccountByIdOut": {
+          "properties": {
+            "account": {
+              "$ref": "#/components/schemas/Account"
+            }
+          },
+          "type": "object"
+        }
+      }
+    },
+    "info": {
+      "description": "Публичное API кабинета Авито Реклама",
+      "title": "Авито Реклама",
+      "version": "1.0.0",
+      "x-skip-documentation": false
+    },
+    "openapi": "3.0.0",
+    "paths": {
+      "/ads/v1/account/{accountID}": {
+        "get": {
+          "description": "Получить информацию об аккаунте по ID",
+          "operationId": "V1GetAccountByID",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/V1GetAccountByIdOut"
+                  }
+                }
+              },
+              "description": "Ok",
+              "headers": {
+                "Api-Point-Balance": {
+                  "description": "Баланс API баллов",
+                  "schema": {
+                    "type": "integer"
+                  }
+                }
+              }
+            },
+            "400": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              },
+              "description": "Некорректный запрос"
+            },
+            "401": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              },
+              "description": "Не авторизован"
+            },
+            "403": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              },
+              "description": "Доступ запрещен"
+            },
+            "404": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              },
+              "description": "Аккаунт не найден"
+            },
+            "429": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              },
+              "description": "Слишком много запросов"
+            },
+            "500": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              },
+              "description": "Ошибка сервера"
+            },
+            "503": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Error"
+                  }
+                }
+              },
+              "description": "Сервис недоступен"
+            }
+          },
+          "security": [
+            {
+              "ClientCredentials": []
+            }
+          ],
+          "summary": "V1 Получить аккаунт по ID",
+          "x-cost": {
+            "default": 1,
+            "type": "integer"
+          },
+          "x-rate-limiter": {
+            "default": 500
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "accountID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "servers": [
+      {
+        "url": "https://api.avito.ru/"
+      }
+    ]
+  }
