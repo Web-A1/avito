@@ -25,19 +25,28 @@
 ## Avito API (OAuth)
 - Переменные среды: см. `.env.example` (`AVITO_CLIENT_ID`, `AVITO_CLIENT_SECRET`, `AVITO_REFRESH_TOKEN`, `AVITO_API_URL`).
 - Redirect URL: `https://avito.vsepeski.ru/oauth/callback.php` (реализован в `oauth/callback.php`).
+- Подробная документация по авторизации: см. [Авторизация](docs/api_structure.md#авторизация) в `docs/api_structure.md`.
 - После одобрения приложения:
-  1. Авторизация: `https://api.avito.ru/oauth?response_type=code&client_id=ВАШ_ID&redirect_uri=https://avito.vsepeski.ru/oauth/callback.php`.
+  1. Авторизация: `https://avito.ru/oauth?response_type=code&client_id=ВАШ_ID&scope=items:info,autoload:reports`.
+     - Скоуп `items:info`: см. [Объявления](docs/api_structure.md#объявления)
+     - Скоуп `autoload:reports`: см. [Автозагрузка](docs/api_structure.md#автозагрузка)
   2. Обмен кода на токен:
      ```bash
-     curl -u CLIENT_ID:CLIENT_SECRET \
-       -d "grant_type=authorization_code&code=ПОЛУЧЕННЫЙ_CODE&redirect_uri=https://avito.vsepeski.ru/oauth/callback.php" \
-       https://api.avito.ru/token
+     curl -L -X POST 'https://api.avito.ru/token/' \
+       -H 'Content-Type: application/x-www-form-urlencoded' \
+       --data-urlencode 'grant_type=authorization_code' \
+       --data-urlencode 'client_id=<CLIENT_ID>' \
+       --data-urlencode 'client_secret=<CLIENT_SECRET>' \
+       --data-urlencode 'code=<AUTHORIZATION_CODE>'
      ```
   3. Обновление токена:
      ```bash
-     curl -u CLIENT_ID:CLIENT_SECRET \
-       -d "grant_type=refresh_token&refresh_token=ВАШ_REFRESH_TOKEN" \
-       https://api.avito.ru/token
+     curl -L -X POST 'https://api.avito.ru/token/' \
+       -H 'Content-Type: application/x-www-form-urlencoded' \
+       --data-urlencode 'grant_type=refresh_token' \
+       --data-urlencode 'client_id=<CLIENT_ID>' \
+       --data-urlencode 'client_secret=<CLIENT_SECRET>' \
+       --data-urlencode 'refresh_token=<REFRESH_TOKEN>'
      ```
   4. Хранить `client_id`, `client_secret`, `refresh_token` только в `.env`/секретах, не коммитить.
 
