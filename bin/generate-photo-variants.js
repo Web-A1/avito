@@ -159,6 +159,21 @@ function buildGradientSvg(width, height) {
   );
 }
 
+function buildLightSpotsSvg(width, height) {
+  const spots = randomInt(3, 7);
+  let circles = '';
+  for (let i = 0; i < spots; i++) {
+    const r = randomBetween(10, 26);
+    const cx = randomBetween(0, width);
+    const cy = randomBetween(0, height);
+    const op = randomBetween(0.05, 0.12);
+    const blur = randomBetween(2, 6);
+    circles += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="white" opacity="${op}" filter="url(#bl${i})" />`;
+    circles += `<filter id="bl${i}"><feGaussianBlur stdDeviation="${blur}" /></filter>`;
+  }
+  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${circles}</svg>`);
+}
+
 function clampOpacity(value, min = 0.02, max = 0.15) {
   if (!Number.isFinite(value) || value <= 0) return null;
   return Math.min(max, Math.max(min, value));
@@ -270,27 +285,54 @@ function saveHistory(materialId, hashes) {
   }
 }
 
+function sanitizeName(str = '') {
+  return str
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .replace(/\s+/g, '_')
+    .toLowerCase() || 'default';
+}
+
 function pickTextPalette(stats, forcedColor) {
+  const lc = forcedColor ? forcedColor.trim().toLowerCase() : '';
+  const isDarkForced = lc === '#000' || lc === 'black' || lc === '000000';
   if (forcedColor) {
-    return { fill: forcedColor };
+    return { fill: forcedColor, stroke: 'rgba(0,0,0,0)', mode: 'custom' };
   }
+  // Всегда белый текст, тёмная обводка; режим влияет только на прозрачность/силу обводки
   const channels = stats?.channels || [];
   const means = channels.slice(0, 3).map((c) => c?.mean || 128);
   const avg = means.reduce((sum, v) => sum + v, 0) / (means.length || 1);
-  // Яркие фото — темный знак, тёмные — светлый, средние — светлый с мягкой обводкой
-  if (avg >= 190) return { fill: 'rgba(30,30,30,1)' };
-  if (avg <= 80) return { fill: 'rgba(245,245,245,1)' };
-  return { fill: 'rgba(235,235,235,1)' };
+  if (avg >= 170) return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'bright' };
+  if (avg <= 110) return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'dark' };
+  return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'mid' };
 }
 
-function buildTextPatternSvg(width, height, text, opacity, fillColor) {
-  const fontSize = Math.round(width * randomBetween(0.028, 0.038)); // компактнее, чтобы плотнее, но без резки
+function buildTextPatternSvg(width, height, text, opacity, fillColor, strokeColor, mode = 'mid') {
+  const fontSize = Math.round(width * randomBetween(0.022, 0.032)); // уменьшаем размер водяного знака
   const wordWidthFactor = 4.8; // запас по длине слова
   const cellSize = Math.round(fontSize * wordWidthFactor * randomBetween(0.94, 1.02));
   const tileW = cellSize * 2.7; // плотнее горизонтальный шаг, но с запасом
   const tileH = cellSize * 1.65; // плотный вертикальный шаг с запасом под наклон
   const rotation = Math.random() < 0.5 ? randomBetween(-22, -18) : randomBetween(18, 22); // умеренный наклон паттерна
-  const fillOpacity = Math.min(0.6, Math.max(0.18, opacity * 1.25)); // мягкая прозрачность с небольшим бустом
+  const modeSettings =
+    {
+      bright: { boost: 1.5, fillMin: 0.5, fillMax: 0.8, strokeMin: 0, strokeMax: 0, strokeW: 0 },
+      mid: { boost: 0.85, fillMin: 0.28, fillMax: 0.5, strokeMin: 0, strokeMax: 0, strokeW: 0 }, // ослабить средние (песчаные)
+      dark: { boost: 0.85, fillMin: 0.32, fillMax: 0.62, strokeMin: 0, strokeMax: 0, strokeW: 0 }, // ещё чуть ярче тёмные
+      custom: { boost: 1.0, fillMin: 0.4, fillMax: 0.7, strokeMin: 0, strokeMax: 0, strokeW: 0 }
+    }[mode] || { boost: 1.0, fillMin: 0.4, fillMax: 0.7, strokeMin: 0, strokeMax: 0, strokeW: 0 };
+  const fillOpacity = Math.min(
+    modeSettings.fillMax,
+    Math.max(modeSettings.fillMin, opacity * 1.5 * modeSettings.boost)
+  );
+  const strokeOpacity = strokeColor
+    ? Math.min(
+        modeSettings.strokeMax,
+        Math.max(modeSettings.strokeMin, opacity * 2.6 * modeSettings.boost)
+      )
+    : 0;
+  const strokeWidth = modeSettings.strokeW ? Math.max(0.6, fontSize * modeSettings.strokeW) : 0;
   const pad = fontSize * 1.1; // запас от краёв тайла, чтобы не обрезало буквы
   const offsetX = randomBetween(-tileW * 0.5, tileW * 0.5);
   const offsetY = randomBetween(-tileH * 0.5, tileH * 0.5);
@@ -303,8 +345,8 @@ function buildTextPatternSvg(width, height, text, opacity, fillColor) {
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <defs>
         <pattern id="tp" width="${tileW}" height="${tileH}" x="${offsetX}" y="${offsetY}" patternUnits="userSpaceOnUse" patternTransform="rotate(${rotation})">
-          <text x="${x1}" y="${y1}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" font-weight="600">${text}</text>
-          <text x="${x2}" y="${y2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" font-weight="600">${text}</text>
+          <text x="${x1}" y="${y1}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor || fillColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="600">${text}</text>
+          <text x="${x2}" y="${y2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor || fillColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="600">${text}</text>
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#tp)" />
@@ -322,15 +364,11 @@ async function generateVariants({
   textColor,
   ignoreHistory,
   materialId,
+  address,
   runLabel,
   name
 }) {
   if (!input) throw new Error('Укажите --input путь к исходному фото');
-
-  const baseDir = materialId ? path.join(DEFAULT_PHOTOS_ROOT, materialId) : out;
-  if (!fs.existsSync(baseDir)) {
-    fs.mkdirSync(baseDir, { recursive: true });
-  }
 
   const baseBuffer = await loadImageBuffer(input);
   const baseImage = sharp(baseBuffer);
@@ -340,7 +378,14 @@ async function generateVariants({
   }
   const stats = await sharp(baseBuffer).stats();
   const palette = pickTextPalette(stats, textColor);
-  const historyHashes = ignoreHistory ? [] : loadHistory(materialId);
+  const safeAddress = sanitizeName(address || 'default');
+  const baseDir = materialId ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddress) : out;
+  if (!fs.existsSync(baseDir)) {
+    fs.mkdirSync(baseDir, { recursive: true });
+  }
+  const historyHashes = ignoreHistory || !materialId ? [] : loadHistory(path.join(materialId, safeAddress));
+  const smallImage = Math.min(meta.width, meta.height) < 1400;
+  const flagshipPath = materialId ? path.join(baseDir, 'flagship.jpg') : '';
 
   const targetCount = count;
   const maxRetriesPerIndex = 5;
@@ -350,20 +395,107 @@ async function generateVariants({
   let aggressiveMode = false;
 
   console.log(
-    `Генерируем ${targetCount} шт (materialId=${materialId || 'N/A'}, history=${historyHashes.length} хэшей)`
+    `Генерируем ${targetCount} шт (materialId=${materialId || 'N/A'}, address=${safeAddress}, history=${historyHashes.length} хэшей)${
+      smallImage ? ' [бережный режим для малого исходника]' : ''
+    }`
   );
 
-  async function makeVariant(idx) {
+  async function makeVariant(idx, baseOnly = false) {
     const attempt = generated[idx]?.attempts || 0;
     const baseBoost = aggressiveMode ? 1.8 : 1;
     const attemptBoost = baseBoost + attempt * 0.45; // при регенерациях увеличиваем разброс
-    // Размер итогового изображения: небольшой рандомный ресайз 95-105% от исходника
-    const scale = randomBetween(0.88, 1.12);
+    const baseName = (name || materialId) || path.basename(input, path.extname(input));
+    const labelValue = runLabel || formatLabelDate();
+    const variantDir = materialId
+      ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddress, 'variants', labelValue)
+      : path.join(out, baseName, safeAddress, 'variants', labelValue);
+    if (baseOnly) {
+      // Базовый вариант без геометрических/цветовых изменений — только ВЗ.
+      // Делается один раз на товар+адрес, потом переиспользуется.
+      if (!fs.existsSync(variantDir)) {
+        fs.mkdirSync(variantDir, { recursive: true });
+      }
+      // Если уже есть флагманский файл — копируем его в текущую папку запуска и используем хэш
+      if (flagshipPath && fs.existsSync(flagshipPath)) {
+        const perFileTime = formatLabelDate(new Date());
+        const outPath = path.join(variantDir, `${baseName}_${perFileTime}_${String(idx + 1).padStart(3, '0')}.jpg`);
+        fs.copyFileSync(flagshipPath, outPath);
+        const hash = await aHashFromBuffer(fs.readFileSync(flagshipPath));
+        generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1 };
+        console.log(`  [=] ${path.basename(outPath)} базовый (использован существующий флагман)`);
+        return;
+      }
+
+      // Удаляем предыдущий файл этого индекса, если он есть, чтобы не накапливать лишние варианты
+      if (generated[idx]?.path && fs.existsSync(generated[idx].path)) {
+        try {
+          fs.unlinkSync(generated[idx].path);
+        } catch (e) {
+          console.warn(`Не удалось удалить старый файл ${generated[idx].path}: ${e.message}`);
+        }
+      }
+      const perFileTime = formatLabelDate(new Date());
+      const outPath = path.join(variantDir, `${baseName}_${perFileTime}_${String(idx + 1).padStart(3, '0')}.jpg`);
+
+      let buf = baseBuffer;
+      if (textWatermark) {
+        const minOpacity =
+          palette.mode === 'bright' ? 0.12 : palette.mode === 'dark' ? 0.07 : 0.08;
+        const maxOpacity =
+          palette.mode === 'bright' ? 0.18 : palette.mode === 'dark' ? 0.14 : 0.12;
+        const textOpacity =
+          clampOpacity(
+            typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
+              ? forcedTextOpacity
+              : patternOpacity,
+            minOpacity,
+            maxOpacity
+          ) || patternOpacity;
+        const textSvg = buildTextPatternSvg(
+          meta.width,
+          meta.height,
+          textWatermark,
+          textOpacity,
+          palette.fill,
+          palette.stroke || palette.fill,
+          palette.mode
+        );
+        buf = await sharp(baseBuffer)
+          .composite([
+            {
+              input: textSvg,
+              top: 0,
+              left: 0,
+              blend: 'over',
+              opacity: textOpacity
+            }
+          ])
+          .jpeg({ quality: 92, mozjpeg: true, chromaSubsampling: '4:4:4' })
+          .toBuffer();
+      }
+      fs.writeFileSync(outPath, buf);
+      if (flagshipPath) {
+        try {
+          fs.writeFileSync(flagshipPath, buf);
+        } catch (e) {
+          console.warn(`Не удалось сохранить флагманский файл ${flagshipPath}: ${e.message}`);
+        }
+      }
+      const hash = await aHashFromBuffer(buf);
+      generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1 };
+      console.log(`  [=] ${path.basename(outPath)} базовый (без геометрии)`);
+      return;
+    }
+    // Размер итогового изображения: ресайз с учётом размера исходника (меньшие — более бережно)
+    const scaleMin = smallImage ? 0.96 : 0.92;
+    const scaleMax = smallImage ? 1.04 : 1.08;
+    const scale = randomBetween(scaleMin, scaleMax);
     const targetWidth = Math.max(32, Math.round(meta.width * scale));
     const targetHeight = Math.max(32, Math.round(meta.height * scale));
 
     // Рандомные трансформации
-    const rotateRange = 10 * attemptBoost;
+    const rotateBase = smallImage ? 6 : 8;
+    const rotateRange = rotateBase * attemptBoost;
     const rotateDeg = randomBetween(-rotateRange, rotateRange);
     const shouldFlop = Math.random() < 0.5; // горизонтальный флоп (отзеркаливание)
 
@@ -391,8 +523,8 @@ async function generateVariants({
     const scaleY = Math.abs(cos) + Math.abs(sin) / aspect; // boundingHeight / H
     // Чем сильнее поворот, тем больше зум, чтобы исключить пустые углы
     const overscale = Math.max(
-      1.7,
-      Math.max(scaleX, scaleY) * (aggressiveMode ? 1.5 : 1.35) + 0.3
+      smallImage ? 1.3 : 1.4,
+      Math.max(scaleX, scaleY) * (aggressiveMode ? 1.18 : 1.12) + (smallImage ? 0.12 : 0.18)
     );
     const oversizeWidth = Math.round(targetWidth * overscale);
     const oversizeHeight = Math.round(targetHeight * overscale);
@@ -422,6 +554,7 @@ async function generateVariants({
     const noiseBuf = createNoiseBuffer(targetWidth, targetHeight, noiseSpread);
     const dotsSvg = buildDotsSvg(targetWidth, targetHeight);
     const gradientSvg = buildGradientSvg(targetWidth, targetHeight);
+    const lightSpotsSvg = buildLightSpotsSvg(targetWidth, targetHeight);
 
     const composites = [
       {
@@ -438,6 +571,13 @@ async function generateVariants({
         opacity: Math.min(1, patternOpacity * 0.6)
       },
       {
+        input: lightSpotsSvg,
+        top: 0,
+        left: 0,
+        blend: 'soft-light',
+        opacity: Math.min(0.35, patternOpacity * 3)
+      },
+      {
         input: dotsSvg,
         top: 0,
         left: 0,
@@ -448,15 +588,27 @@ async function generateVariants({
 
     // Текстовый водяной знак, если задан
     if (textWatermark) {
+      const minOpacity =
+        palette.mode === 'bright' ? 0.1 : palette.mode === 'dark' ? 0.07 : 0.05; // mid ослабляем
+      const maxOpacity =
+        palette.mode === 'bright' ? 0.15 : palette.mode === 'dark' ? 0.14 : 0.09;
       const textOpacity =
         clampOpacity(
           typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
             ? forcedTextOpacity
             : patternOpacity,
-          0.03,
-          0.08
+          minOpacity,
+          maxOpacity
         ) || patternOpacity; // мягкая прозрачность
-      const textSvg = buildTextPatternSvg(targetWidth, targetHeight, textWatermark, textOpacity, palette.fill);
+      const textSvg = buildTextPatternSvg(
+        targetWidth,
+        targetHeight,
+        textWatermark,
+        textOpacity,
+        palette.fill,
+        palette.stroke || palette.fill,
+        palette.mode
+      );
       composites.push({
         input: textSvg,
         top: 0,
@@ -472,11 +624,6 @@ async function generateVariants({
       .toBuffer();
 
     // Добавляем к имени индекс и качество для прозрачности изменений
-    const baseName = (name || materialId) || path.basename(input, path.extname(input));
-    const label = runLabel || formatLabelDate();
-    const variantDir = materialId
-      ? path.join(DEFAULT_PHOTOS_ROOT, materialId, 'variants', label)
-      : path.join(out, baseName, 'variants', label);
     if (!fs.existsSync(variantDir)) {
       fs.mkdirSync(variantDir, { recursive: true });
     }
@@ -500,8 +647,9 @@ async function generateVariants({
     }
   }
 
-  // Первичная генерация
-  for (let i = 0; i < targetCount; i++) {
+  // Первичная генерация: первый кадр — без геометрии, с водяным знаком; остальные — с трансформациями
+  await makeVariant(0, true);
+  for (let i = 1; i < targetCount; i++) {
     await makeVariant(i);
   }
 
@@ -538,7 +686,9 @@ async function generateVariants({
 
   // Обновляем историю
   const newHistory = Array.from(new Set([...historyHashes, ...generated.map((g) => g.hash)]));
-  saveHistory(materialId, newHistory);
+  if (materialId) {
+    saveHistory(path.join(materialId, safeAddress), newHistory);
+  }
   console.log(`Готово: сохранено ${generated.length} файлов, обновлено хэшей истории: ${newHistory.length}`);
 }
 
@@ -557,37 +707,58 @@ async function main() {
       }
     })();
 
-    // Собираем список исходников
-    let sources = [];
-    if (opts.input) {
-      sources = [{ path: opts.input, materialId: '' }];
+  // Собираем список исходников
+  let sources = [];
+  if (opts.input) {
+    sources = [{ path: opts.input, materialId: '', name: '', address: '' }];
     } else {
       // Если в плане есть tasks — используем materialId/photoKey для путей
       if (planPath) {
-        try {
-          const raw = fs.readFileSync(planPath, 'utf8');
-          const plan = JSON.parse(raw);
-          const tasks = plan.tasks || [];
-          const photoAliases = aliases.photos || {};
-          const materialAliases = aliases.materials || {};
-          const folders = new Map(); // folder -> { materialId, name }
-          tasks.forEach((t) => {
-            const materialId = materialAliases[t.materialId] || t.materialId;
-            const photoKey = t.photoKey || materialId;
-            const resolved =
-              photoAliases[photoKey] ||
-              path.join(DEFAULT_PHOTOS_ROOT, materialId || photoKey, 'originals');
-            folders.set(resolved, { materialId, name: t.materialId || materialId });
+      try {
+        const raw = fs.readFileSync(planPath, 'utf8');
+        const plan = JSON.parse(raw);
+        const tasks = plan.tasks || [];
+        const photoAliases = aliases.photos || {};
+        const materialAliases = aliases.materials || {};
+        const folders = new Map(); // key (folder|address) -> { materialId, name, address, folder }
+        const addrCounts = new Map(); // key: materialId|address -> count
+        tasks.forEach((t) => {
+          const materialId = materialAliases[t.materialId] || t.materialId;
+          const photoKey = t.photoKey || materialId;
+          const slots = t.slots && t.slots.length ? t.slots : [{ locations: t.locations }];
+          slots.forEach((slot) => {
+            const locs = (slot.locations && slot.locations.length ? slot.locations : [{ address: 'default' }]) || [
+              { address: 'default' }
+            ];
+            locs.forEach((loc) => {
+              const addr = loc.address || 'default';
+              const safeAddress = sanitizeName(addr);
+              const countKey = `${materialId || ''}|${safeAddress}`;
+              const addCount = Number(loc.count) || Number(slot.count) || Number(t.count) || 0;
+              addrCounts.set(countKey, (addrCounts.get(countKey) || 0) + addCount);
+              const resolved =
+                photoAliases[photoKey] ||
+                path.join(DEFAULT_PHOTOS_ROOT, materialId || photoKey, 'originals');
+              const folderKey = `${resolved}|${safeAddress}`;
+              folders.set(folderKey, { materialId, name: t.materialId || materialId, address: safeAddress, folder: resolved });
+            });
           });
-          folders.forEach((info, folder) => {
-            if (fs.existsSync(folder)) {
-              const files = fs
-                .readdirSync(folder)
-                .filter((name) => name.match(/\.(jpg|jpeg|png|webp)$/i))
-                .map((name) => ({ path: path.join(folder, name), materialId: info.materialId, name: info.name }));
-              sources.push(...files);
-            }
-          });
+        });
+        folders.forEach((info) => {
+          if (fs.existsSync(info.folder)) {
+            const files = fs
+              .readdirSync(info.folder)
+              .filter((name) => name.match(/\.(jpg|jpeg|png|webp)$/i))
+              .map((name) => ({
+                path: path.join(info.folder, name),
+                materialId: info.materialId,
+                name: info.name,
+                address: info.address,
+                count: addrCounts.get(`${info.materialId || ''}|${info.address}`) || 0
+              }));
+            sources.push(...files);
+          }
+        });
         } catch (e) {
           console.warn(`Не удалось разобрать план ${planPath}: ${e.message}`);
         }
@@ -601,7 +772,7 @@ async function main() {
         sources = fs
           .readdirSync(DEFAULT_SOURCE_DIR)
           .filter((name) => name.match(/\.(jpg|jpeg|png|webp)$/i))
-          .map((name) => ({ path: path.join(DEFAULT_SOURCE_DIR, name), materialId: '', name: '' }));
+          .map((name) => ({ path: path.join(DEFAULT_SOURCE_DIR, name), materialId: '', name: '', address: '' }));
         if (!sources.length) {
           throw new Error(`В ${DEFAULT_SOURCE_DIR} нет исходных файлов (jpg/png)`);
         }
@@ -618,28 +789,26 @@ async function main() {
 
     // Если указан план — вычисляем суммарное количество объявлений и распределяем по исходникам
     let perFileCount = opts.count;
-    if (planPath) {
-      const totalFromPlan = sumAdsFromPlan(planPath);
-      if (totalFromPlan > 0 && sources.length > 0) {
-        perFileCount = Math.ceil(totalFromPlan / sources.length);
-        console.log(`По плану ${totalFromPlan} объявлений, источников ${sources.length}, на файл по ${perFileCount}`);
-      }
-    }
-
     // Генерим общий runLabel, если не задан, чтобы все файлы одного запуска были уникальны
     const runLabel = opts.runLabel || formatLabelDate();
 
+    const perSourceCounts = [];
     for (const src of sources) {
+      const perFile = planPath ? src.count || opts.count : perFileCount;
+      perSourceCounts.push(perFile);
       await generateVariants({
         ...opts,
         input: src.path,
         materialId: src.materialId,
         name: src.name,
+        address: src.address,
         runLabel,
-        count: perFileCount
+        count: perFile
       });
     }
-    console.log(`Готово: сгенерированы варианты для ${sources.length} исходников, по ${perFileCount} шт.`);
+    console.log(
+      `Готово: сгенерированы варианты для ${sources.length} исходников, по [${perSourceCounts.join(', ')}] шт.`
+    );
   } catch (err) {
     console.error(err.message || err);
     process.exit(1);

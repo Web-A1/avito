@@ -2,15 +2,19 @@
   "tasks": [
     {
       "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
+      "materialId": "karier_seyan_nemyt_pesok",
       "slots": [
         {
-          "DateBegin": "10.12.2025 06:04",
-          "count": 20,
+          "DateBegin": "26.12.2025 15:32",
+          "count": 10,
           "locations": [
             {
               "address": "Московская область, Троицк",
-              "count": 20
+              "count": 5
+            },
+            {
+              "address": "Московская область, Домодедово",
+              "count": 5
             }
           ]
         }
