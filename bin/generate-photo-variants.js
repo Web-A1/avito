@@ -160,43 +160,39 @@ function clampOpacity(value, min = 0.02, max = 0.15) {
 
 function pickTextPalette(stats, forcedColor) {
   if (forcedColor) {
-    const stroke =
-      forcedColor.trim().toLowerCase() === '#000' || forcedColor.trim().toLowerCase() === 'black'
-        ? 'rgba(255,255,255,0.25)'
-        : 'rgba(0,0,0,0.25)';
-    return { fill: forcedColor, stroke };
+    return { fill: forcedColor };
   }
   const channels = stats?.channels || [];
   const means = channels.slice(0, 3).map((c) => c?.mean || 128);
   const avg = means.reduce((sum, v) => sum + v, 0) / (means.length || 1);
   // Яркие фото — темный знак, тёмные — светлый, средние — светлый с мягкой обводкой
-  if (avg >= 190) return { fill: 'rgba(20,20,20,1)', stroke: 'rgba(255,255,255,0.25)' };
-  if (avg <= 80) return { fill: 'rgba(245,245,245,1)', stroke: 'rgba(0,0,0,0.28)' };
-  return { fill: 'rgba(240,240,240,1)', stroke: 'rgba(0,0,0,0.22)' };
+  if (avg >= 190) return { fill: 'rgba(30,30,30,1)' };
+  if (avg <= 80) return { fill: 'rgba(245,245,245,1)' };
+  return { fill: 'rgba(235,235,235,1)' };
 }
 
-function buildTextPatternSvg(width, height, text, opacity, fillColor, strokeColor) {
-  const fontSize = Math.round(width * randomBetween(0.04, 0.055)); // чуть меньше: 4-5.5% ширины
-  const wordWidthFactor = 5.5; // запас по длине слова
-  const cellSize = Math.round(fontSize * wordWidthFactor * randomBetween(1.0, 1.1));
-  const tileW = cellSize * 3.0; // шире плитка, чтобы не обрезать слова
-  const tileH = cellSize * 1.8; // выше плитка, чтобы не обрезать слова
-  const rotation = Math.random() < 0.5 ? randomBetween(-30, -20) : randomBetween(20, 30); // общий наклон для всех строк
-  const strokeWidth = Math.max(0.6, fontSize * 0.06);
-  const fillOpacity = Math.min(1, Math.max(0.25, opacity * 1.4)); // чуть усиливаем, но даём потолок
-  const strokeOpacity = Math.min(0.6, Math.max(0.12, opacity * 2.5)); // обводка сильнее, чтобы было видно на светлых фонах
-  const pad = fontSize * 0.9; // увеличенный отступ, чтобы избежать обрезки
-  // Шахматный порядок: слово в первой строке слева, во второй строке — справа
-  const x1 = pad + tileW * 0.25;
-  const y1 = pad + tileH * 0.4;
-  const x2 = pad + tileW * 0.75;
-  const y2 = tileH - pad;
+function buildTextPatternSvg(width, height, text, opacity, fillColor) {
+  const fontSize = Math.round(width * randomBetween(0.028, 0.038)); // компактнее, чтобы плотнее, но без резки
+  const wordWidthFactor = 4.8; // запас по длине слова
+  const cellSize = Math.round(fontSize * wordWidthFactor * randomBetween(0.94, 1.02));
+  const tileW = cellSize * 2.7; // плотнее горизонтальный шаг, но с запасом
+  const tileH = cellSize * 1.65; // плотный вертикальный шаг с запасом под наклон
+  const rotation = Math.random() < 0.5 ? randomBetween(-22, -18) : randomBetween(18, 22); // умеренный наклон паттерна
+  const fillOpacity = Math.min(0.6, Math.max(0.18, opacity * 1.25)); // мягкая прозрачность с небольшим бустом
+  const pad = fontSize * 1.1; // запас от краёв тайла, чтобы не обрезало буквы
+  const offsetX = randomBetween(-tileW * 0.5, tileW * 0.5);
+  const offsetY = randomBetween(-tileH * 0.5, tileH * 0.5);
+  // Шахматный порядок: слово в первой строке слева, во второй строке — справа, с равным вертикальным шагом
+  const x1 = pad + tileW * 0.3;
+  const y1 = pad + fontSize * 0.95; // baseline с запасом по верхней кромке
+  const x2 = pad + tileW * 0.7;
+  const y2 = y1 + tileH / 2; // половина тайла, чтобы дистанция между строками была одинаковой
   return Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <defs>
-        <pattern id="tp" width="${tileW}" height="${tileH}" patternUnits="userSpaceOnUse" patternTransform="rotate(${rotation})">
-          <text x="${x1}" y="${y1}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="600">${text}</text>
-          <text x="${x2}" y="${y2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="600">${text}</text>
+        <pattern id="tp" width="${tileW}" height="${tileH}" x="${offsetX}" y="${offsetY}" patternUnits="userSpaceOnUse" patternTransform="rotate(${rotation})">
+          <text x="${x1}" y="${y1}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" font-weight="600">${text}</text>
+          <text x="${x2}" y="${y2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" font-weight="600">${text}</text>
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#tp)" />
@@ -234,24 +230,32 @@ async function generateVariants({
 
   for (let i = 0; i < count; i++) {
     // Размер итогового изображения: небольшой рандомный ресайз 95-105% от исходника
-    const scale = randomBetween(0.95, 1.05);
+    const scale = randomBetween(0.9, 1.1);
     const targetWidth = Math.max(32, Math.round(meta.width * scale));
     const targetHeight = Math.max(32, Math.round(meta.height * scale));
 
     // Рандомные трансформации
-    const rotateDeg = randomBetween(-2, 2);
+    const rotateDeg = randomBetween(-6, 6);
     const shouldFlop = Math.random() < 0.5; // горизонтальный флоп (отзеркаливание)
 
-    // Лёгкая цветокоррекция/гамма
-    const brightness = randomBetween(0.97, 1.03);
+    // Очень лёгкая цветокоррекция, чтобы не уводить цвет песка
+    const brightness = randomBetween(0.98, 1.02);
     const saturation = randomBetween(0.97, 1.03);
-    const hue = randomInt(-3, 3);
+    const hue = randomInt(-2, 2);
+    const contrast = randomBetween(0.98, 1.04);
 
     // JPEG качество
     const quality = randomInt(88, 96);
 
     // Ресайз + поворот + последующий кроп до нужного размера (слегка увеличиваем, чтобы убрать полосы)
-    const overscale = 1.15; // больше запас при повороте, чтобы исключить черные углы
+    const angleRad = (rotateDeg * Math.PI) / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+    const aspect = targetHeight / targetWidth;
+    // Масштаб, чтобы повернутый прямоугольник покрывал целевые размеры (нормализовано по ширине/высоте)
+    const scaleX = Math.abs(cos) + aspect * Math.abs(sin); // boundingWidth / W
+    const scaleY = Math.abs(cos) + Math.abs(sin) / aspect; // boundingHeight / H
+    const overscale = Math.max(1.3, Math.max(scaleX, scaleY) * 1.15 + 0.08); // увеличенный запас
     const oversizeWidth = Math.round(targetWidth * overscale);
     const oversizeHeight = Math.round(targetHeight * overscale);
 
@@ -267,17 +271,15 @@ async function generateVariants({
 
     if (shouldFlop) img = img.flop();
 
-    img = img.modulate({ brightness, saturation, hue });
+    img = img.modulate({ brightness, saturation, hue }).linear(contrast, 128 * (1 - contrast));
 
     // Комбинированный паттерн: шум + точки + легкий градиент
+    const basePatternOpacity =
+      typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
+        ? forcedPatternOpacity
+        : 0.05;
     const patternOpacity =
-      clampOpacity(
-        typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
-          ? forcedPatternOpacity
-          : 0.05,
-        0.02,
-        0.12
-      ) || 0.05; // умеренно по умолчанию
+      clampOpacity(basePatternOpacity * randomBetween(0.7, 1.4), 0.02, 0.12) || basePatternOpacity; // умеренно по умолчанию с разбросом
     const noiseSpread = Math.min(25, Math.max(6, Math.round(patternOpacity * 60)));
     const noiseBuf = createNoiseBuffer(targetWidth, targetHeight, noiseSpread);
     const dotsSvg = buildDotsSvg(targetWidth, targetHeight);
@@ -313,10 +315,10 @@ async function generateVariants({
           typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
             ? forcedTextOpacity
             : patternOpacity,
-          0.02,
-          0.12
-        ) || patternOpacity; // по умолчанию равно patternOpacity
-      const textSvg = buildTextPatternSvg(targetWidth, targetHeight, textWatermark, textOpacity, palette.fill, palette.stroke);
+          0.03,
+          0.08
+        ) || patternOpacity; // мягкая прозрачность
+      const textSvg = buildTextPatternSvg(targetWidth, targetHeight, textWatermark, textOpacity, palette.fill);
       composites.push({
         input: textSvg,
         top: 0,
