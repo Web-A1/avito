@@ -29,7 +29,8 @@ function parseArgs() {
     textWatermark: '',
     textOpacity: '',
     textColor: '',
-    overshoot: 0.2,
+    ignoreHistory: false,
+    overshoot: 0,
     plan: '',
     runLabel: ''
   };
@@ -49,6 +50,8 @@ function parseArgs() {
       opts.textOpacity = parseFloat(args[++i]);
     } else if (arg === '--text-color' && args[i + 1]) {
       opts.textColor = args[++i];
+    } else if (arg === '--ignore-history') {
+      opts.ignoreHistory = true;
     } else if (arg === '--overshoot' && args[i + 1]) {
       opts.overshoot = parseFloat(args[++i]);
     } else if (arg === '--plan' && args[i + 1]) {
@@ -179,10 +182,11 @@ function hamming(a, b) {
   return dist;
 }
 
-function pruneByHash(variants, targetCount, origHash, minDistance = 12) {
+function pruneByHash(variants, targetCount, origHash, warnDistance = 14) {
   if (!variants.length) return variants;
   let current = [...variants];
-  while (current.length > targetCount || true) {
+  // Удаляем самые близкие, пока не выйдем на нужное количество
+  while (current.length > targetCount) {
     let minDist = Infinity;
     let victimIdx = -1;
     for (let i = 0; i < current.length; i++) {
@@ -192,14 +196,12 @@ function pruneByHash(variants, targetCount, origHash, minDistance = 12) {
         const d = hamming(current[i].hash, current[j].hash);
         if (d < nearest) nearest = d;
       }
-      // Чем ближе к другим и к оригиналу — тем выше шанс удалить
-      const score = nearest;
-      if (score < minDist) {
-        minDist = score;
+      if (nearest < minDist) {
+        minDist = nearest;
         victimIdx = i;
       }
     }
-    if (victimIdx >= 0 && (minDist < minDistance || current.length > targetCount)) {
+    if (victimIdx >= 0) {
       const [victim] = current.splice(victimIdx, 1);
       try {
         fs.unlinkSync(victim.path);
@@ -210,7 +212,62 @@ function pruneByHash(variants, targetCount, origHash, minDistance = 12) {
       break;
     }
   }
+  // Проверяем минимальную дистанцию после отбора, чтобы понимать запас уникальности
+  if (current.length) {
+    let minDist = Infinity;
+    for (let i = 0; i < current.length; i++) {
+      for (let j = i + 1; j < current.length; j++) {
+        const d = hamming(current[i].hash, current[j].hash);
+        if (d < minDist) minDist = d;
+      }
+    }
+    if (minDist < warnDistance) {
+      console.warn(`Внимание: минимальная дистанция между вариантами всего ${minDist}, можно поднять overshoot или диапазон трансформаций.`);
+    }
+  }
   return current;
+}
+
+function findCloseIndices(items, historyHashes, threshold) {
+  const result = [];
+  for (let i = 0; i < items.length; i++) {
+    let minDist = Infinity;
+    // История
+    historyHashes.forEach((h) => {
+      const d = hamming(items[i].hash, h);
+      if (d < minDist) minDist = d;
+    });
+    // Другие элементы
+    for (let j = 0; j < items.length; j++) {
+      if (i === j) continue;
+      const d = hamming(items[i].hash, items[j].hash);
+      if (d < minDist) minDist = d;
+    }
+    if (minDist < threshold) result.push({ index: i, minDist });
+  }
+  return result.sort((a, b) => a.minDist - b.minDist);
+}
+
+function loadHistory(materialId) {
+  if (!materialId) return [];
+  const historyPath = path.join(DEFAULT_PHOTOS_ROOT, materialId, 'hashes.json');
+  if (!fs.existsSync(historyPath)) return [];
+  try {
+    const json = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+    return Array.isArray(json.hashes) ? json.hashes : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(materialId, hashes) {
+  if (!materialId) return;
+  const historyPath = path.join(DEFAULT_PHOTOS_ROOT, materialId, 'hashes.json');
+  try {
+    fs.writeFileSync(historyPath, JSON.stringify({ hashes }, null, 2), 'utf8');
+  } catch (e) {
+    console.warn(`Не удалось сохранить хэши истории для ${materialId}: ${e.message}`);
+  }
 }
 
 function pickTextPalette(stats, forcedColor) {
@@ -259,11 +316,11 @@ async function generateVariants({
   input,
   out,
   count,
-  overshoot,
   patternOpacity: forcedPatternOpacity,
   textWatermark,
   textOpacity: forcedTextOpacity,
   textColor,
+  ignoreHistory,
   materialId,
   runLabel,
   name
@@ -283,29 +340,41 @@ async function generateVariants({
   }
   const stats = await sharp(baseBuffer).stats();
   const palette = pickTextPalette(stats, textColor);
+  const historyHashes = ignoreHistory ? [] : loadHistory(materialId);
 
   const targetCount = count;
-  const totalCount = Math.max(
-    targetCount + 2, // минимальный запас
-    Math.round(targetCount * (1 + Math.max(0, overshoot || 0.2)))
-  );
-  const generated = [];
+  const maxRetriesPerIndex = 5;
+  const maxGlobalPasses = 10;
+  const HASH_THRESHOLD = 12;
+  const generated = new Array(targetCount);
 
-  for (let i = 0; i < totalCount; i++) {
+  console.log(
+    `Генерируем ${targetCount} шт (materialId=${materialId || 'N/A'}, history=${historyHashes.length} хэшей)`
+  );
+
+  async function makeVariant(idx) {
+    const attempt = generated[idx]?.attempts || 0;
+    const attemptBoost = 1 + attempt * 0.35; // при регенерациях увеличиваем разброс
     // Размер итогового изображения: небольшой рандомный ресайз 95-105% от исходника
     const scale = randomBetween(0.9, 1.1);
     const targetWidth = Math.max(32, Math.round(meta.width * scale));
     const targetHeight = Math.max(32, Math.round(meta.height * scale));
 
     // Рандомные трансформации
-    const rotateDeg = randomBetween(-6, 6);
+    const rotateRange = 6 * attemptBoost;
+    const rotateDeg = randomBetween(-rotateRange, rotateRange);
     const shouldFlop = Math.random() < 0.5; // горизонтальный флоп (отзеркаливание)
 
-    // Очень лёгкая цветокоррекция, чтобы не уводить цвет песка
-    const brightness = randomBetween(0.98, 1.02);
-    const saturation = randomBetween(0.97, 1.03);
-    const hue = randomInt(-2, 2);
-    const contrast = randomBetween(0.98, 1.04);
+    // Очень лёгкая цветокоррекция, чтобы не уводить цвет песка (чуть шире при повторных попытках)
+    const clampRange = (min, max) => [Math.max(min, 0.85), Math.min(max, 1.15)];
+    const [bMin, bMax] = clampRange(0.98 / attemptBoost, 1.02 * attemptBoost);
+    const [sMin, sMax] = clampRange(0.97 / attemptBoost, 1.03 * attemptBoost);
+    const [cMin, cMax] = clampRange(0.98 / attemptBoost, 1.05 * attemptBoost);
+    const hueRange = Math.max(2, Math.round(2 * attemptBoost));
+    const brightness = randomBetween(bMin, bMax);
+    const saturation = randomBetween(sMin, sMax);
+    const hue = randomInt(-hueRange, hueRange);
+    const contrast = randomBetween(cMin, cMax);
 
     // JPEG качество
     const quality = randomInt(88, 96);
@@ -405,17 +474,56 @@ async function generateVariants({
     if (!fs.existsSync(variantDir)) {
       fs.mkdirSync(variantDir, { recursive: true });
     }
-    const outPath = path.join(variantDir, `${baseName}_${label}_${String(i + 1).padStart(3, '0')}.jpg`);
+    const outPath = path.join(variantDir, `${baseName}_${label}_${String(idx + 1).padStart(3, '0')}.jpg`);
     fs.writeFileSync(outPath, img);
     const hash = await aHashFromBuffer(img);
-    generated.push({ path: outPath, hash });
+    generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1 };
+    if (attempt === 0) {
+      console.log(`  [+] ${path.basename(outPath)} готов (attempt ${attempt + 1})`);
+    } else {
+      console.log(`  [~] ${path.basename(outPath)} пересоздан (attempt ${attempt + 1})`);
+    }
   }
 
-  // Обрезаем самые похожие, если сгенерировали больше
-  if (generated.length > targetCount) {
-    const origHash = await aHashFromBuffer(baseBuffer);
-    pruneByHash(generated, targetCount, origHash);
+  // Первичная генерация
+  for (let i = 0; i < targetCount; i++) {
+    await makeVariant(i);
   }
+
+  // Итеративно пересоздаём слишком похожие
+  for (let pass = 0; pass < maxGlobalPasses; pass++) {
+    const closeOnes = findCloseIndices(generated, historyHashes, HASH_THRESHOLD);
+    const minDist = closeOnes.length ? closeOnes[0].minDist : null;
+    if (minDist !== null) {
+      console.log(
+        `Пасс ${pass + 1}: всего ${closeOnes.length} кандидатов, минимальная дистанция ${minDist} (порог ${HASH_THRESHOLD})`
+      );
+    }
+    const indicesToRegen = closeOnes
+      .filter((c) => (generated[c.index]?.attempts || 0) < maxRetriesPerIndex)
+      .map((c) => c.index);
+    if (!indicesToRegen.length) break;
+    const unique = Array.from(new Set(indicesToRegen));
+    for (const idx of unique) {
+      await makeVariant(idx);
+    }
+  }
+
+  // Финальная проверка и предупреждение
+  const remainingClose = findCloseIndices(generated, historyHashes, HASH_THRESHOLD);
+  if (remainingClose.length) {
+    const minDist = remainingClose[0].minDist;
+    console.warn(
+      `Внимание: минимальная дистанция между вариантами/историей ${minDist} (< ${HASH_THRESHOLD}), увеличьте разброс трансформаций при необходимости.`
+    );
+  } else {
+    console.log(`Все варианты удовлетворяют порогу ${HASH_THRESHOLD} по aHash.`);
+  }
+
+  // Обновляем историю
+  const newHistory = Array.from(new Set([...historyHashes, ...generated.map((g) => g.hash)]));
+  saveHistory(materialId, newHistory);
+  console.log(`Готово: сохранено ${generated.length} файлов, обновлено хэшей истории: ${newHistory.length}`);
 }
 
 async function main() {
