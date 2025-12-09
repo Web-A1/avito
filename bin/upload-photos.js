@@ -17,9 +17,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import https from 'https';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Подхватываем .env рядом с корнем проекта, чтобы не требовать ручной export
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 const DEFAULT_PLAN_PATH = path.resolve(__dirname, '..', 'data', 'plan.json');
 const DEFAULT_VARIANTS_ROOT = path.resolve(__dirname, '..', 'data', 'photos');
@@ -53,7 +57,13 @@ function formatDateLabel(str) {
   if (str) return str;
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const dd = pad(now.getDate());
+  const MM = pad(now.getMonth() + 1);
+  const yyyy = now.getFullYear();
+  const hh = pad(now.getHours());
+  const mm = pad(now.getMinutes());
+  const ss = pad(now.getSeconds());
+  return `${dd}.${MM}.${yyyy} ${hh}-${mm}-${ss}`;
 }
 
 function readPlan(planPath) {
@@ -86,10 +96,20 @@ function listVariantFiles(materialId) {
     console.warn(`Нет папки с вариантами: ${dir}`);
     return [];
   }
-  return fs
-    .readdirSync(dir)
-    .filter((n) => n.match(/\.(jpg|jpeg|png)$/i))
-    .map((n) => ({ path: path.join(dir, n), name: n }));
+  const files = [];
+  const walk = (folder) => {
+    const entries = fs.readdirSync(folder, { withFileTypes: true });
+    for (const e of entries) {
+      const full = path.join(folder, e.name);
+      if (e.isDirectory()) {
+        walk(full);
+      } else if (e.isFile() && e.name.match(/\.(jpg|jpeg|png)$/i)) {
+        files.push({ path: full, name: e.name });
+      }
+    }
+  };
+  walk(dir);
+  return files;
 }
 
 async function httpRequest(url, options = {}, body) {
@@ -147,7 +167,11 @@ async function processMaterial(token, materialId, diskRoot, dateLabel) {
   const files = listVariantFiles(materialId);
   if (!files.length) return [];
 
-  const remoteBase = `disk:/${diskRoot}/${dateLabel}/${materialId}`;
+  const rootPath = `disk:/${diskRoot}`;
+  const datePath = `${rootPath}/${dateLabel}`;
+  const remoteBase = `${datePath}/${materialId}`;
+  await ensureFolder(token, rootPath);
+  await ensureFolder(token, datePath);
   await ensureFolder(token, remoteBase);
 
   const results = [];
@@ -157,6 +181,14 @@ async function processMaterial(token, materialId, diskRoot, dateLabel) {
     const publicUrl = await publishFile(token, remotePath);
     results.push({ materialId, file: file.name, public_url: publicUrl });
     console.log(`Загружено и опубликовано: ${materialId}/${file.name}`);
+  }
+  // После успешной загрузки можно удалить локальные варианты
+  const localVariantsDir = path.join(DEFAULT_VARIANTS_ROOT, materialId, 'variants');
+  try {
+    fs.rmSync(localVariantsDir, { recursive: true, force: true });
+    console.log(`Локальные варианты удалены: ${localVariantsDir}`);
+  } catch (e) {
+    console.warn(`Не удалось удалить локальные варианты ${localVariantsDir}: ${e.message}`);
   }
   return results;
 }

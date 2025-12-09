@@ -1,79 +1,17 @@
 {
-  "//hint_materials": [
-    "sand // песок",
-    "gravel // щебень, гравий (добавить стратегию)",
-    "other // для будущих материалов"
-  ],
-  "//hint_sand_ids": [
-    "karier_neseyan_nemyt_pesok // Песок карьерный немытый",
-    "karier_seyan_nemyt_pesok // Песок карьерный сеяный немытый",
-    "karier_seyan_myt_pesok_1.5 // Песок карьерный сеяный мытый (мелкий, модуль 1.0–1.5)",
-    "karier_seyan_myt_pesok_2 // Песок карьерный сеяный мытый (средний, модуль 1.5–2.0)",
-    "karier_seyan_myt_pesok_2.5 // Песок карьерный сеяный мытый (крупный, модуль 2.0–2.5)"
-  ],
-  "//hint_addresses": [
-    "troi → Московская область, Троицк",
-    "domo → Московская область, Домодедово",
-    "podl → Московская область, Подольск",
-    "cheh → Московская область, Чехов",
-    "bron → Московская область, Бронницы"
-  ],
-  "//hint_slots": [
-    "slot.count — общее количество объявлений в этом слоте",
-    "locations[].count — фиксированное число объявлений для адреса",
-    "locations[].percent — процент от slot.count для адреса (целая часть); остаток добавляется к последней локации с count/percent"
-  ],
-  "//hint_titles": [
-    "Песок",
-    "Песок карьерный",
-    "Купить песок",
-    "Песок с доставкой",
-    "Песок доставка"
-  ],
-  "aliases": {
-    "materials": {
-      "karier_neseyan_nemyt_pesok": "karier_neseyan_nemyt_pesok",
-      "karier_seyan_nemyt_pesok": "karier_seyan_nemyt_pesok",
-      "karier_seyan_myt_pesok_1.5": "karier_seyan_myt_pesok_1.5",
-      "karier_seyan_myt_pesok_2": "karier_seyan_myt_pesok_2",
-      "karier_seyan_myt_pesok_2.5": "karier_seyan_myt_pesok_2.5",
-      "s0.0": "karier_neseyan_nemyt_pesok",
-      "s0.1": "karier_seyan_nemyt_pesok",
-      "s1.5": "karier_seyan_myt_pesok_1.5",
-      "s2": "karier_seyan_myt_pesok_2",
-      "s2.5": "karier_seyan_myt_pesok_2.5"
-    },
-    "addresses": {
-      "troi": "Московская область, Троицк",
-      "domo": "Московская область, Домодедово",
-      "podl": "Московская область, Подольск",
-      "cheh": "Московская область, Чехов",
-      "bron": "Московская область, Бронницы"
-    }
-  },
   "tasks": [
     {
       "material": "sand",
       "materialId": "karier_neseyan_nemyt_pesok",
-      "intervalMinMinutes": 1,
-      "intervalMaxMinutes": 6,
       "slots": [
         {
-          "DateBegin": "05.12.2024 09:00",
-          "count": 50,
+          "DateBegin": "10.12.2025 06:04",
+          "count": 3,
           "locations": [
-            { "address": "troi", "count": 30 },
-            { "address": "domo", "percent": 40 },
-            { "address": "podl", "percent": 10 }
-          ]
-        },
-        {
-          "DateBegin": "05.12.2024 20:00",
-          "count": 20,
-          "locations": [
-            { "address": "troi", "percent": 50 },
-            { "address": "domo", "percent": 30 },
-            { "address": "podl", "percent": 20 }
+            {
+              "address": "Московская область, Троицк",
+              "count": 3
+            }
           ]
         }
       ]

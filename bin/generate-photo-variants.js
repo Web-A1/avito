@@ -14,8 +14,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DEFAULT_SOURCE_DIR = path.resolve(__dirname, '..', 'data', 'photos', 'source');
-const DEFAULT_VARIANTS_DIR = path.resolve(__dirname, '..', 'data', 'photos', 'variants');
+const DEFAULT_PHOTOS_ROOT = path.resolve(__dirname, '..', 'data', 'photos');
+const DEFAULT_SOURCE_DIR = path.join(DEFAULT_PHOTOS_ROOT, 'source');
+const DEFAULT_VARIANTS_DIR = path.join(DEFAULT_PHOTOS_ROOT, 'variants');
 const DEFAULT_PLAN_PATH = path.resolve(__dirname, '..', 'data', 'plan.json');
 
 function parseArgs() {
@@ -27,7 +28,9 @@ function parseArgs() {
     patternOpacity: '',
     textWatermark: '',
     textOpacity: '',
-    plan: ''
+    textColor: '',
+    plan: '',
+    runLabel: ''
   };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -43,8 +46,12 @@ function parseArgs() {
       opts.textWatermark = args[++i];
     } else if (arg === '--text-opacity' && args[i + 1]) {
       opts.textOpacity = parseFloat(args[++i]);
+    } else if (arg === '--text-color' && args[i + 1]) {
+      opts.textColor = args[++i];
     } else if (arg === '--plan' && args[i + 1]) {
       opts.plan = args[++i];
+    } else if (arg === '--run-label' && args[i + 1]) {
+      opts.runLabel = args[++i];
     }
   }
   return opts;
@@ -78,6 +85,17 @@ function randomBetween(min, max) {
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function formatLabelDate(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const dd = pad(d.getDate());
+  const MM = pad(d.getMonth() + 1);
+  const yyyy = d.getFullYear();
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  const ss = pad(d.getSeconds());
+  return `${dd}.${MM}.${yyyy} ${hh}-${mm}-${ss}`;
 }
 
 async function loadImageBuffer(filePath) {
@@ -135,14 +153,38 @@ function buildGradientSvg(width, height) {
   );
 }
 
-function buildTextPatternSvg(width, height, text, opacity) {
+function clampOpacity(value, min = 0.02, max = 0.15) {
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.min(max, Math.max(min, value));
+}
+
+function pickTextPalette(stats, forcedColor) {
+  if (forcedColor) {
+    const stroke =
+      forcedColor.trim().toLowerCase() === '#000' || forcedColor.trim().toLowerCase() === 'black'
+        ? 'rgba(255,255,255,0.25)'
+        : 'rgba(0,0,0,0.25)';
+    return { fill: forcedColor, stroke };
+  }
+  const channels = stats?.channels || [];
+  const means = channels.slice(0, 3).map((c) => c?.mean || 128);
+  const avg = means.reduce((sum, v) => sum + v, 0) / (means.length || 1);
+  // Яркие фото — темный знак, тёмные — светлый, средние — светлый с мягкой обводкой
+  if (avg >= 190) return { fill: 'rgba(20,20,20,1)', stroke: 'rgba(255,255,255,0.25)' };
+  if (avg <= 80) return { fill: 'rgba(245,245,245,1)', stroke: 'rgba(0,0,0,0.28)' };
+  return { fill: 'rgba(240,240,240,1)', stroke: 'rgba(0,0,0,0.22)' };
+}
+
+function buildTextPatternSvg(width, height, text, opacity, fillColor, strokeColor) {
   const fontSize = Math.round(width * randomBetween(0.04, 0.055)); // чуть меньше: 4-5.5% ширины
   const wordWidthFactor = 5.5; // запас по длине слова
   const cellSize = Math.round(fontSize * wordWidthFactor * randomBetween(1.0, 1.1));
   const tileW = cellSize * 3.0; // шире плитка, чтобы не обрезать слова
   const tileH = cellSize * 1.8; // выше плитка, чтобы не обрезать слова
   const rotation = Math.random() < 0.5 ? randomBetween(-30, -20) : randomBetween(20, 30); // общий наклон для всех строк
-  const color = `rgba(255,255,255,${opacity})`;
+  const strokeWidth = Math.max(0.6, fontSize * 0.06);
+  const fillOpacity = Math.min(1, Math.max(0.25, opacity * 1.4)); // чуть усиливаем, но даём потолок
+  const strokeOpacity = Math.min(0.6, Math.max(0.12, opacity * 2.5)); // обводка сильнее, чтобы было видно на светлых фонах
   const pad = fontSize * 0.9; // увеличенный отступ, чтобы избежать обрезки
   // Шахматный порядок: слово в первой строке слева, во второй строке — справа
   const x1 = pad + tileW * 0.25;
@@ -153,8 +195,8 @@ function buildTextPatternSvg(width, height, text, opacity) {
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <defs>
         <pattern id="tp" width="${tileW}" height="${tileH}" patternUnits="userSpaceOnUse" patternTransform="rotate(${rotation})">
-          <text x="${x1}" y="${y1}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${color}" font-weight="600">${text}</text>
-          <text x="${x2}" y="${y2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${color}" font-weight="600">${text}</text>
+          <text x="${x1}" y="${y1}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="600">${text}</text>
+          <text x="${x2}" y="${y2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="600">${text}</text>
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#tp)" />
@@ -168,12 +210,17 @@ async function generateVariants({
   count,
   patternOpacity: forcedPatternOpacity,
   textWatermark,
-  textOpacity: forcedTextOpacity
+  textOpacity: forcedTextOpacity,
+  textColor,
+  materialId,
+  runLabel,
+  name
 }) {
   if (!input) throw new Error('Укажите --input путь к исходному фото');
 
-  if (!fs.existsSync(out)) {
-    fs.mkdirSync(out, { recursive: true });
+  const baseDir = materialId ? path.join(DEFAULT_PHOTOS_ROOT, materialId) : out;
+  if (!fs.existsSync(baseDir)) {
+    fs.mkdirSync(baseDir, { recursive: true });
   }
 
   const baseBuffer = await loadImageBuffer(input);
@@ -182,6 +229,8 @@ async function generateVariants({
   if (!meta.width || !meta.height) {
     throw new Error('Не удалось прочитать размер исходного изображения');
   }
+  const stats = await sharp(baseBuffer).stats();
+  const palette = pickTextPalette(stats, textColor);
 
   for (let i = 0; i < count; i++) {
     // Размер итогового изображения: небольшой рандомный ресайз 95-105% от исходника
@@ -222,9 +271,13 @@ async function generateVariants({
 
     // Комбинированный паттерн: шум + точки + легкий градиент
     const patternOpacity =
-      typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
-        ? forcedPatternOpacity
-        : 0.05; // умеренно по умолчанию
+      clampOpacity(
+        typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
+          ? forcedPatternOpacity
+          : 0.05,
+        0.02,
+        0.12
+      ) || 0.05; // умеренно по умолчанию
     const noiseSpread = Math.min(25, Math.max(6, Math.round(patternOpacity * 60)));
     const noiseBuf = createNoiseBuffer(targetWidth, targetHeight, noiseSpread);
     const dotsSvg = buildDotsSvg(targetWidth, targetHeight);
@@ -256,16 +309,20 @@ async function generateVariants({
     // Текстовый водяной знак, если задан
     if (textWatermark) {
       const textOpacity =
-        typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
-          ? forcedTextOpacity
-          : patternOpacity; // по умолчанию совпадает с patternOpacity
-      const textSvg = buildTextPatternSvg(targetWidth, targetHeight, textWatermark, textOpacity);
+        clampOpacity(
+          typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
+            ? forcedTextOpacity
+            : patternOpacity,
+          0.02,
+          0.12
+        ) || patternOpacity; // по умолчанию равно patternOpacity
+      const textSvg = buildTextPatternSvg(targetWidth, targetHeight, textWatermark, textOpacity, palette.fill, palette.stroke);
       composites.push({
         input: textSvg,
         top: 0,
         left: 0,
         blend: 'over',
-        opacity: textOpacity
+        opacity: textOpacity // управляем прозрачностью здесь
       });
     }
 
@@ -275,12 +332,15 @@ async function generateVariants({
       .toBuffer();
 
     // Добавляем к имени индекс и качество для прозрачности изменений
-    const baseName = path.basename(input, path.extname(input));
-    const variantDir = path.join(out, baseName);
+    const baseName = (name || materialId) || path.basename(input, path.extname(input));
+    const label = runLabel || formatLabelDate();
+    const variantDir = materialId
+      ? path.join(DEFAULT_PHOTOS_ROOT, materialId, 'variants', label)
+      : path.join(out, baseName, 'variants', label);
     if (!fs.existsSync(variantDir)) {
       fs.mkdirSync(variantDir, { recursive: true });
     }
-    const outPath = path.join(variantDir, `${baseName}_var${String(i + 1).padStart(3, '0')}_q${quality}.jpg`);
+    const outPath = path.join(variantDir, `${baseName}_${label}_${String(i + 1).padStart(3, '0')}.jpg`);
     fs.writeFileSync(outPath, img);
   }
 }
@@ -303,7 +363,7 @@ async function main() {
     // Собираем список исходников
     let sources = [];
     if (opts.input) {
-      sources = [opts.input];
+      sources = [{ path: opts.input, materialId: '' }];
     } else {
       // Если в плане есть tasks — используем materialId/photoKey для путей
       if (planPath) {
@@ -313,21 +373,21 @@ async function main() {
           const tasks = plan.tasks || [];
           const photoAliases = aliases.photos || {};
           const materialAliases = aliases.materials || {};
-          const folders = new Set();
+          const folders = new Map(); // folder -> { materialId, name }
           tasks.forEach((t) => {
             const materialId = materialAliases[t.materialId] || t.materialId;
             const photoKey = t.photoKey || materialId;
             const resolved =
               photoAliases[photoKey] ||
-              path.resolve(DEFAULT_SOURCE_DIR, materialId || photoKey, 'originals');
-            folders.add(resolved);
+              path.join(DEFAULT_PHOTOS_ROOT, materialId || photoKey, 'originals');
+            folders.set(resolved, { materialId, name: t.materialId || materialId });
           });
-          folders.forEach((folder) => {
+          folders.forEach((info, folder) => {
             if (fs.existsSync(folder)) {
               const files = fs
                 .readdirSync(folder)
                 .filter((name) => name.match(/\.(jpg|jpeg|png)$/i))
-                .map((name) => path.join(folder, name));
+                .map((name) => ({ path: path.join(folder, name), materialId: info.materialId, name: info.name }));
               sources.push(...files);
             }
           });
@@ -344,7 +404,7 @@ async function main() {
         sources = fs
           .readdirSync(DEFAULT_SOURCE_DIR)
           .filter((name) => name.match(/\.(jpg|jpeg|png)$/i))
-          .map((name) => path.join(DEFAULT_SOURCE_DIR, name));
+          .map((name) => ({ path: path.join(DEFAULT_SOURCE_DIR, name), materialId: '', name: '' }));
         if (!sources.length) {
           throw new Error(`В ${DEFAULT_SOURCE_DIR} нет исходных файлов (jpg/png)`);
         }
@@ -369,10 +429,16 @@ async function main() {
       }
     }
 
-    for (const srcPath of sources) {
+    // Генерим общий runLabel, если не задан, чтобы все файлы одного запуска были уникальны
+    const runLabel = opts.runLabel || formatLabelDate();
+
+    for (const src of sources) {
       await generateVariants({
         ...opts,
-        input: srcPath,
+        input: src.path,
+        materialId: src.materialId,
+        name: src.name,
+        runLabel,
         count: perFileCount
       });
     }
