@@ -29,6 +29,7 @@ function parseArgs() {
     textWatermark: '',
     textOpacity: '',
     textColor: '',
+    overshoot: 0.2,
     plan: '',
     runLabel: ''
   };
@@ -48,6 +49,8 @@ function parseArgs() {
       opts.textOpacity = parseFloat(args[++i]);
     } else if (arg === '--text-color' && args[i + 1]) {
       opts.textColor = args[++i];
+    } else if (arg === '--overshoot' && args[i + 1]) {
+      opts.overshoot = parseFloat(args[++i]);
     } else if (arg === '--plan' && args[i + 1]) {
       opts.plan = args[++i];
     } else if (arg === '--run-label' && args[i + 1]) {
@@ -158,6 +161,58 @@ function clampOpacity(value, min = 0.02, max = 0.15) {
   return Math.min(max, Math.max(min, value));
 }
 
+async function aHashFromBuffer(buffer, size = 16) {
+  const { data } = await sharp(buffer)
+    .greyscale()
+    .resize(size, size, { fit: 'fill' })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const avg = data.reduce((sum, v) => sum + v, 0) / data.length;
+  let bits = '';
+  for (const v of data) bits += v >= avg ? '1' : '0';
+  return bits;
+}
+
+function hamming(a, b) {
+  let dist = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) dist++;
+  return dist;
+}
+
+function pruneByHash(variants, targetCount, origHash, minDistance = 12) {
+  if (!variants.length) return variants;
+  let current = [...variants];
+  while (current.length > targetCount || true) {
+    let minDist = Infinity;
+    let victimIdx = -1;
+    for (let i = 0; i < current.length; i++) {
+      let nearest = origHash ? hamming(current[i].hash, origHash) : Infinity;
+      for (let j = 0; j < current.length; j++) {
+        if (i === j) continue;
+        const d = hamming(current[i].hash, current[j].hash);
+        if (d < nearest) nearest = d;
+      }
+      // Чем ближе к другим и к оригиналу — тем выше шанс удалить
+      const score = nearest;
+      if (score < minDist) {
+        minDist = score;
+        victimIdx = i;
+      }
+    }
+    if (victimIdx >= 0 && (minDist < minDistance || current.length > targetCount)) {
+      const [victim] = current.splice(victimIdx, 1);
+      try {
+        fs.unlinkSync(victim.path);
+      } catch (e) {
+        console.warn(`Не удалось удалить файл ${victim.path}: ${e.message}`);
+      }
+    } else {
+      break;
+    }
+  }
+  return current;
+}
+
 function pickTextPalette(stats, forcedColor) {
   if (forcedColor) {
     return { fill: forcedColor };
@@ -204,6 +259,7 @@ async function generateVariants({
   input,
   out,
   count,
+  overshoot,
   patternOpacity: forcedPatternOpacity,
   textWatermark,
   textOpacity: forcedTextOpacity,
@@ -228,7 +284,14 @@ async function generateVariants({
   const stats = await sharp(baseBuffer).stats();
   const palette = pickTextPalette(stats, textColor);
 
-  for (let i = 0; i < count; i++) {
+  const targetCount = count;
+  const totalCount = Math.max(
+    targetCount + 2, // минимальный запас
+    Math.round(targetCount * (1 + Math.max(0, overshoot || 0.2)))
+  );
+  const generated = [];
+
+  for (let i = 0; i < totalCount; i++) {
     // Размер итогового изображения: небольшой рандомный ресайз 95-105% от исходника
     const scale = randomBetween(0.9, 1.1);
     const targetWidth = Math.max(32, Math.round(meta.width * scale));
@@ -344,6 +407,14 @@ async function generateVariants({
     }
     const outPath = path.join(variantDir, `${baseName}_${label}_${String(i + 1).padStart(3, '0')}.jpg`);
     fs.writeFileSync(outPath, img);
+    const hash = await aHashFromBuffer(img);
+    generated.push({ path: outPath, hash });
+  }
+
+  // Обрезаем самые похожие, если сгенерировали больше
+  if (generated.length > targetCount) {
+    const origHash = await aHashFromBuffer(baseBuffer);
+    pruneByHash(generated, targetCount, origHash);
   }
 }
 
