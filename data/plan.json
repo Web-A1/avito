@@ -6,11 +6,11 @@
       "slots": [
         {
           "DateBegin": "10.12.2025 06:04",
-          "count": 50,
+          "count": 20,
           "locations": [
             {
               "address": "Московская область, Троицк",
-              "count": 50
+              "count": 20
             }
           ]
         }

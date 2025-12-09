@@ -345,8 +345,9 @@ async function generateVariants({
   const targetCount = count;
   const maxRetriesPerIndex = 5;
   const maxGlobalPasses = 10;
-  const HASH_THRESHOLD = 12;
+  const HASH_THRESHOLD = 8;
   const generated = new Array(targetCount);
+  let aggressiveMode = false;
 
   console.log(
     `Генерируем ${targetCount} шт (materialId=${materialId || 'N/A'}, history=${historyHashes.length} хэшей)`
@@ -354,23 +355,24 @@ async function generateVariants({
 
   async function makeVariant(idx) {
     const attempt = generated[idx]?.attempts || 0;
-    const attemptBoost = 1 + attempt * 0.35; // при регенерациях увеличиваем разброс
+    const baseBoost = aggressiveMode ? 1.8 : 1;
+    const attemptBoost = baseBoost + attempt * 0.45; // при регенерациях увеличиваем разброс
     // Размер итогового изображения: небольшой рандомный ресайз 95-105% от исходника
-    const scale = randomBetween(0.9, 1.1);
+    const scale = randomBetween(0.88, 1.12);
     const targetWidth = Math.max(32, Math.round(meta.width * scale));
     const targetHeight = Math.max(32, Math.round(meta.height * scale));
 
     // Рандомные трансформации
-    const rotateRange = 6 * attemptBoost;
+    const rotateRange = 10 * attemptBoost;
     const rotateDeg = randomBetween(-rotateRange, rotateRange);
     const shouldFlop = Math.random() < 0.5; // горизонтальный флоп (отзеркаливание)
 
     // Очень лёгкая цветокоррекция, чтобы не уводить цвет песка (чуть шире при повторных попытках)
     const clampRange = (min, max) => [Math.max(min, 0.85), Math.min(max, 1.15)];
-    const [bMin, bMax] = clampRange(0.98 / attemptBoost, 1.02 * attemptBoost);
-    const [sMin, sMax] = clampRange(0.97 / attemptBoost, 1.03 * attemptBoost);
-    const [cMin, cMax] = clampRange(0.98 / attemptBoost, 1.05 * attemptBoost);
-    const hueRange = Math.max(2, Math.round(2 * attemptBoost));
+    const [bMin, bMax] = clampRange(0.95 / attemptBoost, 1.05 * attemptBoost);
+    const [sMin, sMax] = clampRange(0.94 / attemptBoost, 1.06 * attemptBoost);
+    const [cMin, cMax] = clampRange(0.95 / attemptBoost, 1.08 * attemptBoost);
+    const hueRange = Math.max(3, Math.round(3 * attemptBoost));
     const brightness = randomBetween(bMin, bMax);
     const saturation = randomBetween(sMin, sMax);
     const hue = randomInt(-hueRange, hueRange);
@@ -387,7 +389,11 @@ async function generateVariants({
     // Масштаб, чтобы повернутый прямоугольник покрывал целевые размеры (нормализовано по ширине/высоте)
     const scaleX = Math.abs(cos) + aspect * Math.abs(sin); // boundingWidth / W
     const scaleY = Math.abs(cos) + Math.abs(sin) / aspect; // boundingHeight / H
-    const overscale = Math.max(1.3, Math.max(scaleX, scaleY) * 1.15 + 0.08); // увеличенный запас
+    // Чем сильнее поворот, тем больше зум, чтобы исключить пустые углы
+    const overscale = Math.max(
+      1.7,
+      Math.max(scaleX, scaleY) * (aggressiveMode ? 1.5 : 1.35) + 0.3
+    );
     const oversizeWidth = Math.round(targetWidth * overscale);
     const oversizeHeight = Math.round(targetHeight * overscale);
 
@@ -474,7 +480,16 @@ async function generateVariants({
     if (!fs.existsSync(variantDir)) {
       fs.mkdirSync(variantDir, { recursive: true });
     }
-    const outPath = path.join(variantDir, `${baseName}_${label}_${String(idx + 1).padStart(3, '0')}.jpg`);
+    // Удаляем предыдущий файл этого индекса, если он есть, чтобы не накапливать лишние варианты
+    if (generated[idx]?.path && fs.existsSync(generated[idx].path)) {
+      try {
+        fs.unlinkSync(generated[idx].path);
+      } catch (e) {
+        console.warn(`Не удалось удалить старый файл ${generated[idx].path}: ${e.message}`);
+      }
+    }
+    const perFileTime = formatLabelDate(new Date());
+    const outPath = path.join(variantDir, `${baseName}_${perFileTime}_${String(idx + 1).padStart(3, '0')}.jpg`);
     fs.writeFileSync(outPath, img);
     const hash = await aHashFromBuffer(img);
     generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1 };
@@ -498,6 +513,7 @@ async function generateVariants({
       console.log(
         `Пасс ${pass + 1}: всего ${closeOnes.length} кандидатов, минимальная дистанция ${minDist} (порог ${HASH_THRESHOLD})`
       );
+      if (minDist === 0) aggressiveMode = true; // включаем усиление разброса при точных дублях
     }
     const indicesToRegen = closeOnes
       .filter((c) => (generated[c.index]?.attempts || 0) < maxRetriesPerIndex)
@@ -567,7 +583,7 @@ async function main() {
             if (fs.existsSync(folder)) {
               const files = fs
                 .readdirSync(folder)
-                .filter((name) => name.match(/\.(jpg|jpeg|png)$/i))
+                .filter((name) => name.match(/\.(jpg|jpeg|png|webp)$/i))
                 .map((name) => ({ path: path.join(folder, name), materialId: info.materialId, name: info.name }));
               sources.push(...files);
             }
@@ -584,7 +600,7 @@ async function main() {
         }
         sources = fs
           .readdirSync(DEFAULT_SOURCE_DIR)
-          .filter((name) => name.match(/\.(jpg|jpeg|png)$/i))
+          .filter((name) => name.match(/\.(jpg|jpeg|png|webp)$/i))
           .map((name) => ({ path: path.join(DEFAULT_SOURCE_DIR, name), materialId: '', name: '' }));
         if (!sources.length) {
           throw new Error(`В ${DEFAULT_SOURCE_DIR} нет исходных файлов (jpg/png)`);
