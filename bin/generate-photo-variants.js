@@ -34,7 +34,7 @@ import {
 } from './lib/photo-variants/patterns.js';
 import { aHashFromBuffer, hamming, pruneByHash, findCloseIndices } from './lib/photo-variants/hashing.js';
 import { loadHistory, saveHistory } from './lib/photo-variants/history.js';
-import { hasEmptyEdges } from './lib/photo-variants/geometry.js';
+import { applyTransformations } from './lib/photo-variants/transformations.js';
 import { collectSourcesFromPlan } from './lib/photo-variants/plan.js';
 
 function parseArgs() {
@@ -219,109 +219,26 @@ async function generateVariants({
     let outPath = '';
 
     {
-      const scaleMin = smallImage ? 0.98 : 0.96;
-      const scaleMax = smallImage ? 1.02 : 1.04;
-      const scale = randomBetween(scaleMin, scaleMax);
-      const targetWidth = Math.max(32, Math.round(meta.width * scale));
-      const targetHeight = Math.max(32, Math.round(meta.height * scale));
-
-      const rotateRange = (smallImage ? 7 : 9) * angleBoost;
-      const rotateDeg = randomBetween(-rotateRange, rotateRange);
-      const shouldFlop = Math.random() < 0.5;
-
-      const clampRange = (min, max) => [Math.max(min, 0.9), Math.min(max, 1.1)];
-      const [bMin, bMax] = clampRange(0.97, 1.05);
-      const [sMin, sMax] = clampRange(0.96, 1.05);
-      const [cMin, cMax] = clampRange(0.97, 1.06);
-      const hueRange = 5;
-      const brightness = randomBetween(bMin, bMax);
-      const saturation = randomBetween(sMin, sMax);
-      const hue = randomInt(-hueRange, hueRange);
-      const contrast = randomBetween(cMin, cMax);
-
-      const quality = 90;
-
-      const angleRad = (rotateDeg * Math.PI) / 180;
-      const baseOverscale = smallImage ? 1.02 : 1.04;
-      const overscale = Math.min(1.12, baseOverscale * zoomBoost);
-
-      const workW = Math.max(32, Math.round(meta.width * scale * overscale));
-      const workH = Math.max(32, Math.round(meta.height * scale * overscale));
-
-      let baseTransformed = sharp(baseBuffer)
-        .ensureAlpha()
-        .resize({ width: workW, height: workH, fit: 'cover', position: 'center' });
-
-      if (shouldFlop) baseTransformed = baseTransformed.flop();
-
-      // Поворот на прозрачном фоне
-      baseTransformed = baseTransformed.rotate(rotateDeg, { background: { r: 0, g: 0, b: 0, alpha: 0 } });
-
-      // ✨ КЛЮЧЕВОЕ РЕШЕНИЕ: flatten сразу после rotate
-      // Заменяет полупрозрачные пиксели (от интерполяции) на непрозрачные
-      // Используем средний цвет изображения для естественного вида
-      const avgColor = stats.channels.slice(0, 3).map(ch => Math.round(ch.mean));
-      baseTransformed = baseTransformed.flatten({ 
-        background: { r: avgColor[0], g: avgColor[1], b: avgColor[2] } 
+      // Применяем все геометрические и цветовые трансформации
+      const transformResult = await applyTransformations(baseBuffer, {
+        width: meta.width,
+        height: meta.height,
+        stats,
+        smallImage,
+        zoomBoost,
+        angleBoost
       });
 
-      // КРИТИЧНО: Выполняем pipeline чтобы получить РЕАЛЬНЫЕ размеры после rotate
-      // metadata() на pipeline возвращает исходные размеры, что приводит к серым углам
-      const rotatedBuffer = await baseTransformed.png().toBuffer();
-      baseTransformed = sharp(rotatedBuffer);
+      let baseTransformed = transformResult.pipeline;
+      const compWidth = transformResult.finalWidth;
+      const compHeight = transformResult.finalHeight;
+      const { angle, scale, flipped } = transformResult.metadata;
 
-      // Теперь получаем ПРАВИЛЬНЫЕ размеры после rotate+flatten
-      const rotatedMeta = await baseTransformed.metadata();
-      const rotW = rotatedMeta.width || workW;
-      const rotH = rotatedMeta.height || workH;
-
-      // Вычисляем максимальный вписанный прямоугольник по формуле
-      let angleAbs = Math.abs(rotateDeg) % 180;
-      if (angleAbs > 90) angleAbs = 180 - angleAbs;
-      const theta = (angleAbs * Math.PI) / 180;
-      const s = Math.sin(theta);
-      const c = Math.cos(theta);
-      const sin2 = Math.sin(2 * theta);
-      const cos2 = c * c - s * s;
-      
-      let cropW, cropH;
-      if (workW >= workH) {
-        if (workH <= workW * sin2) {
-          cropW = workH / (2 * s);
-          cropH = workH / (2 * c);
-        } else {
-          cropW = (workW * c - workH * s) / cos2;
-          cropH = (workH * c - workW * s) / cos2;
-        }
-      } else {
-        if (workW <= workH * sin2) {
-          cropW = workW / (2 * c);
-          cropH = workW / (2 * s);
-        } else {
-          cropW = (workW * c - workH * s) / cos2;
-          cropH = (workH * c - workW * s) / cos2;
-        }
-      }
-      
-      // Минимальный safety т.к. flatten убрал все полупрозрачные пиксели
-      // 0.995 = отступ всего 0.5% для страховки от ошибок округления
-      const safety = 0.995;
-      cropW = Math.max(1, Math.floor(cropW * safety));
-      cropH = Math.max(1, Math.floor(cropH * safety));
-
-      // Центрируем crop внутри повёрнутого холста
-      const left = Math.max(0, Math.floor((rotW - cropW) / 2));
-      const top = Math.max(0, Math.floor((rotH - cropH) / 2));
-      baseTransformed = baseTransformed.extract({ left, top, width: cropW, height: cropH });
-
-      // Цветокоррекция после обрезки
-      baseTransformed = baseTransformed.modulate({ brightness, saturation, hue }).linear(contrast, 128 * (1 - contrast));
-
-      const compWidth = cropW;
-      const compHeight = cropH;
       console.log(
-        `    [geom] crop ${compWidth}x${compHeight} (rotated ${rotW}x${rotH}), angle=${rotateDeg.toFixed(2)}°, safety=${safety}`
+        `    [geom] crop ${compWidth}x${compHeight}, angle=${angle.toFixed(2)}°, scale=${scale.toFixed(3)}, flipped=${flipped}`
       );
+
+      const quality = 90;
 
       const basePatternOpacity =
         typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
