@@ -15,4 +15,6 @@ export const EDGE_ALPHA_THRESHOLD = 252;
 export const EDGE_STRIP_FRACTION = 0.1;
 
 // Порог уникализации по aHash
-export const HASH_THRESHOLD = 8;
+// Увеличено с 8 до 10 для более строгих требований к уникальности
+// С расширенными диапазонами трансформаций можем требовать больше различий
+export const HASH_THRESHOLD = 10;

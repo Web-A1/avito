@@ -50,7 +50,8 @@ function parseArgs() {
     ignoreHistory: false,
     overshoot: 0,
     plan: '',
-    runLabel: ''
+    runLabel: '',
+    parallel: 0 // 0 = auto (6-10 в зависимости от размера изображения)
   };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -76,6 +77,8 @@ function parseArgs() {
       opts.plan = args[++i];
     } else if (arg === '--run-label' && args[i + 1]) {
       opts.runLabel = args[++i];
+    } else if (arg === '--parallel' && args[i + 1]) {
+      opts.parallel = parseInt(args[++i], 10);
     }
   }
   return opts;
@@ -94,7 +97,8 @@ async function generateVariants({
   materialId,
   address,
   runLabel,
-  name
+  name,
+  parallel
 }) {
   if (!input) throw new Error('Укажите --input путь к исходному фото');
 
@@ -129,6 +133,22 @@ async function generateVariants({
       historyHashes.length
     } хэшей)${smallImage ? ' [бережный режим для малого исходника]' : ''}`
   );
+
+  async function makeVariantSafe(idx, baseOnly = false, maxErrorRetries = 2) {
+    for (let errorAttempt = 0; errorAttempt < maxErrorRetries; errorAttempt++) {
+      try {
+        return await makeVariant(idx, baseOnly);
+      } catch (err) {
+        console.error(`❌ Ошибка генерации варианта ${idx} (попытка ${errorAttempt + 1}/${maxErrorRetries}): ${err.message}`);
+        if (errorAttempt === maxErrorRetries - 1) {
+          console.error(`⚠️  Не удалось создать вариант ${idx} после ${maxErrorRetries} попыток, пропускаем`);
+          return null; // Возвращаем null вместо падения всего батча
+        }
+        // Небольшая задержка перед повтором
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  }
 
   async function makeVariant(idx, baseOnly = false) {
     const attempt = generated[idx]?.attempts || 0;
@@ -226,7 +246,8 @@ async function generateVariants({
         stats,
         smallImage,
         zoomBoost,
-        angleBoost
+        angleBoost,
+        attemptBoost // передаём для агрессивного режима при ретраях
       });
 
       let baseTransformed = transformResult.pipeline;
@@ -238,45 +259,71 @@ async function generateVariants({
         `    [geom] crop ${compWidth}x${compHeight}, angle=${angle.toFixed(2)}°, scale=${scale.toFixed(3)}, flipped=${flipped}`
       );
 
-      const quality = 90;
+      // Вариативное JPEG качество и chroma subsampling для усиления уникальности
+      const quality = Math.round(randomBetween(85, 95));
+      const chromaSub = Math.random() < 0.5 ? '4:2:0' : '4:4:4';
 
       const basePatternOpacity =
         typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
           ? forcedPatternOpacity
           : 0.05;
 
+      // Простое кеширование по точным размерам (без округления)
+      // Это безопасно и всё равно даёт хороший hit rate при одинаковых трансформациях
       const cacheKey = `${compWidth}x${compHeight}`;
       const patternCache = makeVariant.patternCache || (makeVariant.patternCache = new Map());
       let cached = patternCache.get(cacheKey);
+      
+      let finalNoisePng, finalDotsPng, finalGradPng, finalLightPng, patternOpacity;
+      
       if (!cached) {
-        const patternOpacity =
-          clampOpacity(basePatternOpacity * randomBetween(0.7, 1.4), 0.02, 0.12) || basePatternOpacity;
+        // Генерируем паттерны для точных размеров
+        patternOpacity = clampOpacity(basePatternOpacity * randomBetween(0.7, 1.4), 0.02, 0.12) || basePatternOpacity;
         const noiseSpread = Math.min(25, Math.max(6, Math.round(patternOpacity * 60)));
         const noiseBuf = createNoiseBuffer(compWidth, compHeight, noiseSpread);
-        const noisePng = await sharp(noiseBuf, {
+        finalNoisePng = await sharp(noiseBuf, {
           raw: { width: compWidth, height: compHeight, channels: 4 }
         })
           .png()
           .toBuffer();
-        const dotsPng = await sharp(buildDotsSvg(compWidth, compHeight)).png().toBuffer();
-        const gradPng = await sharp(buildGradientSvg(compWidth, compHeight)).png().toBuffer();
-        const lightPng = await sharp(buildLightSpotsSvg(compWidth, compHeight)).png().toBuffer();
-        cached = {
+        finalDotsPng = await sharp(buildDotsSvg(compWidth, compHeight)).png().toBuffer();
+        finalGradPng = await sharp(buildGradientSvg(compWidth, compHeight)).png().toBuffer();
+        finalLightPng = await sharp(buildLightSpotsSvg(compWidth, compHeight)).png().toBuffer();
+        
+        // Кешируем для будущего переиспользования
+        patternCache.set(cacheKey, {
           patternOpacity,
-          noisePng,
-          dotsPng,
-          gradPng,
-          lightPng
-        };
-        patternCache.set(cacheKey, cached);
+          noisePng: finalNoisePng,
+          dotsPng: finalDotsPng,
+          gradPng: finalGradPng,
+          lightPng: finalLightPng
+        });
+      } else {
+        // Используем из кеша
+        patternOpacity = cached.patternOpacity;
+        finalNoisePng = cached.noisePng;
+        finalDotsPng = cached.dotsPng;
+        finalGradPng = cached.gradPng;
+        finalLightPng = cached.lightPng;
       }
 
-      const layerList = [
-        { name: 'noise', buffer: cached.noisePng, blend: 'soft-light', opacity: cached.patternOpacity },
-        { name: 'gradient', buffer: cached.gradPng, blend: 'soft-light', opacity: Math.min(1, cached.patternOpacity * 0.6) },
-        { name: 'lightSpots', buffer: cached.lightPng, blend: 'soft-light', opacity: Math.min(0.35, cached.patternOpacity * 3) },
-        { name: 'dots', buffer: cached.dotsPng, blend: 'over', opacity: Math.min(1, cached.patternOpacity * 0.6) }
+      // Вариативные комбинации паттернов - случайно выбираем 2-4 паттерна
+      // Это усложняет детекцию повторяющихся комбинаций
+      const allLayers = [
+        { name: 'noise', buffer: finalNoisePng, blend: 'soft-light', opacity: patternOpacity },
+        { name: 'gradient', buffer: finalGradPng, blend: 'soft-light', opacity: Math.min(1, patternOpacity * 0.6) },
+        { name: 'lightSpots', buffer: finalLightPng, blend: 'soft-light', opacity: Math.min(0.35, patternOpacity * 3) },
+        { name: 'dots', buffer: finalDotsPng, blend: 'over', opacity: Math.min(1, patternOpacity * 0.6) }
       ];
+
+      // Случайно выбираем 2-4 паттерна
+      const numLayers = randomInt(2, 4);
+      const layerList = [];
+      const indices = new Set();
+      while (indices.size < numLayers) {
+        indices.add(randomInt(0, allLayers.length - 1));
+      }
+      indices.forEach(i => layerList.push(allLayers[i]));
 
       if (textWatermark) {
         const minOpacity = palette.mode === 'bright' ? 0.1 : palette.mode === 'dark' ? 0.07 : 0.05;
@@ -285,22 +332,18 @@ async function generateVariants({
           clampOpacity(
             typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
               ? forcedTextOpacity
-              : cached.patternOpacity,
+              : patternOpacity,
             minOpacity,
             maxOpacity
-          ) || cached.patternOpacity;
+          ) || patternOpacity;
 
-        const textCache = makeVariant.textCache || (makeVariant.textCache = new Map());
-        const textKey = `${cacheKey}|${textWatermark}|${textOpacity.toFixed(3)}|${palette.fill}|${palette.stroke || ''}|${palette.mode}`;
-        let textPng = textCache.get(textKey);
-        if (!textPng) {
-          textPng = await sharp(
-            buildTextPatternSvg(compWidth, compHeight, textWatermark, textOpacity, palette.fill, palette.stroke || palette.fill, palette.mode)
-          )
-            .png()
-            .toBuffer();
-          textCache.set(textKey, textPng);
-        }
+        // Для текста всегда используем точные размеры (он легковесный)
+        const textPng = await sharp(
+          buildTextPatternSvg(compWidth, compHeight, textWatermark, textOpacity, palette.fill, palette.stroke || palette.fill, palette.mode)
+        )
+          .png()
+          .toBuffer();
+        
         layerList.push({
           name: 'text',
           buffer: textPng,
@@ -317,12 +360,11 @@ async function generateVariants({
         opacity: layer.opacity
       }));
 
-      const baseBuf = await baseTransformed.png().toBuffer();
-      const withLayers = await sharp(baseBuf).composite(composites).toBuffer();
-
-      // Прозрачность уже убрана flatten'ом после rotate, можем сразу в JPEG
-      imgBuffer = await sharp(withLayers)
-        .jpeg({ quality, mozjpeg: true })
+      // Оптимизация: объединяем pipeline в одну операцию
+      // Вместо 3 конверсий (png → composite → jpeg) делаем всё за один проход
+      imgBuffer = await baseTransformed
+        .composite(composites)
+        .jpeg({ quality, mozjpeg: true, chromaSubsampling: chromaSub })
         .toBuffer();
 
       if (generated[idx]?.path && fs.existsSync(generated[idx].path)) {
@@ -358,11 +400,30 @@ async function generateVariants({
     }
   }
 
-  await makeVariant(0, true);
-  for (let i = 1; i < targetCount; i++) {
-    await makeVariant(i);
+  // Первый вариант всегда базовый (без трансформаций)
+  await makeVariantSafe(0, true);
+  
+  // Параллельная генерация остальных вариантов батчами
+  // Размер батча: настраиваемый через --parallel или авто (зависит от размера изображения)
+  const BATCH_SIZE = parallel > 0 ? parallel : (smallImage ? 10 : 6);
+  
+  for (let i = 1; i < targetCount; i += BATCH_SIZE) {
+    const batch = [];
+    const batchEnd = Math.min(i + BATCH_SIZE, targetCount);
+    
+    for (let j = i; j < batchEnd; j++) {
+      batch.push(makeVariantSafe(j));
+    }
+    
+    await Promise.all(batch);
+    
+    // Прогресс для больших батчей
+    if (targetCount > 10) {
+      console.log(`  → Прогресс: ${batchEnd}/${targetCount} (${Math.round(batchEnd/targetCount*100)}%)`);
+    }
   }
 
+  // Валидация и пересоздание дубликатов (параллельно батчами)
   for (let pass = 0; pass < maxGlobalPasses; pass++) {
     const closeOnes = findCloseIndices(generated, historyHashes, HASH_THRESHOLD);
     const minDist = closeOnes.length ? closeOnes[0].minDist : null;
@@ -376,13 +437,20 @@ async function generateVariants({
       .filter((c) => (generated[c.index]?.attempts || 0) < maxRetriesPerIndex)
       .map((c) => c.index);
     if (!indicesToRegen.length) break;
+    
     const unique = Array.from(new Set(indicesToRegen));
-    for (const idx of unique) {
-      await makeVariant(idx);
+    
+    // Параллельное пересоздание батчами (меньший batch для ретраев)
+    const RETRY_BATCH_SIZE = smallImage ? 6 : 4;
+    for (let i = 0; i < unique.length; i += RETRY_BATCH_SIZE) {
+      const retryBatch = unique.slice(i, i + RETRY_BATCH_SIZE).map(idx => makeVariantSafe(idx));
+      await Promise.all(retryBatch);
     }
   }
 
-  const remainingClose = findCloseIndices(generated, historyHashes, HASH_THRESHOLD);
+  // Проверяем только успешно созданные варианты
+  const successfulForValidation = generated.filter(g => g && g.hash);
+  const remainingClose = findCloseIndices(successfulForValidation, historyHashes, HASH_THRESHOLD);
   if (remainingClose.length) {
     const minDist = remainingClose[0].minDist;
     console.warn(
@@ -392,11 +460,14 @@ async function generateVariants({
     console.log(`Все варианты удовлетворяют порогу ${HASH_THRESHOLD} по aHash.`);
   }
 
-  const newHistory = Array.from(new Set([...historyHashes, ...generated.map((g) => g.hash)]));
+  // Фильтруем null значения (неудачные варианты) перед сохранением истории
+  const successfulGenerated = generated.filter(g => g && g.hash);
+  const newHistory = Array.from(new Set([...historyHashes, ...successfulGenerated.map((g) => g.hash)]));
   if (materialId) {
     saveHistory(path.join(materialId, safeAddress), newHistory);
   }
-  console.log(`Готово: сохранено ${generated.length} файлов, обновлено хэшей истории: ${newHistory.length}`);
+  const failedCount = generated.length - successfulGenerated.length;
+  console.log(`Готово: сохранено ${successfulGenerated.length} файлов${failedCount > 0 ? ` (${failedCount} пропущено из-за ошибок)` : ''}, обновлено хэшей истории: ${newHistory.length}`);
 }
 
 async function main() {

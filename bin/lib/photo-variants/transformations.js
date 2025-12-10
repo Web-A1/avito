@@ -13,13 +13,14 @@ import { randomBetween, randomInt } from './utils.js';
  * @param {boolean} options.smallImage - Флаг малого изображения
  * @param {number} options.zoomBoost - Коэффициент усиления зума
  * @param {number} options.angleBoost - Коэффициент усиления угла поворота
+ * @param {number} options.attemptBoost - Коэффициент усиления для агрессивного режима (по умолчанию 1)
  * @returns {Promise<Object>} Результат с Sharp pipeline и метаданными
  */
 export async function applyTransformations(buffer, options) {
-  const { width, height, stats, smallImage, zoomBoost, angleBoost } = options;
+  const { width, height, stats, smallImage, zoomBoost, angleBoost, attemptBoost = 1 } = options;
 
-  // 1. Расчёт всех параметров трансформации
-  const params = calculateTransformParams(width, height, smallImage, zoomBoost, angleBoost);
+  // 1. Расчёт всех параметров трансформации (с учётом attemptBoost для агрессивного режима)
+  const params = calculateTransformParams(width, height, smallImage, zoomBoost * attemptBoost, angleBoost * attemptBoost);
 
   // 2. Применение геометрических трансформаций
   const { pipeline, finalWidth, finalHeight } = await applyGeometricTransform(
@@ -29,7 +30,10 @@ export async function applyTransformations(buffer, options) {
   );
 
   // 3. Цветокоррекция
-  const finalPipeline = applyColorCorrection(pipeline, params);
+  let finalPipeline = applyColorCorrection(pipeline, params);
+  
+  // 4. Channel shift (опционально, для дополнительной уникализации)
+  finalPipeline = applyChannelShift(finalPipeline);
 
   return {
     pipeline: finalPipeline,
@@ -51,24 +55,24 @@ export async function applyTransformations(buffer, options) {
  * Расчёт всех параметров трансформации
  */
 function calculateTransformParams(width, height, smallImage, zoomBoost, angleBoost) {
-  // Масштабирование
-  const scaleMin = smallImage ? 0.98 : 0.96;
-  const scaleMax = smallImage ? 1.02 : 1.04;
+  // Масштабирование - расширенные диапазоны для лучшей уникализации
+  const scaleMin = smallImage ? 0.95 : 0.92;
+  const scaleMax = smallImage ? 1.05 : 1.08;
   const scale = randomBetween(scaleMin, scaleMax);
   const targetWidth = Math.max(32, Math.round(width * scale));
   const targetHeight = Math.max(32, Math.round(height * scale));
 
-  // Поворот и отражение
-  const rotateRange = (smallImage ? 7 : 9) * angleBoost;
+  // Поворот и отражение - увеличенный диапазон для обхода модерации
+  const rotateRange = (smallImage ? 10 : 15) * angleBoost;
   const rotateDeg = randomBetween(-rotateRange, rotateRange);
   const shouldFlop = Math.random() < 0.5;
 
-  // Цветокоррекция
+  // Цветокоррекция - более агрессивные вариации
   const clampRange = (min, max) => [Math.max(min, 0.9), Math.min(max, 1.1)];
-  const [bMin, bMax] = clampRange(0.97, 1.05);
-  const [sMin, sMax] = clampRange(0.96, 1.05);
+  const [bMin, bMax] = clampRange(0.94, 1.08);
+  const [sMin, sMax] = clampRange(0.93, 1.08);
   const [cMin, cMax] = clampRange(0.97, 1.06);
-  const hueRange = 5;
+  const hueRange = 12;
   const brightness = randomBetween(bMin, bMax);
   const saturation = randomBetween(sMin, sMax);
   const hue = randomInt(-hueRange, hueRange);
@@ -135,18 +139,30 @@ async function applyGeometricTransform(buffer, params, stats) {
     params.workW,
     params.workH,
     params.rotateDeg,
-    0.995 // минимальный safety т.к. flatten убрал все полупрозрачные пиксели
+    0.96 // Увеличен отступ с 0.995 до 0.96 (4% вместо 0.5%)
   );
 
-  // Центрируем crop внутри повёрнутого холста
-  const left = Math.max(0, Math.floor((rotW - cropW) / 2));
-  const top = Math.max(0, Math.floor((rotH - cropH) / 2));
-  baseTransformed = baseTransformed.extract({ left, top, width: cropW, height: cropH });
+  // Дополнительно уменьшаем на 5% для гарантии безопасности при сдвиге
+  // Это даёт итого ~9% отступ от краёв, что полностью исключает серые углы
+  const safeCropW = Math.floor(cropW * 0.95);
+  const safeCropH = Math.floor(cropH * 0.95);
+
+  // Применяем asymmetric crop со случайным сдвигом от центра (±4%)
+  // Благодаря увеличенному safety можем использовать агрессивный сдвиг
+  // Это усложняет детекцию дубликатов модерацией Avito
+  const maxShift = 0.04;
+  const shiftX = randomBetween(-maxShift, maxShift);
+  const shiftY = randomBetween(-maxShift, maxShift);
+  const centerX = (rotW - safeCropW) / 2;
+  const centerY = (rotH - safeCropH) / 2;
+  const left = Math.max(0, Math.min(rotW - safeCropW, Math.floor(centerX + shiftX * safeCropW)));
+  const top = Math.max(0, Math.min(rotH - safeCropH, Math.floor(centerY + shiftY * safeCropH)));
+  baseTransformed = baseTransformed.extract({ left, top, width: safeCropW, height: safeCropH });
 
   return {
     pipeline: baseTransformed,
-    finalWidth: cropW,
-    finalHeight: cropH
+    finalWidth: safeCropW,
+    finalHeight: safeCropH
   };
 }
 
@@ -157,6 +173,30 @@ function applyColorCorrection(sharpInstance, params) {
   return sharpInstance
     .modulate({ brightness: params.brightness, saturation: params.saturation, hue: params.hue })
     .linear(params.contrast, 128 * (1 - params.contrast));
+}
+
+/**
+ * Применяет микросдвиг RGB каналов для дополнительной уникализации
+ * Это создает едва заметные искажения, которые усложняют детекцию дубликатов
+ */
+function applyChannelShift(sharpInstance) {
+  // Применяем shift только в 50% случаев
+  if (Math.random() < 0.5) return sharpInstance;
+  
+  // Микросдвиг каналов (±1-2 пикселя через recomb matrix)
+  const shiftR = randomInt(-2, 2);
+  const shiftG = randomInt(-2, 2);
+  const shiftB = randomInt(-2, 2);
+  
+  // Если все нули - не применяем
+  if (shiftR === 0 && shiftG === 0 && shiftB === 0) return sharpInstance;
+  
+  // Применяем через recombination matrix (очень тонкая настройка)
+  return sharpInstance.recomb([
+    [1 + shiftR * 0.001, shiftG * 0.001, shiftB * 0.001],
+    [shiftR * 0.001, 1 + shiftG * 0.001, shiftB * 0.001],
+    [shiftR * 0.001, shiftG * 0.001, 1 + shiftB * 0.001]
+  ]);
 }
 
 /**
@@ -196,8 +236,8 @@ export function calculateInscribedRectangle(width, height, angleDegrees, safety 
     }
   }
 
-  // Минимальный safety т.к. flatten убрал все полупрозрачные пиксели
-  // 0.995 = отступ всего 0.5% для страховки от ошибок округления
+  // Применяем safety коэффициент для отступа от краёв
+  // 0.96 = отступ 4% для предотвращения серых углов при asymmetric crop
   cropW = Math.max(1, Math.floor(cropW * safety));
   cropH = Math.max(1, Math.floor(cropH * safety));
 
