@@ -11,6 +11,8 @@ import { generateXml } from '../src/xml/xmlGenerator.js';
 import { TOP_5_TITLES } from '../src/constants/titles.js';
 import { fileURLToPath } from 'url';
 import { readCurrentAdsFromXlsx } from '../src/utils/currentAdsReader.js';
+import { loadPhotosMapping } from '../src/utils/photosLinksReader.js';
+import { generateAdId } from '../src/constants/materialAliases.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,6 +116,9 @@ function formatDateLabel(date = new Date()) {
 async function main() {
   const { count, date, currentDir, plan } = parseArgs();
 
+  // Загружаем маппинг adId → URL фото с Яндекс.Диска
+  const photosMapping = loadPhotosMapping();
+
   let currentAds = [];
   if (currentDir) {
     const xlsxPath = findSingleXlsx(currentDir);
@@ -179,6 +184,8 @@ async function main() {
       );
 
       const slotAds = [];
+      let adCounter = 1; // Счётчик для adId в рамках этого слота
+      
       for (const loc of locationsPlan) {
         const ads = generateAds({
           material: task.material || 'sand',
@@ -189,6 +196,22 @@ async function main() {
           photos: task.photos || [],
           currentAds
         });
+        
+        // Присваиваем adId и photoLink каждому объявлению
+        ads.forEach(ad => {
+          // Генерируем adId для нового объявления
+          const adId = generateAdId(materialIdResolved, loc.address, baseDate, adCounter++);
+          ad.adId = adId;
+          
+          // Если есть фото с таким adId - используем его URL
+          if (photosMapping[adId]) {
+            ad.photoLink = photosMapping[adId];
+          } else if (!ad.photoLink && task.photos && task.photos.length) {
+            // Fallback: случайное фото из task.photos если adId не найден
+            ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
+          }
+        });
+        
         slotAds.push(...ads);
       }
 

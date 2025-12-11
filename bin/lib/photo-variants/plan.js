@@ -16,6 +16,7 @@ export function collectSourcesFromPlan(plan, aliases = { materials: {}, photos: 
     const photoKey = t.photoKey || materialId;
     const slots = t.slots && t.slots.length ? t.slots : [{ locations: t.locations }];
     slots.forEach((slot) => {
+      const dateBegin = slot.DateBegin || t.DateBegin || '';
       const locs = (slot.locations && slot.locations.length ? slot.locations : [{ address: 'default' }]) || [
         { address: 'default' }
       ];
@@ -32,8 +33,10 @@ export function collectSourcesFromPlan(plan, aliases = { materials: {}, photos: 
         folders.set(folderKey, {
           materialId,
           name: t.materialId || materialId,
-          address: safeAddress,
-          folder: resolved
+          address: addrFormatted,  // Исходный адрес для getCityAlias()
+          safeAddress,              // Нормализованный для путей
+          folder: resolved,
+          dateBegin
         });
       });
     });
@@ -42,16 +45,31 @@ export function collectSourcesFromPlan(plan, aliases = { materials: {}, photos: 
   const sources = [];
   folders.forEach((info) => {
     if (fs.existsSync(info.folder)) {
-      const files = fs
+      const allFiles = fs
         .readdirSync(info.folder)
-        .filter((name) => name.match(/\.(jpg|jpeg|png|webp)$/i))
-        .map((name) => ({
-          path: path.join(info.folder, name),
-          materialId: info.materialId,
-          name: info.name,
-          address: info.address,
-          count: addrCounts.get(`${info.materialId || ''}|${info.address}`) || 0
-        }));
+        .filter((name) => name.match(/\.(jpg|jpeg|png|webp)$/i));
+      
+      // Ищем флагманский исходник (с "fs" в имени)
+      const flagshipFile = allFiles.find((name) => name.toLowerCase().includes('fs'));
+      const flagshipPath = flagshipFile ? path.join(info.folder, flagshipFile) : null;
+      
+      // Общий count для локации делим между всеми исходниками
+      const totalCount = addrCounts.get(`${info.materialId || ''}|${info.safeAddress}`) || 0;
+      const countPerSource = allFiles.length > 0 ? Math.floor(totalCount / allFiles.length) : 0;
+      const remainder = totalCount % allFiles.length;
+      
+      // ВСЕ файлы (включая флагманский) - он тоже генерирует варианты
+      const files = allFiles.map((name, idx) => ({
+        path: path.join(info.folder, name),
+        materialId: info.materialId,
+        name: info.name,
+        address: info.address,           // Исходный адрес
+        safeAddress: info.safeAddress,   // Нормализованный
+        dateBegin: info.dateBegin,
+        // Делим count между исходниками: первые получают +1 если есть остаток
+        count: countPerSource + (idx < remainder ? 1 : 0),
+        flagshipSource: flagshipPath     // Путь к флагманскому исходнику (для первого фото)
+      }));
       sources.push(...files);
     }
   });

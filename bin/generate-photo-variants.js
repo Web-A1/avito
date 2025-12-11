@@ -22,7 +22,8 @@ import {
   formatLabelDate,
   clampOpacity,
   loadImageBuffer,
-  sanitizeName
+  sanitizeName,
+  findLatestExcel
 } from './lib/photo-variants/utils.js';
 import {
   createNoiseBuffer,
@@ -33,9 +34,11 @@ import {
   buildTextPatternSvg
 } from './lib/photo-variants/patterns.js';
 import { aHashFromBuffer, hamming, pruneByHash, findCloseIndices } from './lib/photo-variants/hashing.js';
-import { loadHistory, saveHistory } from './lib/photo-variants/history.js';
+import { loadHistory, saveHistory, filterActiveAds } from './lib/photo-variants/history.js';
 import { applyTransformations } from './lib/photo-variants/transformations.js';
 import { collectSourcesFromPlan } from './lib/photo-variants/plan.js';
+import { generateAdId, getMaterialAlias, getCityAlias, parseAdId } from '../src/constants/materialAliases.js';
+import { readCurrentAdsFromXlsx } from '../src/utils/currentAdsReader.js';
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -44,7 +47,7 @@ function parseArgs() {
     out: '',
     count: 50,
     patternOpacity: '',
-    textWatermark: '',
+    textWatermark: 'NERUDA', // Дефолтный водяной знак
     textOpacity: '',
     textColor: '',
     ignoreHistory: false,
@@ -96,9 +99,13 @@ async function generateVariants({
   overshoot,
   materialId,
   address,
+  safeAddress,
+  dateBegin,
   runLabel,
   name,
-  parallel
+  parallel,
+  flagshipSource,  // Путь к флагманскому исходнику (с "fs" в имени)
+  counterOffset = 0  // Смещение счётчика для батчевой обработки источников
 }) {
   if (!input) throw new Error('Укажите --input путь к исходному фото');
 
@@ -110,14 +117,104 @@ async function generateVariants({
   }
   const stats = await sharp(baseBuffer).stats();
   const palette = pickTextPalette(stats, textColor);
-  const safeAddress = sanitizeName(address || 'default');
-  const baseDir = materialId ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddress) : out;
+  // safeAddress теперь приходит из параметров (уже нормализованный в plan.js)
+  const safeAddr = safeAddress || sanitizeName(address || 'default');
+  const baseDir = materialId ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddr) : out;
   if (!fs.existsSync(baseDir)) {
     fs.mkdirSync(baseDir, { recursive: true });
   }
-  const historyHashes = ignoreHistory || !materialId ? [] : loadHistory(path.join(materialId, safeAddress));
+  
+  // Загружаем историю в новом формате (с миграцией старого)
+  const historyData = ignoreHistory || !materialId 
+    ? { version: 2, ads: [] } 
+    : loadHistory(path.join(materialId, safeAddr));
+  
+  // Читаем Excel для фильтрации истории по активным объявлениям
+  // (только для первого источника в батче)
+  let activeAdIds = [];
+  if (counterOffset === 0 && !ignoreHistory && materialId && historyData.ads.length > 0) {
+    try {
+      const excelPath = findLatestExcel(path.join(process.cwd(), 'data', 'current'));
+      if (excelPath) {
+        console.log(`📊 Чтение Excel: ${path.basename(excelPath)}`);
+        const currentAds = await readCurrentAdsFromXlsx(excelPath);
+        activeAdIds = currentAds.map(ad => ad.Id).filter(Boolean);
+        console.log(`   Найдено ${activeAdIds.length} активных объявлений`);
+        
+        // Фильтруем историю - оставляем только активные объявления
+        const beforeCount = historyData.ads.length;
+        historyData.ads = filterActiveAds(historyData.ads, activeAdIds);
+        const removed = beforeCount - historyData.ads.length;
+        if (removed > 0) {
+          console.log(`   🗑️  Удалено ${removed} неактивных объявлений из истории`);
+        }
+      } else {
+        console.log(`⚠️  Excel не найден в data/current/ - история не фильтруется`);
+      }
+    } catch (e) {
+      console.warn(`⚠️  Не удалось прочитать Excel: ${e.message}`);
+      console.warn(`   История не фильтруется, продолжаем без Excel...`);
+    }
+  }
+  
+  // Извлекаем только хэши для проверки дубликатов
+  const historyHashes = historyData.ads.map(ad => ad.hash);
+  
+  // Вычисляем стартовый счётчик для adId
+  let startingCounter = 1;
+  const useAdId = !!(dateBegin && materialId && address);
+  
+  if (useAdId) {
+    // Ищем максимальный counter в истории только для ПЕРВОГО источника батча
+    if (counterOffset === 0) {
+      const matAlias = getMaterialAlias(materialId);
+      const cityAlias = getCityAlias(address);
+      // Форматируем дату (функция из materialAliases)
+      const dateObj = typeof dateBegin === 'string' ? parseDateBeginLocal(dateBegin) : dateBegin;
+      const dateLabel = dateObj ? formatDateLabelLocal(dateObj) : '000000';
+      const prefix = `${matAlias}_${cityAlias}_${dateLabel}`;
+      
+      // Ищем максимальный counter в истории для этого префикса
+      const matchingCounters = historyData.ads
+        .filter(ad => ad.adId && ad.adId.startsWith(prefix))
+        .map(ad => {
+          const parsed = parseAdId(ad.adId);
+          return parsed ? parsed.counter : 0;
+        })
+        .filter(c => c > 0);
+      
+      if (matchingCounters.length) {
+        startingCounter = Math.max(...matchingCounters) + 1;
+        console.log(`📊 Найдено ${matchingCounters.length} существующих adId с префиксом ${prefix}`);
+      }
+      console.log(`🔢 Начальный счётчик: ${startingCounter}`);
+    } else {
+      // Для не-первых источников батча просто используем смещение
+      startingCounter = 1;
+    }
+    // Добавляем смещение для продолжения счётчика в батче источников
+    startingCounter += counterOffset;
+  }
+  
   const smallImage = Math.min(meta.width, meta.height) < 1400;
   const flagshipPath = materialId ? path.join(baseDir, 'flagship.jpg') : '';
+  
+  // Вспомогательные функции для форматирования (копии из materialAliases)
+  function parseDateBeginLocal(str) {
+    if (!str) return null;
+    const m = str.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+    if (!m) return null;
+    const [_, dd, MM, yyyy] = m;
+    return new Date(`${yyyy}-${MM}-${dd}`);
+  }
+  
+  function formatDateLabelLocal(date) {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) return '000000';
+    const yy = String(date.getFullYear()).substring(2);
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yy}${mm}${dd}`;
+  }
 
   const targetCount = count;
   const maxRetriesPerIndex = 5; // Увеличено с 1 до 5 для гарантии уникальности
@@ -130,10 +227,22 @@ async function generateVariants({
 
   // Форматируем название товара для вывода
   const displayName = (name || materialId || 'Без названия').replace(/_/g, ' ');
-  const displayAddress = address ? address.replace(/_/g, ' ') : safeAddress.replace(/_/g, ' ');
+  const displayAddress = address ? address.replace(/_/g, ' ') : safeAddr.replace(/_/g, ' ');
   
   console.log(`${displayName} → ${displayAddress} (история: ${historyHashes.length} фото)`);
   console.log(`Кол-во: ${targetCount}\n`);
+  
+  // Функция для получения имени файла (с поддержкой adId)
+  function getFilenameForIndex(idx) {
+    if (useAdId) {
+      const adId = generateAdId(materialId, address, dateBegin, startingCounter + idx);
+      return `${adId}.jpg`;
+    }
+    // Fallback: старый формат для обратной совместимости
+    const baseName = name || materialId || path.basename(input, path.extname(input));
+    const perFileTime = formatLabelDate(new Date());
+    return `${baseName}_${perFileTime}_${String(idx + 1).padStart(3, '0')}.jpg`;
+  }
 
   async function makeVariantSafe(idx, baseOnly = false, maxErrorRetries = 2) {
     for (let errorAttempt = 0; errorAttempt < maxErrorRetries; errorAttempt++) {
@@ -157,22 +266,28 @@ async function generateVariants({
     const baseName = name || materialId || path.basename(input, path.extname(input));
     const labelValue = runLabel || formatLabelDate();
     const variantDir = materialId
-      ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddress, 'variants', labelValue)
-      : path.join(out, baseName, safeAddress, 'variants', labelValue);
+      ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddr, 'variants', labelValue)
+      : path.join(out, baseName, safeAddr, 'variants', labelValue);
     if (baseOnly) {
       if (!fs.existsSync(variantDir)) {
         fs.mkdirSync(variantDir, { recursive: true });
       }
+
+      const filename = getFilenameForIndex(idx);
+      const outPath = path.join(variantDir, filename);
+
+      // СНАЧАЛА проверяем - есть ли уже готовый flagship.jpg?
       if (flagshipPath && fs.existsSync(flagshipPath)) {
-        const perFileTime = formatLabelDate(new Date());
-        const outPath = path.join(variantDir, `${baseName}_${perFileTime}_${String(idx + 1).padStart(3, '0')}.jpg`);
+        console.log(`   📌 Используется готовый flagship.jpg`);
+        // Просто копируем готовый flagship (с водяным знаком)
         fs.copyFileSync(flagshipPath, outPath);
         const hash = await aHashFromBuffer(fs.readFileSync(flagshipPath));
-        generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1 };
+        generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1, filename };
         console.log(`#${idx + 1} - готово`);
         return;
       }
 
+      // Если flagship.jpg НЕТ - создаём его
       if (generated[idx]?.path && fs.existsSync(generated[idx].path)) {
         try {
           fs.unlinkSync(generated[idx].path);
@@ -180,17 +295,33 @@ async function generateVariants({
           console.warn(`Не удалось удалить старый файл ${generated[idx].path}: ${e.message}`);
         }
       }
-      const perFileTime = formatLabelDate(new Date());
-      const outPath = path.join(variantDir, `${baseName}_${perFileTime}_${String(idx + 1).padStart(3, '0')}.jpg`);
 
-      let buf = baseBuffer;
+      // Создаём flagship: используем fs.jpeg если есть, иначе baseBuffer
+      let sourceBuffer = baseBuffer;
+      let sourceMeta = meta;
+      let sourcePalette = palette;
+      
+      if (flagshipSource && fs.existsSync(flagshipSource)) {
+        console.log(`   📌 Создаём flagship из ${path.basename(flagshipSource)}`);
+        sourceBuffer = await loadImageBuffer(flagshipSource);
+        // Пересчитываем meta и palette для флагманского исходника
+        const sourceImage = sharp(sourceBuffer);
+        sourceMeta = await sourceImage.metadata();
+        const sourceStats = await sharp(sourceBuffer).stats();
+        sourcePalette = pickTextPalette(sourceStats, textColor);
+      } else {
+        console.log(`   📌 Создаём flagship из текущего исходника`);
+      }
+
+      let buf = sourceBuffer;
       if (textWatermark) {
         const basePatternOpacity =
           typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
             ? forcedPatternOpacity
             : 0.05;
-        const minOpacity = palette.mode === 'bright' ? 0.12 : palette.mode === 'dark' ? 0.07 : 0.08;
-        const maxOpacity = palette.mode === 'bright' ? 0.18 : palette.mode === 'dark' ? 0.14 : 0.12;
+        // Для тёмных фото МЕНЬШЕ opacity (белый на тёмном = высокий контраст!)
+        const minOpacity = sourcePalette.mode === 'bright' ? 0.03 : sourcePalette.mode === 'dark' ? 0.002 : 0.02;
+        const maxOpacity = sourcePalette.mode === 'bright' ? 0.05 : sourcePalette.mode === 'dark' ? 0.004 : 0.03;
         const textOpacity =
           clampOpacity(
             typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
@@ -200,15 +331,15 @@ async function generateVariants({
             maxOpacity
           ) || basePatternOpacity;
         const textSvg = buildTextPatternSvg(
-          meta.width,
-          meta.height,
+          sourceMeta.width,
+          sourceMeta.height,
           textWatermark,
           textOpacity,
-          palette.fill,
-          palette.stroke || palette.fill,
-          palette.mode
+          sourcePalette.fill,
+          sourcePalette.stroke || sourcePalette.fill,
+          sourcePalette.mode
         );
-        buf = await sharp(baseBuffer)
+        buf = await sharp(sourceBuffer)
           .composite([
             {
               input: textSvg,
@@ -230,7 +361,7 @@ async function generateVariants({
         }
       }
       const hash = await aHashFromBuffer(buf);
-      generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1 };
+      generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1, filename };
       console.log(`#${idx + 1} - готово`);
       return;
     }
@@ -300,8 +431,9 @@ async function generateVariants({
       indices.forEach(i => layerList.push(allLayers[i]));
 
       if (textWatermark) {
-        const minOpacity = palette.mode === 'bright' ? 0.1 : palette.mode === 'dark' ? 0.07 : 0.05;
-        const maxOpacity = palette.mode === 'bright' ? 0.15 : palette.mode === 'dark' ? 0.14 : 0.09;
+        // Для тёмных фото МЕНЬШЕ opacity (белый на тёмном = высокий контраст!)
+        const minOpacity = palette.mode === 'bright' ? 0.02 : palette.mode === 'dark' ? 0.003 : 0.015;
+        const maxOpacity = palette.mode === 'bright' ? 0.04 : palette.mode === 'dark' ? 0.006 : 0.025;
         const textOpacity =
           clampOpacity(
             typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
@@ -348,16 +480,16 @@ async function generateVariants({
           console.warn(`Не удалось удалить старый файл ${generated[idx].path}: ${e.message}`);
         }
       }
-      const perFileTime = formatLabelDate(new Date());
       const baseName = name || materialId || path.basename(input, path.extname(input));
       const labelValue = runLabel || formatLabelDate();
       const variantDir = materialId
-        ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddress, 'variants', labelValue)
-        : path.join(out, baseName, safeAddress, 'variants', labelValue);
+        ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddr, 'variants', labelValue)
+        : path.join(out, baseName, safeAddr, 'variants', labelValue);
       if (!fs.existsSync(variantDir)) {
         fs.mkdirSync(variantDir, { recursive: true });
       }
-      outPath = path.join(variantDir, `${baseName}_${perFileTime}_${String(idx + 1).padStart(3, '0')}.jpg`);
+      const filename = getFilenameForIndex(idx);
+      outPath = path.join(variantDir, filename);
       fs.writeFileSync(outPath, imgBuffer);
       imgHash = await aHashFromBuffer(imgBuffer);
     }
@@ -366,7 +498,8 @@ async function generateVariants({
       throw new Error('Не удалось сгенерировать файл без артефактов по краям');
     }
 
-    generated[idx] = { path: outPath, hash: imgHash, attempts: (generated[idx]?.attempts || 0) + 1 };
+    const filename = getFilenameForIndex(idx);
+    generated[idx] = { path: outPath, hash: imgHash, attempts: (generated[idx]?.attempts || 0) + 1, filename };
     if (attempt === 0) {
       console.log(`#${idx + 1} - готово`);
     } else {
@@ -386,8 +519,10 @@ async function generateVariants({
   }
 
   // Валидация и пересоздание дубликатов (параллельно батчами)
+  // ИСКЛЮЧАЕМ idx=0 (flagship) из проверки - он всегда копия flagship.jpg
   for (let pass = 0; pass < maxGlobalPasses; pass++) {
-    const closeOnes = findCloseIndices(generated, historyHashes, HASH_THRESHOLD);
+    const generatedForValidation = generated.map((g, idx) => idx === 0 ? null : g);
+    const closeOnes = findCloseIndices(generatedForValidation, historyHashes, HASH_THRESHOLD);
     const minDist = closeOnes.length ? closeOnes[0].minDist : null;
     if (minDist !== null) {
       console.log(
@@ -429,12 +564,33 @@ async function generateVariants({
 
   // Фильтруем null значения (неудачные варианты) перед сохранением истории
   const successfulGenerated = generated.filter(g => g && g.hash);
-  const newHistory = Array.from(new Set([...historyHashes, ...successfulGenerated.map((g) => g.hash)]));
+  
+  // Создаём новые записи в формате {adId, hash, ...metadata}
+  const newAds = successfulGenerated.map((item, idx) => {
+    const adId = useAdId 
+      ? generateAdId(materialId, address, dateBegin, startingCounter + generated.indexOf(item))
+      : `legacy_${String(idx + 1).padStart(3, '0')}`;
+    
+    return {
+      adId,
+      hash: item.hash,
+      materialId: materialId || '',
+      address: safeAddr,
+      dateBegin: dateBegin || '',
+      photoPath: item.filename || path.basename(item.path),
+      timestamp: new Date().toISOString()
+    };
+  });
+  
+  // Объединяем с существующей историей
+  const allAds = [...historyData.ads, ...newAds];
+  
   if (materialId) {
-    saveHistory(path.join(materialId, safeAddress), newHistory);
+    saveHistory(path.join(materialId, safeAddr), allAds);
   }
+  
   const failedCount = generated.length - successfulGenerated.length;
-  console.log(`🎉 Готово! Создано ${successfulGenerated.length} фото${failedCount > 0 ? ` (${failedCount} с ошибками)` : ''} (история: ${newHistory.length} фото)`);
+  console.log(`🎉 Готово! Создано ${successfulGenerated.length} фото${failedCount > 0 ? ` (${failedCount} с ошибками)` : ''} (история: ${allAds.length} объявлений)`);
 }
 
 async function main() {
@@ -488,18 +644,40 @@ async function main() {
 
     const runLabel = opts.runLabel || formatLabelDate();
     const perSourceCounts = [];
+    
+    // Группируем источники по локации (materialId + safeAddress)
+    const sourcesByLocation = new Map();
     for (const src of sources) {
-      const perFile = planPath ? src.count || opts.count : opts.count;
-      perSourceCounts.push(perFile);
-      await generateVariants({
-        ...opts,
-        input: src.path,
-        materialId: src.materialId,
-        name: src.name,
-        address: src.address,
-        runLabel,
-        count: perFile
-      });
+      const locationKey = `${src.materialId || 'default'}|${src.safeAddress || 'default'}`;
+      if (!sourcesByLocation.has(locationKey)) {
+        sourcesByLocation.set(locationKey, []);
+      }
+      sourcesByLocation.get(locationKey).push(src);
+    }
+    
+    // Обрабатываем каждую локацию как единый батч
+    for (const [locationKey, locationSources] of sourcesByLocation) {
+      let counterOffset = 0;  // Смещение счётчика для источников в батче
+      
+      for (const src of locationSources) {
+        const perFile = planPath ? src.count || opts.count : opts.count;
+        perSourceCounts.push(perFile);
+        await generateVariants({
+          ...opts,
+          input: src.path,
+          materialId: src.materialId,
+          name: src.name,
+          address: src.address,
+          safeAddress: src.safeAddress,
+          dateBegin: src.dateBegin,
+          // Флагманский исходник (fs.jpeg) ТОЛЬКО для самого первого источника
+          flagshipSource: counterOffset === 0 ? src.flagshipSource : null,
+          runLabel,
+          count: perFile,
+          counterOffset  // Передаём смещение для продолжения счётчика
+        });
+        counterOffset += perFile;  // Увеличиваем смещение на кол-во созданных фото
+      }
     }
     console.log(
       `\nИтого: обработано ${sources.length} исходников, создано фото: [${perSourceCounts.join(', ')}]`

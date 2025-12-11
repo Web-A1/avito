@@ -69,13 +69,16 @@ export function pruneByHash(variants, targetCount, origHash, warnDistance = 14) 
 export function findCloseIndices(items, historyHashes, threshold) {
   const result = [];
   for (let i = 0; i < items.length; i++) {
+    // Пропускаем null элементы (например, flagship который исключён из проверки)
+    if (!items[i] || !items[i].hash) continue;
+    
     let minDist = Infinity;
     historyHashes.forEach((h) => {
       const d = hamming(items[i].hash, h);
       if (d < minDist) minDist = d;
     });
     for (let j = 0; j < items.length; j++) {
-      if (i === j) continue;
+      if (i === j || !items[j] || !items[j].hash) continue;
       const d = hamming(items[i].hash, items[j].hash);
       if (d < minDist) minDist = d;
     }

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 
 export function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
@@ -53,5 +54,25 @@ export function formatAddressLabel(addr = '') {
     if (city) return `${city}, МО`;
   }
   return normalized;
+}
+
+/**
+ * Находит последний (самый свежий) Excel файл в директории
+ * @param {string} dir - путь к директории
+ * @returns {string|null} - полный путь к файлу или null
+ */
+export function findLatestExcel(dir) {
+  if (!fs.existsSync(dir)) return null;
+  
+  const files = fs.readdirSync(dir)
+    .filter(f => f.endsWith('.xlsx') && !f.startsWith('~')) // игнорируем временные файлы Excel
+    .map(f => ({
+      name: f,
+      path: path.join(dir, f),
+      stat: fs.statSync(path.join(dir, f))
+    }))
+    .sort((a, b) => b.stat.mtime - a.stat.mtime); // сортируем по дате модификации (новые первые)
+  
+  return files.length > 0 ? files[0].path : null;
 }
 

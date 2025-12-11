@@ -25,7 +25,8 @@ function formatImages(images = []) {
 
 function formatAd(ad, idx, dateLabel = '') {
   const existingId = ad.Id || ad.id;
-  const id = existingId || `sand_${dateLabel}_${idx + 1}`;
+  // Приоритет: adId из генерации фото → existingId из Excel → fallback
+  const id = ad.adId || existingId || `sand_${dateLabel}_${idx + 1}`;
   const fixed = ad.fixed || {};
   const images = ad.photoLink ? [ad.photoLink] : [];
   const description = wrapCdata(ad.description || '');

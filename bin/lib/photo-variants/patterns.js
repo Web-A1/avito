@@ -79,7 +79,8 @@ export function pickTextPalette(stats, forcedColor) {
 }
 
 export function buildTextPatternSvg(width, height, text, opacity, fillColor, strokeColor, mode = 'mid') {
-  const fontSize = Math.round(width * randomBetween(0.022, 0.032));
+  // Минимальный размер шрифта 40px для читаемости на маленьких изображениях
+  const fontSize = Math.max(40, Math.round(width * randomBetween(0.022, 0.032)));
   const wordWidthFactor = 4.8;
   const cellSize = Math.round(fontSize * wordWidthFactor * randomBetween(0.94, 1.02));
   const tileW = cellSize * 2.7;

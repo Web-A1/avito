@@ -1,0 +1,21 @@
+{
+  "date": "11.12.2025 12-30-00",
+  "diskRoot": "Cursor_for_Avito",
+  "items": [
+    {
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "file": "s00_bron_251210_001.jpg",
+      "public_url": "https://disk.yandex.ru/i/test_001"
+    },
+    {
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "file": "s00_bron_251210_002.jpg",
+      "public_url": "https://disk.yandex.ru/i/test_002"
+    },
+    {
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "file": "s00_bron_251210_003.jpg",
+      "public_url": "https://disk.yandex.ru/i/test_003"
+    }
+  ]
+}
