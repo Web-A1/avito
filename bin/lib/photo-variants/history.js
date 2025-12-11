@@ -23,3 +23,4 @@ export function saveHistory(materialPath, hashes) {
     console.warn(`Не удалось сохранить хэши истории для ${materialPath}: ${e.message}`);
   }
 }
+

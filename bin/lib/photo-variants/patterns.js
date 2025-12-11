@@ -116,3 +116,4 @@ export function buildTextPatternSvg(width, height, text, opacity, fillColor, str
     </svg>`
   );
 }
+

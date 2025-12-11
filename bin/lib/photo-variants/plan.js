@@ -57,3 +57,4 @@ export function collectSourcesFromPlan(plan, aliases = { materials: {}, photos: 
   });
   return sources;
 }
+

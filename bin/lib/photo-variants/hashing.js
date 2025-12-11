@@ -1,7 +1,8 @@
 import fs from 'fs';
 import sharp from 'sharp';
+import { HASH_SIZE } from './constants.js';
 
-export async function aHashFromBuffer(buffer, size = 16) {
+export async function aHashFromBuffer(buffer, size = HASH_SIZE) {
   const { data } = await sharp(buffer)
     .greyscale()
     .resize(size, size, { fit: 'fill' })
@@ -82,3 +83,4 @@ export function findCloseIndices(items, historyHashes, threshold) {
   }
   return result.sort((a, b) => a.minDist - b.minDist);
 }
+

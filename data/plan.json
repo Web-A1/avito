@@ -6,11 +6,11 @@
       "slots": [
         {
           "DateBegin": "10.12.2025 21:06",
-          "count": 25,
+          "count": 50,
           "locations": [
             {
               "address": "Московская область, Бронницы",
-              "count": 25
+              "count": 50
             }
           ]
         }

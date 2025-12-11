@@ -54,3 +54,4 @@ export function formatAddressLabel(addr = '') {
   }
   return normalized;
 }
+
