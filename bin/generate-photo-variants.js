@@ -120,19 +120,20 @@ async function generateVariants({
   const flagshipPath = materialId ? path.join(baseDir, 'flagship.jpg') : '';
 
   const targetCount = count;
-  const maxRetriesPerIndex = 1;
-  const maxGlobalPasses = 2;
+  const maxRetriesPerIndex = 5; // Увеличено с 1 до 5 для гарантии уникальности
+  const maxGlobalPasses = 5; // Увеличено с 2 до 5 для полноценного использования всех попыток
   const overshootSafe = Number.isFinite(overshoot) && overshoot > 0 ? overshoot : 0;
   const zoomBoost = 1 + Math.min(overshootSafe, 0.05); // минимальный вклад overshoot
   const angleBoost = 1 + Math.min(overshootSafe, 0.05);
   const generated = new Array(targetCount);
   let aggressiveMode = false;
 
-  console.log(
-    `Генерируем ${targetCount} шт (materialId=${materialId || 'N/A'}, address=${safeAddress}, history=${
-      historyHashes.length
-    } хэшей)${smallImage ? ' [бережный режим для малого исходника]' : ''}`
-  );
+  // Форматируем название товара для вывода
+  const displayName = (name || materialId || 'Без названия').replace(/_/g, ' ');
+  const displayAddress = address ? address.replace(/_/g, ' ') : safeAddress.replace(/_/g, ' ');
+  
+  console.log(`${displayName} → ${displayAddress} (история: ${historyHashes.length} фото)`);
+  console.log(`Кол-во: ${targetCount}\n`);
 
   async function makeVariantSafe(idx, baseOnly = false, maxErrorRetries = 2) {
     for (let errorAttempt = 0; errorAttempt < maxErrorRetries; errorAttempt++) {
@@ -168,7 +169,7 @@ async function generateVariants({
         fs.copyFileSync(flagshipPath, outPath);
         const hash = await aHashFromBuffer(fs.readFileSync(flagshipPath));
         generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1 };
-        console.log(`  [=] ${path.basename(outPath)} базовый (использован существующий флагман)`);
+        console.log(`#${idx + 1} - готово`);
         return;
       }
 
@@ -230,7 +231,7 @@ async function generateVariants({
       }
       const hash = await aHashFromBuffer(buf);
       generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1 };
-      console.log(`  [=] ${path.basename(outPath)} базовый (без геометрии)`);
+      console.log(`#${idx + 1} - готово`);
       return;
     }
 
@@ -255,9 +256,7 @@ async function generateVariants({
       const compHeight = transformResult.finalHeight;
       const { angle, scale, flipped } = transformResult.metadata;
 
-      console.log(
-        `    [geom] crop ${compWidth}x${compHeight}, angle=${angle.toFixed(2)}°, scale=${scale.toFixed(3)}, flipped=${flipped}`
-      );
+      // Убрали вывод технических деталей геометрии
 
       // Вариативное JPEG качество и chroma subsampling для усиления уникальности
       const quality = Math.round(randomBetween(85, 95));
@@ -268,44 +267,19 @@ async function generateVariants({
           ? forcedPatternOpacity
           : 0.05;
 
-      // Простое кеширование по точным размерам (без округления)
-      // Это безопасно и всё равно даёт хороший hit rate при одинаковых трансформациях
-      const cacheKey = `${compWidth}x${compHeight}`;
-      const patternCache = makeVariant.patternCache || (makeVariant.patternCache = new Map());
-      let cached = patternCache.get(cacheKey);
-      
-      let finalNoisePng, finalDotsPng, finalGradPng, finalLightPng, patternOpacity;
-      
-      if (!cached) {
-        // Генерируем паттерны для точных размеров
-        patternOpacity = clampOpacity(basePatternOpacity * randomBetween(0.7, 1.4), 0.02, 0.12) || basePatternOpacity;
-        const noiseSpread = Math.min(25, Math.max(6, Math.round(patternOpacity * 60)));
-        const noiseBuf = createNoiseBuffer(compWidth, compHeight, noiseSpread);
-        finalNoisePng = await sharp(noiseBuf, {
-          raw: { width: compWidth, height: compHeight, channels: 4 }
-        })
-          .png()
-          .toBuffer();
-        finalDotsPng = await sharp(buildDotsSvg(compWidth, compHeight)).png().toBuffer();
-        finalGradPng = await sharp(buildGradientSvg(compWidth, compHeight)).png().toBuffer();
-        finalLightPng = await sharp(buildLightSpotsSvg(compWidth, compHeight)).png().toBuffer();
-        
-        // Кешируем для будущего переиспользования
-        patternCache.set(cacheKey, {
-          patternOpacity,
-          noisePng: finalNoisePng,
-          dotsPng: finalDotsPng,
-          gradPng: finalGradPng,
-          lightPng: finalLightPng
-        });
-      } else {
-        // Используем из кеша
-        patternOpacity = cached.patternOpacity;
-        finalNoisePng = cached.noisePng;
-        finalDotsPng = cached.dotsPng;
-        finalGradPng = cached.gradPng;
-        finalLightPng = cached.lightPng;
-      }
+      // Генерируем уникальные паттерны для каждого варианта (без кэша)
+      // Это гарантирует максимальную уникальность и исключает дубли
+      const patternOpacity = clampOpacity(basePatternOpacity * randomBetween(0.7, 1.4), 0.02, 0.12) || basePatternOpacity;
+      const noiseSpread = Math.min(25, Math.max(6, Math.round(patternOpacity * 60)));
+      const noiseBuf = createNoiseBuffer(compWidth, compHeight, noiseSpread);
+      const finalNoisePng = await sharp(noiseBuf, {
+        raw: { width: compWidth, height: compHeight, channels: 4 }
+      })
+        .png()
+        .toBuffer();
+      const finalDotsPng = await sharp(buildDotsSvg(compWidth, compHeight)).png().toBuffer();
+      const finalGradPng = await sharp(buildGradientSvg(compWidth, compHeight)).png().toBuffer();
+      const finalLightPng = await sharp(buildLightSpotsSvg(compWidth, compHeight)).png().toBuffer();
 
       // Вариативные комбинации паттернов - случайно выбираем 2-4 паттерна
       // Это усложняет детекцию повторяющихся комбинаций
@@ -352,7 +326,7 @@ async function generateVariants({
         });
       }
 
-      console.log(`    [composite] base ${compWidth}x${compHeight}, layers=${layerList.length}`);
+      // Убрали вывод технических деталей композитинга
 
       const composites = layerList.map((layer) => ({
         input: layer.buffer,
@@ -394,33 +368,21 @@ async function generateVariants({
 
     generated[idx] = { path: outPath, hash: imgHash, attempts: (generated[idx]?.attempts || 0) + 1 };
     if (attempt === 0) {
-      console.log(`  [+] ${path.basename(outPath)} готов (attempt ${attempt + 1})`);
+      console.log(`#${idx + 1} - готово`);
     } else {
-      console.log(`  [~] ${path.basename(outPath)} пересоздан (attempt ${attempt + 1})`);
+      console.log(`  🔄 #${idx + 1} - пересоздан (попытка ${attempt + 1}/${maxRetriesPerIndex})`);
     }
   }
 
   // Первый вариант всегда базовый (без трансформаций)
   await makeVariantSafe(0, true);
   
-  // Параллельная генерация остальных вариантов батчами
-  // Размер батча: настраиваемый через --parallel или авто (зависит от размера изображения)
-  const BATCH_SIZE = parallel > 0 ? parallel : (smallImage ? 10 : 6);
-  
-  for (let i = 1; i < targetCount; i += BATCH_SIZE) {
-    const batch = [];
-    const batchEnd = Math.min(i + BATCH_SIZE, targetCount);
+  // Последовательная генерация остальных вариантов
+  // Надёжнее на слабом железе, проще отлаживать
+  for (let i = 1; i < targetCount; i++) {
+    await makeVariantSafe(i);
     
-    for (let j = i; j < batchEnd; j++) {
-      batch.push(makeVariantSafe(j));
-    }
-    
-    await Promise.all(batch);
-    
-    // Прогресс для больших батчей
-    if (targetCount > 10) {
-      console.log(`  → Прогресс: ${batchEnd}/${targetCount} (${Math.round(batchEnd/targetCount*100)}%)`);
-    }
+    // Убрали прогресс-бар для более чистого вывода
   }
 
   // Валидация и пересоздание дубликатов (параллельно батчами)
@@ -429,7 +391,7 @@ async function generateVariants({
     const minDist = closeOnes.length ? closeOnes[0].minDist : null;
     if (minDist !== null) {
       console.log(
-        `Пасс ${pass + 1}: всего ${closeOnes.length} кандидатов, минимальная дистанция ${minDist} (порог ${HASH_THRESHOLD})`
+        `\n🔍 Проверка: найдено ${closeOnes.length} похожих фото (aHash ${minDist}) → пересоздаём...`
       );
       if (minDist === 0) aggressiveMode = true;
     }
@@ -440,11 +402,9 @@ async function generateVariants({
     
     const unique = Array.from(new Set(indicesToRegen));
     
-    // Параллельное пересоздание батчами (меньший batch для ретраев)
-    const RETRY_BATCH_SIZE = smallImage ? 6 : 4;
-    for (let i = 0; i < unique.length; i += RETRY_BATCH_SIZE) {
-      const retryBatch = unique.slice(i, i + RETRY_BATCH_SIZE).map(idx => makeVariantSafe(idx));
-      await Promise.all(retryBatch);
+    // Последовательное пересоздание дубликатов
+    for (const idx of unique) {
+      await makeVariantSafe(idx);
     }
   }
 
@@ -454,10 +414,17 @@ async function generateVariants({
   if (remainingClose.length) {
     const minDist = remainingClose[0].minDist;
     console.warn(
-      `Внимание: минимальная дистанция между вариантами/историей ${minDist} (< ${HASH_THRESHOLD}), увеличьте разброс трансформаций при необходимости.`
+      `\n⚠️  ВНИМАНИЕ: Обнаружено ${remainingClose.length} дубликатов (aHash < ${HASH_THRESHOLD}) после ${maxRetriesPerIndex} попыток!`
     );
+    console.warn(`   Минимальный aHash: ${minDist}`);
+    console.warn(`\n   Список дубликатов:`);
+    remainingClose.forEach((item, idx) => {
+      const fileName = path.basename(successfulForValidation[item.index].path);
+      console.warn(`   ${idx + 1}. ${fileName} (aHash: ${item.minDist})`);
+    });
+    console.warn(`\n   Рекомендация: увеличьте разброс трансформаций или проверьте исходное фото.\n`);
   } else {
-    console.log(`Все варианты удовлетворяют порогу ${HASH_THRESHOLD} по aHash.`);
+    console.log(`\n✅ Все фото уникальны!`);
   }
 
   // Фильтруем null значения (неудачные варианты) перед сохранением истории
@@ -467,7 +434,7 @@ async function generateVariants({
     saveHistory(path.join(materialId, safeAddress), newHistory);
   }
   const failedCount = generated.length - successfulGenerated.length;
-  console.log(`Готово: сохранено ${successfulGenerated.length} файлов${failedCount > 0 ? ` (${failedCount} пропущено из-за ошибок)` : ''}, обновлено хэшей истории: ${newHistory.length}`);
+  console.log(`🎉 Готово! Создано ${successfulGenerated.length} фото${failedCount > 0 ? ` (${failedCount} с ошибками)` : ''} (история: ${newHistory.length} фото)`);
 }
 
 async function main() {
@@ -494,7 +461,7 @@ async function main() {
       try {
         sources = collectSourcesFromPlan(plan, aliases);
         if (sources.length) {
-          console.log(`Исходники из плана: найдено файлов ${sources.length}`);
+          console.log(`Исходников найдено: ${sources.length}\n`);
         }
       } catch (e) {
         console.warn(`Не удалось разобрать план ${planPath}: ${e.message}`);
@@ -535,7 +502,7 @@ async function main() {
       });
     }
     console.log(
-      `Готово: сгенерированы варианты для ${sources.length} исходников, по [${perSourceCounts.join(', ')}] шт.`
+      `\nИтого: обработано ${sources.length} исходников, создано фото: [${perSourceCounts.join(', ')}]`
     );
   } catch (err) {
     console.error(err.message || err);
