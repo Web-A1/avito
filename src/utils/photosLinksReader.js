@@ -60,3 +60,5 @@ export function loadPhotosMapping(filePath) {
     return {};
   }
 }
+
+

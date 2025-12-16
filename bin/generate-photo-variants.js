@@ -26,6 +26,7 @@ import {
   findLatestExcel
 } from './lib/photo-variants/utils.js';
 import {
+  calculateAdaptiveOpacity,
   createNoiseBuffer,
   buildDotsSvg,
   buildGradientSvg,
@@ -300,14 +301,15 @@ async function generateVariants({
       let sourceBuffer = baseBuffer;
       let sourceMeta = meta;
       let sourcePalette = palette;
+      let sourceStats = stats;
       
       if (flagshipSource && fs.existsSync(flagshipSource)) {
         console.log(`   📌 Создаём flagship из ${path.basename(flagshipSource)}`);
         sourceBuffer = await loadImageBuffer(flagshipSource);
-        // Пересчитываем meta и palette для флагманского исходника
+        // Пересчитываем meta, stats и palette для флагманского исходника
         const sourceImage = sharp(sourceBuffer);
         sourceMeta = await sourceImage.metadata();
-        const sourceStats = await sharp(sourceBuffer).stats();
+        sourceStats = await sharp(sourceBuffer).stats();
         sourcePalette = pickTextPalette(sourceStats, textColor);
       } else {
         console.log(`   📌 Создаём flagship из текущего исходника`);
@@ -315,21 +317,25 @@ async function generateVariants({
 
       let buf = sourceBuffer;
       if (textWatermark) {
+        // АДАПТИВНЫЙ OPACITY на основе визуального контраста и детализированности
+        const { minOpacity, maxOpacity } = calculateAdaptiveOpacity(sourceStats);
+        
         const basePatternOpacity =
           typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
             ? forcedPatternOpacity
             : 0.05;
-        // Для тёмных фото МЕНЬШЕ opacity (белый на тёмном = высокий контраст!)
-        const minOpacity = sourcePalette.mode === 'bright' ? 0.03 : sourcePalette.mode === 'dark' ? 0.002 : 0.02;
-        const maxOpacity = sourcePalette.mode === 'bright' ? 0.05 : sourcePalette.mode === 'dark' ? 0.004 : 0.03;
+        
+        // Используем адаптивный диапазон для всех режимов
+        const baseValue = randomBetween(minOpacity, maxOpacity);
+        
         const textOpacity =
           clampOpacity(
             typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
               ? forcedTextOpacity
-              : basePatternOpacity,
+              : baseValue,
             minOpacity,
             maxOpacity
-          ) || basePatternOpacity;
+          ) || minOpacity;
         const textSvg = buildTextPatternSvg(
           sourceMeta.width,
           sourceMeta.height,
@@ -345,8 +351,8 @@ async function generateVariants({
               input: textSvg,
               top: 0,
               left: 0,
-              blend: 'over',
-              opacity: textOpacity
+              blend: 'over'
+              // opacity уже применён в SVG через fillOpacity, не дублируем!
             }
           ])
           .jpeg({ quality: 92, mozjpeg: true, chromaSubsampling: '4:4:4' })
@@ -431,17 +437,20 @@ async function generateVariants({
       indices.forEach(i => layerList.push(allLayers[i]));
 
       if (textWatermark) {
-        // Для тёмных фото МЕНЬШЕ opacity (белый на тёмном = высокий контраст!)
-        const minOpacity = palette.mode === 'bright' ? 0.02 : palette.mode === 'dark' ? 0.003 : 0.015;
-        const maxOpacity = palette.mode === 'bright' ? 0.04 : palette.mode === 'dark' ? 0.006 : 0.025;
+        // АДАПТИВНЫЙ OPACITY на основе визуального контраста и детализированности
+        const { minOpacity, maxOpacity } = calculateAdaptiveOpacity(stats);
+        
+        // Используем адаптивный диапазон
+        const baseValue = randomBetween(minOpacity, maxOpacity);
+        
         const textOpacity =
           clampOpacity(
             typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
               ? forcedTextOpacity
-              : patternOpacity,
+              : baseValue,
             minOpacity,
             maxOpacity
-          ) || patternOpacity;
+          ) || minOpacity;
 
         // Для текста всегда используем точные размеры (он легковесный)
         const textPng = await sharp(
@@ -453,8 +462,8 @@ async function generateVariants({
         layerList.push({
           name: 'text',
           buffer: textPng,
-          blend: 'over',
-          opacity: textOpacity
+          blend: 'over'
+          // opacity уже применён в SVG через fillOpacity, не дублируем!
         });
       }
 

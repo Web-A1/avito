@@ -64,6 +64,91 @@ export function buildLightSpotsSvg(width, height) {
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${circles}</svg>`);
 }
 
+/**
+ * Вычисляет адаптивный opacity на основе калибровки с однотонными образцами
+ * Эталон: brightness 180 → opacity 15%
+ * Линейная интерполяция для более тёмных фото
+ */
+export function calculateAdaptiveOpacity(stats) {
+  const channels = stats?.channels || [];
+  const means = channels.slice(0, 3).map((c) => c?.mean ?? 128);
+  const stdevs = channels.slice(0, 3).map((c) => c?.stdev ?? 0);
+  
+  // Средняя яркость фона
+  const avgBrightness = means.reduce((sum, v) => sum + v, 0) / (means.length || 1);
+  
+  // Средняя детализация (standard deviation) - показатель текстуры
+  const avgStdev = stdevs.reduce((sum, v) => sum + v, 0) / (stdevs.length || 1);
+  
+  // Визуальный контраст (для справки, не используется в расчётах)
+  const watermarkBrightness = 255;
+  const visualContrast = Math.abs(watermarkBrightness - avgBrightness) / 255;
+  
+  // ФОРМУЛА НА ОСНОВЕ КАЛИБРОВКИ С ОДНОТОННЫМИ ОБРАЗЦАМИ:
+  // brightness 180 → opacity 15% (эталон, "норм")
+  // brightness 0   → opacity ~7% (базовый уровень для чёрного)
+  // НЕЛИНЕЙНАЯ кривая (степенная функция ^2.7) для плавного перехода
+  
+  let baseOpacity;
+  
+  if (avgBrightness <= 180) {
+    // Степенная функция для нелинейной кривой (^2.7):
+    // Очень медленный рост для тёмных → очень быстрый рост для светлых
+    // После многократной калибровки на однотонных образцах
+    const ratio = avgBrightness / 180;
+    baseOpacity = 0.070 + Math.pow(ratio, 2.7) * 0.080;
+  } else {
+    // Для очень светлых фото (> 180) оставляем на уровне эталона
+    baseOpacity = 0.15;
+  }
+  
+  // КОЭФФИЦИЕНТ ДЕТАЛИЗАЦИИ (для реальных фото с текстурой):
+  // На тёмных фото с высокой текстурой ВЗ "прячется" → нужен больший opacity
+  // На светлых фото (>150) коэффициент = 0 (ВЗ и так заметен)
+  const detailFactor = (avgStdev / 50) * Math.max(0, 1 - avgBrightness / 150);
+  
+  // BOOST ДЛЯ ТЁМНЫХ ФОТО С НИЗКОЙ ДЕТАЛИЗАЦИЕЙ:
+  // На однородных тёмных фото (низкий stdev) ВЗ плохо виден несмотря на отсутствие текстуры
+  // Это происходит из-за низкого контраста на тёмном фоне
+  let darkBoost = 0;
+  if (avgBrightness < 95 && avgStdev < 40) {
+    // Очень тёмные с низкой детализацией (земля, тени)
+    darkBoost = 1.0;
+  } else if (avgBrightness >= 95 && avgBrightness < 110 && avgStdev < 40) {
+    // Средне-тёмные с низкой детализацией (фото 010)
+    darkBoost = 0.9;
+  } else if (avgBrightness < 120 && avgStdev < 45) {
+    // Средне-тёмные с низкой-средней детализацией
+    darkBoost = 0.7;
+  } else if (avgBrightness < 105 && avgStdev >= 40 && avgStdev < 60) {
+    // Средне-тёмные со средней детализацией
+    darkBoost = 0.3;
+  }
+  
+  // ДОП. BOOST ДЛЯ СРЕДНИХ ФОТО, КОТОРЫЕ ЕЩЁ ЧУТЬ НЕ ДОТЯГИВАЮТ
+  // Работает только когда уже посчитанный opacity ниже 16%
+  let midBoost = 0;
+  const preAdjustOpacity = baseOpacity * (1 + detailFactor + darkBoost);
+  if (
+    preAdjustOpacity < 0.16 &&
+    avgBrightness >= 90 &&
+    avgBrightness <= 110 &&
+    avgStdev >= 35 &&
+    avgStdev <= 60
+  ) {
+    midBoost = 0.10; // +10%
+  }
+
+  // Применяем все коэффициенты к базовому opacity
+  const adjustedOpacity = preAdjustOpacity * (1 + midBoost);
+  
+  // Диапазон для рандомизации: ±8% (уменьшили с ±15% для более стабильного результата)
+  const minOpacity = Math.max(0.05, adjustedOpacity * 0.92);
+  const maxOpacity = Math.min(0.8, adjustedOpacity * 1.08);
+  
+  return { minOpacity, maxOpacity, visualContrast, avgBrightness, avgStdev, detailFactor };
+}
+
 export function pickTextPalette(stats, forcedColor) {
   const lc = forcedColor ? forcedColor.trim().toLowerCase() : '';
   const isDarkForced = lc === '#000' || lc === 'black' || lc === '000000';
@@ -71,7 +156,7 @@ export function pickTextPalette(stats, forcedColor) {
     return { fill: forcedColor, stroke: 'rgba(0,0,0,0)', mode: 'custom' };
   }
   const channels = stats?.channels || [];
-  const means = channels.slice(0, 3).map((c) => c?.mean || 128);
+  const means = channels.slice(0, 3).map((c) => c?.mean ?? 128);
   const avg = means.reduce((sum, v) => sum + v, 0) / (means.length || 1);
   if (avg >= 170) return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'bright' };
   if (avg <= 110) return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'dark' };
@@ -86,18 +171,10 @@ export function buildTextPatternSvg(width, height, text, opacity, fillColor, str
   const tileW = cellSize * 2.7;
   const tileH = cellSize * 1.65;
   const rotation = Math.random() < 0.5 ? randomBetween(-22, -18) : randomBetween(18, 22);
-  const modeSettings =
-    {
-      bright: { boost: 1.5, fillMin: 0.5, fillMax: 0.8, strokeMin: 0, strokeMax: 0, strokeW: 0 },
-      mid: { boost: 0.85, fillMin: 0.28, fillMax: 0.5, strokeMin: 0, strokeMax: 0, strokeW: 0 },
-      dark: { boost: 0.85, fillMin: 0.32, fillMax: 0.62, strokeMin: 0, strokeMax: 0, strokeW: 0 },
-      custom: { boost: 1.0, fillMin: 0.4, fillMax: 0.7, strokeMin: 0, strokeMax: 0, strokeW: 0 }
-    }[mode] || { boost: 1.0, fillMin: 0.4, fillMax: 0.7, strokeMin: 0, strokeMax: 0, strokeW: 0 };
-  const fillOpacity = Math.min(modeSettings.fillMax, Math.max(modeSettings.fillMin, opacity * 1.5 * modeSettings.boost));
-  const strokeOpacity = strokeColor
-    ? Math.min(modeSettings.strokeMax, Math.max(modeSettings.strokeMin, opacity * 2.6 * modeSettings.boost))
-    : 0;
-  const strokeWidth = modeSettings.strokeW ? Math.max(0.6, fontSize * modeSettings.strokeW) : 0;
+  // Используем переданный opacity напрямую в SVG, БЕЗ жёстких минимумов и лишних множителей!
+  const fillOpacity = opacity; // Используем адаптивный opacity напрямую
+  const strokeOpacity = 0; // Обводка не нужна
+  const strokeWidth = 0; // Обводка не используется
   const pad = fontSize * 1.1;
   const offsetX = randomBetween(-tileW * 0.5, tileW * 0.5);
   const offsetY = randomBetween(-tileH * 0.5, tileH * 0.5);
