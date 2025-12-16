@@ -7,9 +7,9 @@
 import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
-import { calculateAdaptiveOpacity } from './lib/photo-variants/patterns.js';
-import { buildTextPatternSvg } from './lib/photo-variants/patterns.js';
-import { pickTextPalette } from './lib/photo-variants/patterns.js';
+import { calculateAdaptiveOpacity } from '../lib/photo-variants/patterns.js';
+import { buildTextPatternSvg } from '../lib/photo-variants/patterns.js';
+import { pickTextPalette } from '../lib/photo-variants/patterns.js';
 
 const OUTPUT_DIR = path.join(process.cwd(), 'data/photos/test_colors/calibration_samples');
 const WIDTH = 1920;

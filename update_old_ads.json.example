@@ -1,0 +1,36 @@
+{
+  "byId": {
+    "12345678": {
+      "updatePhoto": true,
+      "updateDescription": "auto",
+      "customTitle": "Песок карьерный новый",
+      "materialId": "karier_neseyan_nemyt_pesok"
+    },
+    "87654321": {
+      "updatePhoto": true,
+      "updateDescription": "Ручное описание текста с деталями...",
+      "newAddress": "Бронницы, Магистральная ул., 3",
+      "materialId": "karier_seyan_nemyt_pesok"
+    },
+    "11111111": {
+      "updateDescription": "auto",
+      "customTitle": ["Песок карьерный", "Песок строительный", "Песок для стройки"],
+      "materialId": "karier_neseyan_nemyt_pesok"
+    }
+  },
+  "byLists": {
+    "updatePhoto": ["12345678", "87654321"],
+    "updateDescription": ["12345678", "11111111"],
+    "customTitles": {
+      "11111111": "Песок карьерный"
+    },
+    "customDescriptions": {
+      "87654321": "Ручное описание..."
+    },
+    "newAddresses": {
+      "87654321": "Бронницы, Магистральная ул., 3"
+    }
+  }
+}
+
+

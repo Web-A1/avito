@@ -5,7 +5,7 @@
 
 import { generateDescription } from '../descriptionGenerator.js';
 import { getSandType } from '../../constants/sandTypes.js';
-import { VARIATION_PARAMETERS, FIXED_PARAMETERS, generatePrice } from '../../constants/parameters.js';
+import { VARIATION_PARAMETERS, FIXED_PARAMETERS, FLAGSHIP_PARAMETERS, generatePrice } from '../../constants/parameters.js';
 
 // Конфигурация дубль-чека для песка
 export const SAND_DUPLICATE_CONFIG = {
@@ -39,9 +39,10 @@ function randomChoice(arr) {
  * @param {string[]} params.titles
  * @param {string[]} params.addresses
  * @param {string[]} params.photos
+ * @param {boolean} [params.isFlagship=false] - Флагманское объявление (используются точные характеристики)
  * @returns {Object} объявление
  */
-export function buildSandAd({ materialId, titles = [], addresses = [], photos = [] } = {}) {
+export function buildSandAd({ materialId, titles = [], addresses = [], photos = [], isFlagship = false } = {}) {
   const sandTypeId = materialId || DEFAULT_SAND_TYPE_ID;
   const sandType = getSandType(sandTypeId);
 
@@ -49,15 +50,20 @@ export function buildSandAd({ materialId, titles = [], addresses = [], photos = 
   const address = addresses.length ? randomChoice(addresses) : 'Адрес не указан';
   const photoLink = photos.length ? randomChoice(photos) : '';
 
-  const priceFor = randomChoice(VARIATION_PARAMETERS.PRICE_FOR);
-  const color = randomChoice(VARIATION_PARAMETERS.COLOR);
+  // Для флагманского объявления используем точные значения
+  const priceFor = isFlagship 
+    ? FLAGSHIP_PARAMETERS.PRICE_FOR 
+    : randomChoice(VARIATION_PARAMETERS.PRICE_FOR);
+  
+  const color = isFlagship 
+    ? FLAGSHIP_PARAMETERS.COLOR 
+    : randomChoice(VARIATION_PARAMETERS.COLOR);
+  
+  // Для флагманского объявления используем точную базовую цену без вариаций
   const price = sandType
-    ? generatePrice(
-        sandType.basePrice,
-        sandType.priceRange.min,
-        sandType.priceRange.max,
-        sandType.priceRange.step
-      )
+    ? (isFlagship 
+        ? sandType.basePrice 
+        : generatePrice(sandType.basePrice))
     : 0;
 
   const { description, latinReplacements, blockOrder, separators, block7Params, block1Variant } =

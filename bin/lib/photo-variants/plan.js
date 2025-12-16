@@ -20,21 +20,69 @@ export function collectSourcesFromPlan(plan, aliases = { materials: {}, photos: 
       const locs = (slot.locations && slot.locations.length ? slot.locations : [{ address: 'default' }]) || [
         { address: 'default' }
       ];
+      
+      // Определяем общую папку для всех адресов этого слота
+      const resolved =
+        photoAliases[photoKey] || path.join(DEFAULT_PHOTOS_ROOT, materialId || photoKey, 'originals');
+      
+      // Распределяем slot.count между адресами
+      // Если у адреса указан loc.count - используем его, иначе распределяем остаток
+      const totalSlotCount = Number(slot.count) || Number(t.count) || 0;
+      let remainingCount = totalSlotCount;
+      const locCounts = new Map();
+      
+      // Сначала берем явно указанные count из loc.count
+      locs.forEach((loc) => {
+        const locCount = Number(loc.count);
+        if (locCount > 0) {
+          const addr = loc.address || 'default';
+          locCounts.set(addr, locCount);
+          remainingCount -= locCount;
+        }
+      });
+      
+      // Если остался count, распределяем его между адресами без явного count
+      if (remainingCount > 0) {
+        const locsWithoutCount = locs.filter(loc => !Number(loc.count));
+        if (locsWithoutCount.length > 0) {
+          const perLoc = Math.floor(remainingCount / locsWithoutCount.length);
+          const remainder = remainingCount % locsWithoutCount.length;
+          locsWithoutCount.forEach((loc, idx) => {
+            const addr = loc.address || 'default';
+            locCounts.set(addr, perLoc + (idx < remainder ? 1 : 0));
+          });
+        } else if (locs.length > 0 && totalSlotCount > 0) {
+          // Если все адреса имеют count, но slot.count больше суммы - добавляем остаток к последнему
+          const lastAddr = locs[locs.length - 1].address || 'default';
+          locCounts.set(lastAddr, (locCounts.get(lastAddr) || 0) + remainingCount);
+        }
+      }
+      
+      // Если ни у кого нет count и нет slot.count - используем дефолтное распределение
+      if (locCounts.size === 0 && totalSlotCount === 0) {
+        const perLoc = Math.floor(1 / locs.length);
+        const remainder = 1 % locs.length;
+        locs.forEach((loc, idx) => {
+          const addr = loc.address || 'default';
+          locCounts.set(addr, perLoc + (idx < remainder ? 1 : 0));
+        });
+      }
+      
+      // Создаем записи для каждого адреса
       locs.forEach((loc) => {
         const addrRaw = loc.address || 'default';
         const addrFormatted = formatAddressLabel(addrRaw);
         const safeAddress = sanitizeName(addrFormatted);
         const countKey = `${materialId || ''}|${safeAddress}`;
-        const addCount = Number(loc.count) || Number(slot.count) || Number(t.count) || 0;
+        const addCount = locCounts.get(addrRaw) || 0;
         addrCounts.set(countKey, (addrCounts.get(countKey) || 0) + addCount);
-        const resolved =
-          photoAliases[photoKey] || path.join(DEFAULT_PHOTOS_ROOT, materialId || photoKey, 'originals');
+        
         const folderKey = `${resolved}|${safeAddress}`;
         folders.set(folderKey, {
           materialId,
           name: t.materialId || materialId,
           address: addrFormatted,  // Исходный адрес для getCityAlias()
-          safeAddress,              // Нормализованный для путей
+          safeAddress,              // Нормализованный
           folder: resolved,
           dateBegin
         });
@@ -75,4 +123,3 @@ export function collectSourcesFromPlan(plan, aliases = { materials: {}, photos: 
   });
   return sources;
 }
-

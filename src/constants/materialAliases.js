@@ -6,11 +6,18 @@
 
 // Алиасы материалов (короткие коды)
 export const MATERIAL_ALIASES = {
+  // Песок
   karier_neseyan_nemyt_pesok: 's00',
   karier_seyan_nemyt_pesok: 's01',
   'karier_seyan_myt_pesok_1.5': 's15',
   karier_seyan_myt_pesok_2: 's20',
-  'karier_seyan_myt_pesok_2.5': 's25'
+  'karier_seyan_myt_pesok_2.5': 's25',
+  // Щебень вторичный
+  scheben_vtorichnyi_40_70: 'r00-4070',
+  // Щебень известковый (добавить при необходимости)
+  // scheben_izvestkovyi_40_70: 'r01-4070',
+  // Щебень гранитный (добавить при необходимости)
+  // scheben_granitnyi_40_70: 'r02-4070'
 };
 
 // Алиасы утверждённых адресов Avito (короткие коды для имён файлов)
@@ -76,9 +83,9 @@ function parseDateBegin(str) {
 }
 
 /**
- * Форматирует дату в короткий формат YYMMDD
+ * Форматирует дату в короткий формат DDMMYY
  * @param {Date|string} date - объект Date или строка DateBegin
- * @returns {string} - например, "241210" для 10 декабря 2024
+ * @returns {string} - например, "101224" для 10 декабря 2024
  */
 function formatDateLabel(date) {
   const d = typeof date === 'string' ? parseDateBegin(date) : date;
@@ -87,7 +94,7 @@ function formatDateLabel(date) {
   const yy = String(d.getFullYear()).substring(2);
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  return `${yy}${mm}${dd}`;
+  return `${dd}${mm}${yy}`;
 }
 
 /**
@@ -102,13 +109,13 @@ export function generateAdId(materialId, address, dateBegin, counter) {
   const matAlias = getMaterialAlias(materialId);
   const cityAlias = getCityAlias(address);
   const dateLabel = formatDateLabel(dateBegin);
-  const counterStr = String(counter).padStart(3, '0');
+  const counterStr = String(counter).padStart(2, '0');
   return `${matAlias}_${cityAlias}_${dateLabel}_${counterStr}`;
 }
 
 /**
  * Парсит adId обратно в компоненты
- * @param {string} adId - ID объявления (например, "s00_bron_241210_001")
+ * @param {string} adId - ID объявления (например, "s00_bron_161225_01")
  * @returns {Object|null} - {materialAlias, cityAlias, dateLabel, counter} или null
  */
 export function parseAdId(adId) {

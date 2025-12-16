@@ -19,9 +19,9 @@ function toKey(header = '') {
 }
 
 function normalizeExistingAd(ad = {}) {
-  // Маппинг русских заголовков в поля
+  // Маппинг русских и английских заголовков в поля
   const map = {
-    id: ad['уникальный_идентификатор_объявления'] || ad['id'],
+    id: ad['уникальный_идентификатор_объявления'] || ad['id'] || ad['avitoid'],
     title: ad['название_объявления'] || ad['title'],
     description: ad['описание_объявления'] || ad['description'],
     price: ad['цена'] || ad['price'],
@@ -38,7 +38,7 @@ function normalizeExistingAd(ad = {}) {
 
   let photoLink = '';
   let photoLinks = [];
-  const photos = ad['ссылки_на_фото'] || ad['photolinks'] || ad['photolink'];
+  const photos = ad['ссылки_на_фото'] || ad['photolinks'] || ad['photolink'] || ad['imageurls'];
   if (typeof photos === 'string') {
     photoLinks = photos
       .split(/[\s,;]+/)
@@ -49,10 +49,14 @@ function normalizeExistingAd(ad = {}) {
     }
   }
 
+  // Для английского формата используем AvitoId как Id, если Id не найден
+  const finalId = map.id || ad['avitoid'] || ad['id'];
+  
   return {
     // сохраняем сырые поля тоже
     ...ad,
-    Id: map.id ? String(map.id) : undefined,
+    Id: finalId ? String(finalId) : undefined,
+    AvitoId: ad['avitoid'] ? String(ad['avitoid']) : undefined,
     title: map.title,
     description: map.description,
     price: map.price,
@@ -73,18 +77,68 @@ function normalizeExistingAd(ad = {}) {
 }
 
 function looksLikeAdsSheet(rows = []) {
-  if (!rows || rows.length < 2) return false;
-  const headerRow = rows[1] || [];
-  return headerRow.some((cell) =>
-    String(cell || '').toLowerCase().includes('уникальный идентификатор объявления')
+  if (!rows || rows.length < 1) return false;
+  
+  // Проверяем формат с русскими заголовками (строка 1)
+  if (rows.length >= 2) {
+    const headerRow1 = rows[1] || [];
+    if (headerRow1.some((cell) =>
+      String(cell || '').toLowerCase().includes('уникальный идентификатор объявления')
+    )) {
+      return true;
+    }
+  }
+  
+  // Проверяем формат с английскими заголовками (строка 0)
+  const headerRow0 = rows[0] || [];
+  const hasId = headerRow0.some((cell) => 
+    String(cell || '').toLowerCase() === 'id' || 
+    String(cell || '').toLowerCase() === 'avitoid'
   );
+  const hasTitle = headerRow0.some((cell) => 
+    String(cell || '').toLowerCase() === 'title'
+  );
+  
+  return hasId && hasTitle;
 }
 
 function parseAdsFromSheet(rows = []) {
-  // Ожидаем: row0 — путь категории, row1 — заголовки, row2/3 — служебные строки, далее данные
-  const headers = (rows[1] || []).map(toKey);
+  let headerRowIndex = -1;
+  let dataStartIndex = -1;
+  
+  // Определяем формат: русские заголовки (строка 1) или английские (строка 0)
+  if (rows.length >= 2) {
+    const headerRow1 = rows[1] || [];
+    if (headerRow1.some((cell) =>
+      String(cell || '').toLowerCase().includes('уникальный идентификатор объявления')
+    )) {
+      // Формат с русскими заголовками: строка 1 - заголовки, строка 2+ - данные
+      headerRowIndex = 1;
+      dataStartIndex = 2;
+    }
+  }
+  
+  // Если не нашли русские заголовки, проверяем английские
+  if (headerRowIndex === -1 && rows.length >= 1) {
+    const headerRow0 = rows[0] || [];
+    if (headerRow0.some((cell) => 
+      String(cell || '').toLowerCase() === 'id' || 
+      String(cell || '').toLowerCase() === 'avitoid'
+    )) {
+      // Формат с английскими заголовками: строка 0 - заголовки, строка 1+ - данные
+      headerRowIndex = 0;
+      dataStartIndex = 1;
+    }
+  }
+  
+  if (headerRowIndex === -1) {
+    return [];
+  }
+  
+  const headers = (rows[headerRowIndex] || []).map(toKey);
   const ads = [];
-  for (let i = 2; i < rows.length; i++) {
+  
+  for (let i = dataStartIndex; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
     const firstCell = String(row[0] || '').toLowerCase();

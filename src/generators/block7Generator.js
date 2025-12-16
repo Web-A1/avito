@@ -121,7 +121,7 @@ export function generateBlock7Params(sandTypeId, sandTypeDisplayName) {
   // Генерируем модуль крупности
   const module = generateModule(sandTypeId);
   
-  // Генерируем все параметры
+  // Генерируем все параметры (рандомные для всех объявлений)
   const params = {
     sandType: sandTypeDisplayName,
     volume: generateVolume(),

@@ -22,6 +22,7 @@ const STRATEGIES = {
  * @param {string[]} params.photos
  * @param {number} [params.maxAttempts=50]
  * @param {Array<Object>} [params.currentAds=[]] - текущие объявления (например, из выгрузки Авито)
+ * @param {boolean|Array<boolean>} [params.isFlagship=false] - флагманское объявление (или массив для каждого объявления)
  * @returns {Object[]} список уникальных объявлений
  */
 export function generateAds({
@@ -32,19 +33,31 @@ export function generateAds({
   addresses = [],
   photos = [],
   maxAttempts = 50,
-  currentAds = []
+  currentAds = [],
+  isFlagship = false
 }) {
   const strategy = STRATEGIES[material];
   if (!strategy) {
     throw new Error(`Strategy for material "${material}" is not implemented`);
   }
 
+  // Преобразуем isFlagship в массив, если это не массив
+  const flagshipFlags = Array.isArray(isFlagship) 
+    ? isFlagship 
+    : Array(count).fill(isFlagship);
+
   const ads = [];
   for (let i = 0; i < count; i++) {
     let attempts = 0;
     let ad;
     do {
-      ad = strategy.buildAd({ materialId, titles, addresses, photos });
+      ad = strategy.buildAd({ 
+        materialId, 
+        titles, 
+        addresses, 
+        photos, 
+        isFlagship: flagshipFlags[i] || false 
+      });
       attempts += 1;
       if (attempts >= maxAttempts) {
         // сохраняем даже если дубль, чтобы не зациклиться

@@ -6,7 +6,7 @@
 import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
-import { calculateAdaptiveOpacity } from './lib/photo-variants/patterns.js';
+import { calculateAdaptiveOpacity } from '../lib/photo-variants/patterns.js';
 
 const VARIANTS_DIR = path.join(
   process.cwd(),
