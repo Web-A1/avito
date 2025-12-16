@@ -1163,21 +1163,30 @@ async function main() {
         const rules = updateRulesMap.get(ad.Id);
         return rules && (rules.updateDescription || rules.customTitle || rules.newAddress);
       });
-      console.log(`   Найдено объявлений для обновления: ${adsToUpdate.length}`);
+      
+      console.log(`\n   Найдено объявлений для обновления: ${adsToUpdate.length}`);
+      if (adsToUpdate.length === 0) {
+        console.log(`   Нет объявлений, требующих обновления`);
+      }
       
       for (let i = 0; i < adsToUpdate.length; i++) {
         const ad = adsToUpdate[i];
-        console.log(`   [${i + 1}/${adsToUpdate.length}] Обновление объявления ${ad.Id}...`);
         const rules = updateRulesMap.get(ad.Id);
         if (!rules) continue;
         
+        console.log(`\n   ${'─'.repeat(56)}`);
+        console.log(`   [${i + 1}/${adsToUpdate.length}] Объявление: ${ad.Id}`);
+        console.log(`   ${'─'.repeat(56)}`);
+        
         let updated = false;
+        const changes = [];
         
         // Обновляем описание
         if (rules.updateDescription) {
           if (rules.updateDescription === 'auto') {
             try {
-              console.log(`      Генерация описания (auto)...`);
+              console.log(`\n   Описание:`);
+              console.log(`      Режим: автогенерация`);
               // Автогенерация описания
               const materialId = rules.materialId || 'karier_neseyan_nemyt_pesok';
               const sandType = getSandType(materialId);
@@ -1194,7 +1203,8 @@ async function main() {
               const isFlagship = parsed && parsed.counter === 1;
               
               if (isFlagship) {
-                console.log(`      Флагманское объявление - используются точные priceFor, color, price`);
+                console.log(`      Флагманское объявление`);
+                console.log(`      Используются точные параметры: priceFor, color, price`);
                 const { FLAGSHIP_PARAMETERS } = await import('../src/constants/parameters.js');
                 ad.priceFor = FLAGSHIP_PARAMETERS.PRICE_FOR;
                 ad.color = FLAGSHIP_PARAMETERS.COLOR;
@@ -1204,62 +1214,80 @@ async function main() {
               }
               
               updated = true;
+              changes.push('описание');
               console.log(`      Описание сгенерировано`);
             } catch (err) {
-              console.warn(`      ⚠️  Не удалось сгенерировать описание: ${err.message}`);
+              console.log(`\n   Описание:`);
+              console.warn(`      Ошибка генерации: ${err.message}`);
               console.warn(`      Описание останется из Excel`);
               // Описание остается из Excel
             }
           } else if (typeof rules.updateDescription === 'string' && rules.updateDescription !== 'auto') {
-            console.log(`      Использование ручного описания...`);
+            console.log(`\n   Описание:`);
+            console.log(`      Режим: ручное`);
             // Ручное описание
             ad.description = rules.updateDescription;
             updated = true;
+            changes.push('описание');
             console.log(`      Описание обновлено`);
           }
         }
         
         // Обновляем заголовок
         if (rules.customTitle) {
+          console.log(`\n   Заголовок:`);
           if (Array.isArray(rules.customTitle)) {
-            console.log(`      Выбор заголовка из списка (${rules.customTitle.length} вариантов)...`);
+            console.log(`      Режим: выбор из списка (${rules.customTitle.length} вариантов)`);
             // Выбор из списка
             ad.title = rules.customTitle[Math.floor(Math.random() * rules.customTitle.length)];
           } else if (typeof rules.customTitle === 'string') {
-            console.log(`      Использование конкретного заголовка...`);
+            console.log(`      Режим: конкретный заголовок`);
             // Конкретный заголовок
             ad.title = rules.customTitle;
           }
           updated = true;
-          console.log(`      Заголовок: "${ad.title}"`);
+          changes.push('заголовок');
+          console.log(`      Новый заголовок: "${ad.title}"`);
         }
         
         // Обновляем адрес
         if (rules.newAddress) {
-          console.log(`      Проверка адреса: ${rules.newAddress}...`);
+          console.log(`\n   Адрес:`);
+          console.log(`      Проверка: ${rules.newAddress}`);
           // Проверяем, что адрес из утвержденных
           if (!CITY_ALIASES[rules.newAddress]) {
             throw new Error(`Адрес "${rules.newAddress}" не найден в списке утвержденных адресов Avito для объявления ${ad.Id}`);
           }
           ad.address = rules.newAddress;
           updated = true;
+          changes.push('адрес');
           console.log(`      Адрес обновлен`);
         }
         
         // Обновляем фото (если было обновлено на шаге 4)
         const photoItem = photosLinks.items.find(item => item.avitoId === ad.Id);
         if (photoItem) {
+          console.log(`\n   Фото:`);
           ad.photoLink = photoItem.public_url;
           updated = true;
+          changes.push('фото');
           console.log(`      Фото обновлено`);
         }
         
         if (updated) {
           updatedCount++;
+          console.log(`\n   Итого обновлено: ${changes.join(', ')}`);
+        } else {
+          console.log(`\n   Нет изменений для этого объявления`);
         }
       }
       
-      console.log(`   Обновлено объявлений: ${updatedCount}`);
+      console.log(`\n${'═'.repeat(60)}`);
+      console.log(`   ИТОГО ОБНОВЛЕНО ОБЪЯВЛЕНИЙ: ${updatedCount} из ${adsToUpdate.length}`);
+      if (updatedCount < adsToUpdate.length) {
+        console.log(`   Пропущено: ${adsToUpdate.length - updatedCount}`);
+      }
+      console.log(`${'═'.repeat(60)}\n`);
     } else {
       logStep(currentStep, currentStepName, 'Пропущен (нет правил обновления или текущих объявлений)');
     }
@@ -1278,103 +1306,153 @@ async function main() {
       
       // Загружаем маппинг фото
       const photosMappingPath = path.join(opts.outDir, `photos_links_${dateLabel}.json`);
-      console.log(`   Загрузка маппинга фото: ${path.basename(photosMappingPath)}`);
+      console.log(`\n   Загрузка маппинга фото:`);
+      console.log(`      Файл: ${path.basename(photosMappingPath)}`);
       const photosMapping = loadPhotosMapping(photosMappingPath);
       const photosMappingCount = Object.keys(photosMapping).length;
-      console.log(`   Найдено фото в маппинге: ${photosMappingCount}`);
+      console.log(`      Найдено фото в маппинге: ${photosMappingCount}`);
       
       var generatedAds = [];
-      console.log(`   Обработка задач из плана...`);
+      console.log(`\n   Обработка задач из плана...`);
+      console.log(`   Всего задач: ${plan.tasks.length}`);
+      
       for (let taskIdx = 0; taskIdx < plan.tasks.length; taskIdx++) {
-      const task = plan.tasks[taskIdx];
-      console.log(`   Задача ${taskIdx + 1}/${plan.tasks.length}: ${task.materialId || task.material || 'неизвестно'}`);
-      const slots = task.slots && task.slots.length ? task.slots : [{ DateBegin: task.DateBegin, count: task.count }];
-      for (const slot of slots) {
-        const baseDate = parseDateTime(slot.DateBegin);
-        const minInterval =
-          Number.isFinite(slot.intervalMinMinutes) && slot.intervalMinMinutes > 0
-            ? slot.intervalMinMinutes
-            : Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
-              ? task.intervalMinMinutes
-              : 1;
-        const maxIntervalCandidate =
-          Number.isFinite(slot.intervalMaxMinutes) && slot.intervalMaxMinutes > 0
-            ? slot.intervalMaxMinutes
-            : Number.isFinite(slot.intervalMinutes) && slot.intervalMinutes > 0
-              ? slot.intervalMinutes
-              : Number.isFinite(task.intervalMaxMinutes) && task.intervalMaxMinutes > 0
-                ? task.intervalMaxMinutes
-                : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
-                  ? task.intervalMinutes
-                  : 6;
-        const maxInterval = Math.max(minInterval, maxIntervalCandidate);
-        const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
-        const locationsPlan = buildLocationPlan(
-          slot.count || task.count || 1,
-          slot.locations || task.locations || task.addresses || [],
-          aliases
-        );
-
-        const slotAds = [];
-        let adCounter = 1;
+        const task = plan.tasks[taskIdx];
+        const taskMaterialId = task.materialId || task.material || 'неизвестно';
         
-        for (const loc of locationsPlan) {
-          // Определяем, какие объявления будут флагманскими (counter = 1)
-          const flagshipFlags = Array(loc.count).fill(false).map((_, idx) => idx === 0);
+        console.log(`\n   ${'─'.repeat(56)}`);
+        console.log(`   Задача ${taskIdx + 1}/${plan.tasks.length}: ${taskMaterialId}`);
+        console.log(`   ${'─'.repeat(56)}`);
+        
+        const slots = task.slots && task.slots.length ? task.slots : [{ DateBegin: task.DateBegin, count: task.count }];
+        console.log(`   Слотов в задаче: ${slots.length}`);
+        
+        let taskAdsCount = 0;
+        
+        for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
+          const slot = slots[slotIdx];
+          const baseDate = parseDateTime(slot.DateBegin);
+          const minInterval =
+            Number.isFinite(slot.intervalMinMinutes) && slot.intervalMinMinutes > 0
+              ? slot.intervalMinMinutes
+              : Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
+                ? task.intervalMinMinutes
+                : 1;
+          const maxIntervalCandidate =
+            Number.isFinite(slot.intervalMaxMinutes) && slot.intervalMaxMinutes > 0
+              ? slot.intervalMaxMinutes
+              : Number.isFinite(slot.intervalMinutes) && slot.intervalMinutes > 0
+                ? slot.intervalMinutes
+                : Number.isFinite(task.intervalMaxMinutes) && task.intervalMaxMinutes > 0
+                  ? task.intervalMaxMinutes
+                  : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
+                    ? task.intervalMinutes
+                    : 6;
+          const maxInterval = Math.max(minInterval, maxIntervalCandidate);
+          const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
+          const locationsPlan = buildLocationPlan(
+            slot.count || task.count || 1,
+            slot.locations || task.locations || task.addresses || [],
+            aliases
+          );
+
+          console.log(`\n   Слот ${slotIdx + 1}/${slots.length}:`);
+          if (baseDate) {
+            console.log(`      Дата начала: ${formatDateTime(baseDate)}`);
+          }
+          console.log(`      Количество объявлений: ${slot.count || task.count || 1}`);
+          console.log(`      Интервал между объявлениями: ${minInterval}-${maxInterval} минут`);
+          console.log(`      Локаций: ${locationsPlan.length}`);
+
+          const slotAds = [];
           
-          const ads = generateAds({
-            material: task.material || 'sand',
-            materialId: materialIdResolved,
-            count: loc.count,
-            titles: task.titles && task.titles.length ? task.titles : TOP_5_TITLES,
-            addresses: [loc.address],
-            photos: task.photos || [],
-            currentAds,
-            isFlagship: flagshipFlags
-          });
-          
-          // Присваиваем adId и photoLink каждому объявлению
-          ads.forEach((ad, idx) => {
-            const adId = generateAdId(materialIdResolved, loc.address, baseDate, adCounter++);
-            ad.adId = adId;
+          for (const loc of locationsPlan) {
+            // Счетчик начинается с 1 для каждой локации (чтобы соответствовать фото, которые генерируются с 01)
+            let adCounter = 1;
             
-            // Если есть фото с таким adId - используем его URL
-            if (photosMapping[adId]) {
-              ad.photoLink = photosMapping[adId];
-            } else if (!ad.photoLink && task.photos && task.photos.length) {
-              ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
+            // Определяем, какие объявления будут флагманскими (counter = 1)
+            const flagshipFlags = Array(loc.count).fill(false).map((_, idx) => idx === 0);
+            
+            const ads = generateAds({
+              material: task.material || 'sand',
+              materialId: materialIdResolved,
+              count: loc.count,
+              titles: task.titles && task.titles.length ? task.titles : TOP_5_TITLES,
+              addresses: [loc.address],
+              photos: task.photos || [],
+              currentAds,
+              isFlagship: flagshipFlags
+            });
+            
+            // Присваиваем adId и photoLink каждому объявлению
+            let withPhotoCount = 0;
+            const adsWithoutPhoto = [];
+            ads.forEach((ad, idx) => {
+              const adId = generateAdId(materialIdResolved, loc.address, baseDate, adCounter++);
+              ad.adId = adId;
+              
+              // Если есть фото с таким adId - используем его URL
+              if (photosMapping[adId]) {
+                ad.photoLink = photosMapping[adId];
+                withPhotoCount++;
+              } else if (!ad.photoLink && task.photos && task.photos.length) {
+                // Fallback: используем случайное фото из task.photos
+                ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
+                withPhotoCount++;
+              } else {
+                // Фото не найдено - это ошибка
+                adsWithoutPhoto.push(adId);
+              }
+            });
+            
+            // Проверяем, что все объявления имеют фото
+            if (adsWithoutPhoto.length > 0) {
+              throw new Error(
+                `Обнаружены объявления без фото (${adsWithoutPhoto.length} из ${ads.length}):\n` +
+                `  Локация: ${loc.address}\n` +
+                `  Объявления без фото: ${adsWithoutPhoto.slice(0, 5).join(', ')}${adsWithoutPhoto.length > 5 ? '...' : ''}\n` +
+                `  Проверьте:\n` +
+                `  1. Загружены ли фото на Яндекс.Диск (шаг 6)\n` +
+                `  2. Корректен ли маппинг фото (файл photos_links_${dateLabel}.json)\n` +
+                `  3. Совпадают ли adId в маппинге с генерируемыми adId`
+              );
             }
-          });
-          
-          slotAds.push(...ads);
-        }
+            
+            console.log(`      Локация: ${loc.address}`);
+            console.log(`         Объявлений: ${loc.count}`);
+            console.log(`         С фото: ${withPhotoCount}, без фото: ${loc.count - withPhotoCount}`);
+            
+            slotAds.push(...ads);
+          }
 
-        // Расставляем время публикации с заданным интервалом
-        if (baseDate) {
-          let currentDt = baseDate;
-          slotAds.forEach((ad, idx) => {
-            ad.dateBegin = formatDateTime(currentDt);
-            if (idx < slotAds.length - 1) {
-              const step = randomInt(minInterval, maxInterval);
-              currentDt = new Date(currentDt.getTime() + step * 60 * 1000);
-            }
-          });
-        }
+          // Расставляем время публикации с заданным интервалом
+          if (baseDate) {
+            let currentDt = baseDate;
+            slotAds.forEach((ad, idx) => {
+              ad.dateBegin = formatDateTime(currentDt);
+              if (idx < slotAds.length - 1) {
+                const step = randomInt(minInterval, maxInterval);
+                currentDt = new Date(currentDt.getTime() + step * 60 * 1000);
+              }
+            });
+          }
 
-        generatedAds.push(...slotAds);
+          generatedAds.push(...slotAds);
+          taskAdsCount += slotAds.length;
+        }
+        
+        console.log(`\n   Итого для задачи "${taskMaterialId}": ${taskAdsCount} объявлений`);
       }
-      console.log(`      Сгенерировано объявлений для задачи: ${generatedAds.length - (taskIdx > 0 ? plan.tasks.slice(0, taskIdx).reduce((sum, t) => {
-        const slots = t.slots || [{ count: t.count || 0 }];
-        return sum + slots.reduce((s, slot) => s + (slot.count || t.count || 0), 0);
-      }, 0) : 0)}`);
-    }
-    
-    console.log(`   Всего сгенерировано новых объявлений: ${generatedAds.length}`);
-    if (generatedAds.length > 0) {
-      const withPhotos = generatedAds.filter(ad => ad.photoLink).length;
-        console.log(`      - С фото: ${withPhotos}`);
-        console.log(`      - Без фото: ${generatedAds.length - withPhotos}`);
+      
+      console.log(`\n${'═'.repeat(60)}`);
+      console.log(`   ИТОГО СГЕНЕРИРОВАНО НОВЫХ ОБЪЯВЛЕНИЙ: ${generatedAds.length}`);
+      if (generatedAds.length > 0) {
+        const withPhotos = generatedAds.filter(ad => ad.photoLink).length;
+        const withoutPhotos = generatedAds.length - withPhotos;
+        console.log(`      С фото: ${withPhotos}`);
+        console.log(`      Без фото: ${withoutPhotos}`);
       }
+      console.log(`${'═'.repeat(60)}\n`);
     }
     
     // 9. Объединяем всё в XML
@@ -1387,10 +1465,17 @@ async function main() {
       
       // Собираем итоговый массив: сначала старые (обновленные), потом новые
       const allAds = [...currentAds, ...(generatedAds || [])];
-      console.log(`   Объединение объявлений: ${currentAds.length} старых + ${generatedAds?.length || 0} новых = ${allAds.length} всего`);
+      const oldAdsCount = currentAds.length;
+      const newAdsCount = generatedAds?.length || 0;
+      const totalAdsCount = allAds.length;
+      
+      console.log(`\n   Объединение объявлений:`);
+      console.log(`      Старых (обновленных): ${oldAdsCount}`);
+      console.log(`      Новых (сгенерированных): ${newAdsCount}`);
+      console.log(`      Всего: ${totalAdsCount}`);
       
       const dateLabelForFile = opts.date || formatDateLabelForFile(new Date());
-      console.log(`   Генерация XML...`);
+      console.log(`\n   Генерация XML...`);
       const xml = generateXml(allAds, dateLabelForFile);
       
       if (!fs.existsSync(opts.outDir)) {
@@ -1399,8 +1484,9 @@ async function main() {
       const xmlFilePath = path.join(opts.outDir, `ads_${dateLabelForFile}.xml`);
       
       if (opts.dryRun) {
-        console.log(`   [DRY-RUN] XML был бы сохранен в: ${xmlFilePath}`);
-        console.log(`   [DRY-RUN] Размер XML: ${(Buffer.byteLength(xml, 'utf8') / 1024).toFixed(2)} KB`);
+        console.log(`\n   [DRY-RUN] XML был бы сохранен:`);
+        console.log(`      Файл: ${xmlFilePath}`);
+        console.log(`      Размер: ${(Buffer.byteLength(xml, 'utf8') / 1024).toFixed(2)} KB`);
       } else {
         console.log(`   Сохранение XML файла...`);
         fs.writeFileSync(xmlFilePath, xml, 'utf8');
@@ -1417,16 +1503,24 @@ async function main() {
           adIds: adIdsFromXml,
           count: adIdsFromXml.length
         }, null, 2), 'utf8');
-        console.log(`   Финальный XML создан:`);
-        console.log(`      - Старых объявлений: ${currentAds.length}`);
-        console.log(`      - Новых объявлений: ${generatedAds?.length || 0}`);
-        console.log(`      - Всего в XML: ${allAds.length}`);
-        console.log(`      - Размер файла: ${(fileSize / 1024).toFixed(2)} KB`);
-        console.log(`      - Файл: ${xmlFilePath}`);
-        console.log(`      - Манифест: ${path.basename(xmlManifestPath)} (${adIdsFromXml.length} adId)`);
+        
+        console.log(`\n${'═'.repeat(60)}`);
+        console.log(`   ФИНАЛЬНЫЙ XML СОЗДАН`);
+        console.log(`${'═'.repeat(60)}`);
+        console.log(`   Статистика:`);
+        console.log(`      Старых объявлений: ${oldAdsCount}`);
+        console.log(`      Новых объявлений: ${newAdsCount}`);
+        console.log(`      Всего в XML: ${totalAdsCount}`);
+        console.log(`   Файлы:`);
+        console.log(`      XML: ${path.basename(xmlFilePath)}`);
+        console.log(`      Размер: ${(fileSize / 1024).toFixed(2)} KB`);
+        console.log(`      Полный путь: ${xmlFilePath}`);
+        console.log(`      Манифест: ${path.basename(xmlManifestPath)}`);
+        console.log(`      Записей в манифесте: ${adIdsFromXml.length} adId`);
+        console.log(`${'═'.repeat(60)}\n`);
         
         // Переносим временную историю в основную (только для тех фото, что попали в XML)
-        console.log(`\n   Перенос истории из временных файлов...`);
+        console.log(`   Перенос истории из временных файлов...`);
         const { formatAddressLabel, sanitizeName } = await import('./lib/photo-variants/utils.js');
         
         // Собираем все уникальные комбинации materialId + address из плана
@@ -1447,20 +1541,23 @@ async function main() {
         }
         
         let committedCount = 0;
-        for (const [key, { materialId, address }] of locationsMap) {
-          const safeAddress = sanitizeName(formatAddressLabel(address));
-          const materialPath = path.join(materialId, safeAddress);
-          
-          if (commitHistoryFromTmp(materialPath)) {
-            committedCount++;
-            console.log(`      ✅ ${materialId} → ${address}: история перенесена`);
+        if (locationsMap.size > 0) {
+          console.log(`   Обработка локаций: ${locationsMap.size}`);
+          for (const [key, { materialId, address }] of locationsMap) {
+            const safeAddress = sanitizeName(formatAddressLabel(address));
+            const materialPath = path.join(materialId, safeAddress);
+            
+            if (commitHistoryFromTmp(materialPath)) {
+              committedCount++;
+              console.log(`      ${materialId} → ${address}: история перенесена`);
+            }
           }
         }
         
         if (committedCount > 0) {
-          console.log(`   История обновлена для ${committedCount} локаций`);
+          console.log(`\n   История обновлена для ${committedCount} из ${locationsMap.size} локаций`);
         } else {
-          console.log(`   Временная история не найдена (возможно, фото не генерировались)`);
+          console.log(`\n   Временная история не найдена (возможно, фото не генерировались)`);
         }
       }
     }

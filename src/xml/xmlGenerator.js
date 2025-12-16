@@ -19,7 +19,10 @@ function wrapCdata(content = '') {
 }
 
 function formatImages(images = []) {
-  if (!images.length) return '';
+  // Avito требует минимум одно изображение для каждого объявления
+  if (!images.length || !images[0]) {
+    throw new Error('Объявление должно содержать хотя бы одно изображение. Убедитесь, что фото загружены на Яндекс.Диск и маппинг фото корректен.');
+  }
   return `<Images>${images.map((url) => `<Image url="${escapeXml(url)}"/>`).join('')}</Images>`;
 }
 
@@ -39,6 +42,23 @@ function formatAd(ad, idx, dateLabel = '') {
   const minSaleQuantity = ad.minSaleQuantity ?? FIXED_PARAMETERS.MIN_SALE_QUANTITY;
   const dateBegin = ad.dateBegin;
 
+  // Для щебня определяем RubbleType и Fraction
+  let rubbleTypeXml = '';
+  let fractionXml = '';
+  if (bulkMaterialType === 'Щебень, гравий' && bulkMaterialSubType === 'Щебень') {
+    // RubbleType: извлекаем из title или description, или используем значение из ad
+    const rubbleType = ad.rubbleType || extractRubbleTypeFromText(ad.title || '', ad.description || '');
+    if (rubbleType) {
+      rubbleTypeXml = `<RubbleType>${escapeXml(rubbleType)}</RubbleType>`;
+    }
+    
+    // Fraction: извлекаем из description или используем значение из ad
+    const fraction = ad.fraction || extractFractionFromText(ad.description || '');
+    if (fraction) {
+      fractionXml = `<Fraction>${escapeXml(fraction)}</Fraction>`;
+    }
+  }
+
   return `
     <Ad>
       <Id>${escapeXml(id)}</Id>
@@ -54,6 +74,8 @@ function formatAd(ad, idx, dateLabel = '') {
       <GoodsSubType>Сыпучие материалы</GoodsSubType>
       <BulkMaterialType>${escapeXml(bulkMaterialType)}</BulkMaterialType>
       <BulkMaterialSubType>${escapeXml(bulkMaterialSubType)}</BulkMaterialSubType>
+      ${rubbleTypeXml}
+      ${fractionXml}
       <PackagingType>${escapeXml(packagingType)}</PackagingType>
       <CompactionCoefficient>${compactionCoefficient}</CompactionCoefficient>
       <MinSaleQuantity>${minSaleQuantity}</MinSaleQuantity>
@@ -62,6 +84,52 @@ function formatAd(ad, idx, dateLabel = '') {
       <Availability>${escapeXml(availability)}</Availability>
       ${dateBegin ? `<DateBegin>${escapeXml(dateBegin)}</DateBegin>` : ''}
     </Ad>`;
+}
+
+// Извлекает тип щебня из текста (Title или Description)
+function extractRubbleTypeFromText(title, description) {
+  const text = (title + ' ' + description).toLowerCase();
+  
+  // Маппинг ключевых слов на типы щебня
+  const rubbleTypeMap = {
+    'вторичный': 'Вторичный',
+    'гравийный': 'Гравийный',
+    'гранитный': 'Гранитный',
+    'известняковый': 'Известняковый',
+    'известковый': 'Известняковый',
+    'бутовый': 'Бутовый',
+    'мраморный': 'Мраморный'
+  };
+  
+  for (const [keyword, type] of Object.entries(rubbleTypeMap)) {
+    if (text.includes(keyword)) {
+      return type;
+    }
+  }
+  
+  return null;
+}
+
+// Извлекает фракцию из текста (Description)
+function extractFractionFromText(description) {
+  // Паттерны для поиска фракции: "40–70 мм", "40-70 мм", "40-70", "40–70"
+  const fractionPatterns = [
+    /(\d+)[–-](\d+)\s*мм/i,  // "40–70 мм" или "40-70 мм"
+    /(\d+)[–-](\d+)/i         // "40–70" или "40-70"
+  ];
+  
+  for (const pattern of fractionPatterns) {
+    const match = description.match(pattern);
+    if (match) {
+      const min = match[1];
+      const max = match[2];
+      // Форматируем как "40–70 мм" (с длинным тире)
+      return `${min}–${max} мм`;
+    }
+  }
+  
+  // Если не найдено, возвращаем null
+  return null;
 }
 
 /**

@@ -249,3 +249,4 @@ export function calculateInscribedRectangle(width, height, angleDegrees, safety 
 
 
 
+

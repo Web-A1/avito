@@ -1,11 +1,9 @@
 {
-  "byId": {},
-  "byLists": {
-    "updateAll": false,
-    "updatePhoto": [],
-    "updateDescription": [],
-    "customTitles": {},
-    "customDescriptions": {},
-    "newAddresses": {}
-  }
+  "byId": {
+    "4908236909": {
+      "updateDescription": "auto",
+      "materialId": "karier_neseyan_nemyt_pesok"
+    }
+  },
+  "byLists": {}
 }

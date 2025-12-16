@@ -35,11 +35,9 @@ export function loadPhotosMapping(filePath) {
     const resolvedPath = filePath || findLatestPhotosLinks();
     
     if (!resolvedPath || !fs.existsSync(resolvedPath)) {
-      console.warn('⚠️  photos_links.json не найден');
+      console.warn('   photos_links.json не найден');
       return {};
     }
-    
-    console.log(`📸 Чтение photos_links: ${path.basename(resolvedPath)}`);
     
     const data = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
     const mapping = {};
@@ -50,13 +48,11 @@ export function loadPhotosMapping(filePath) {
         const adId = item.file.replace(/\.(jpg|jpeg|png|webp)$/i, '');
         mapping[adId] = item.public_url;
       });
-      
-      console.log(`   Найдено ${Object.keys(mapping).length} фото с adId`);
     }
     
     return mapping;
   } catch (e) {
-    console.warn(`⚠️  Не удалось прочитать photos_links: ${e.message}`);
+    console.warn(`   Не удалось прочитать photos_links: ${e.message}`);
     return {};
   }
 }

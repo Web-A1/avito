@@ -175,3 +175,4 @@ grep -c "<Ad>" output/ads_*.xml
 **"Не указан materialId"** → Добавьте `materialId` в правила обновления
 
 
+

@@ -1,0 +1,26 @@
+<Ads formatVersion="3" target="Avito.ru">
+    <Ad>
+      <Id>test_01</Id>
+      <Category>Ремонт и строительство</Category>
+      <Title>Щебень вторичный</Title>
+      <Description><![CDATA[Щебень вторичный 40–70 мм из кирпича]]></Description>
+      <Address>Тест</Address>
+      <Price>1000</Price>
+      
+      <GoodsType>Стройматериалы</GoodsType>
+      <AdType>Товар от производителя</AdType>
+      <Condition>Новое</Condition>
+      <GoodsSubType>Сыпучие материалы</GoodsSubType>
+      <BulkMaterialType>Щебень, гравий</BulkMaterialType>
+      <BulkMaterialSubType>Щебень</BulkMaterialSubType>
+      <RubbleType>Вторичный</RubbleType>
+      <Fraction>40–70 мм</Fraction>
+      <PackagingType>Россыпью</PackagingType>
+      <CompactionCoefficient></CompactionCoefficient>
+      <MinSaleQuantity>20</MinSaleQuantity>
+      <PriceFor>м³</PriceFor>
+      
+      <Availability>В наличии</Availability>
+      
+    </Ad>
+</Ads>

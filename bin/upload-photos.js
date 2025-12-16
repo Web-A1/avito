@@ -519,8 +519,21 @@ async function publishFile(token, diskPath) {
 
 async function processMaterial(token, materialId, diskRoot, dateLabel) {
   const files = listVariantFiles(materialId);
+  console.log(`   Найдено файлов в variants для ${materialId}: ${files.length}`);
+  
   if (!files.length) {
-    console.warn(`Не найдено фото для материала ${materialId}`);
+    console.warn(`   ⚠️  Не найдено фото для материала ${materialId}`);
+    // Выводим путь, где искали файлы
+    const materialDir = path.join(DEFAULT_VARIANTS_ROOT, materialId);
+    console.warn(`   Путь поиска: ${materialDir}`);
+    if (fs.existsSync(materialDir)) {
+      const subdirs = fs.readdirSync(materialDir, { withFileTypes: true })
+        .filter(e => e.isDirectory())
+        .map(e => e.name);
+      console.warn(`   Найдено подпапок: ${subdirs.length} (${subdirs.slice(0, 3).join(', ')}${subdirs.length > 3 ? '...' : ''})`);
+    } else {
+      console.warn(`   ⚠️  Папка материала не существует`);
+    }
     return [];
   }
   
@@ -528,27 +541,21 @@ async function processMaterial(token, materialId, diskRoot, dateLabel) {
   const { parseAdId, CITY_ALIASES } = await import('../src/constants/materialAliases.js');
   const { formatAddressLabel, sanitizeName } = await import('./lib/photo-variants/utils.js');
   
-  // Функция для парсинга даты из dateLabel (формат: "DD.MM.YYYY HH-MM-SS")
-  function parseDateFromLabel(label) {
-    const match = label.match(/(\d{2})\.(\d{2})\.(\d{4})/);
-    if (!match) return null;
-    const [, dd, mm, yyyy] = match;
-    return `${dd}${mm}${yyyy.substring(2)}`; // DDMMYY
-  }
-  
-  const targetDateLabel = parseDateFromLabel(dateLabel);
-  
-  // Группируем файлы по адресам (из adId в имени файла) и фильтруем по дате
+  // Группируем файлы по адресам (из adId в имени файла)
+  // ВАЖНО: НЕ фильтруем по дате, так как файлы уже сгенерированы с датой из плана (DateBegin),
+  // а dateLabel здесь - это дата генерации скрипта, которая может отличаться
   const filesByAddress = new Map();
+  let parsedFailed = 0;
   
   for (const file of files) {
     // Извлекаем adId из имени файла (убираем расширение)
     const adId = file.name.replace(/\.(jpg|jpeg|png|webp)$/i, '');
     const parsed = parseAdId(adId);
     
-    // Фильтруем только файлы с нужной датой
-    if (parsed && targetDateLabel && parsed.dateLabel !== targetDateLabel) {
-      continue; // Пропускаем файлы с другой датой
+    if (!parsed) {
+      parsedFailed++;
+      console.warn(`   ⚠️  Не удалось распарсить adId из имени файла: ${file.name}`);
+      continue;
     }
     
     let safeAddress = 'default';
@@ -564,6 +571,20 @@ async function processMaterial(token, materialId, diskRoot, dateLabel) {
       filesByAddress.set(safeAddress, []);
     }
     filesByAddress.get(safeAddress).push({ ...file, adId });
+  }
+  
+  // Выводим статистику
+  const totalAfterFilter = Array.from(filesByAddress.values()).reduce((sum, arr) => sum + arr.length, 0);
+  console.log(`   Статистика:`);
+  console.log(`      Всего файлов найдено: ${files.length}`);
+  if (parsedFailed > 0) {
+    console.log(`      Не удалось распарсить adId: ${parsedFailed}`);
+  }
+  console.log(`      Файлов для загрузки: ${totalAfterFilter}`);
+  
+  if (totalAfterFilter === 0) {
+    console.warn(`   ⚠️  Не осталось файлов для загрузки`);
+    return [];
   }
   
   const rootPath = `disk:/${diskRoot}`;
