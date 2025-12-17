@@ -10,7 +10,7 @@ import path from 'path';
  * @param {string} outputDir - путь к папке output
  * @returns {string|null} - путь к файлу или null
  */
-function findLatestPhotosLinks(outputDir = 'output') {
+export function findLatestPhotosLinks(outputDir = 'output') {
   if (!fs.existsSync(outputDir)) return null;
   
   const files = fs.readdirSync(outputDir)

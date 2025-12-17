@@ -449,39 +449,88 @@ async function ensureFolder(token, diskPath) {
   }
 }
 
+/**
+ * Выполняет функцию с повторными попытками при временных ошибках
+ * Использует линейный backoff (1s, 2s, 3s) для предотвращения перегрузки API
+ * @param {Function} fn - асинхронная функция для выполнения
+ * @param {number} maxRetries - максимальное количество попыток (по умолчанию 3)
+ * @param {string} operationName - название операции для логирования
+ * @returns {Promise} результат выполнения функции
+ */
+async function retryWithBackoff(fn, maxRetries = 3, operationName = 'операция') {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const errorMsg = error.message || String(error);
+      
+      // Определяем, является ли ошибка временной (можно повторить)
+      const isRetryable = 
+        errorMsg.includes('HTTP 500') || 
+        errorMsg.includes('HTTP 502') || 
+        errorMsg.includes('HTTP 503') || 
+        errorMsg.includes('HTTP 429') ||
+        errorMsg.includes('ECONNRESET') ||
+        errorMsg.includes('ETIMEDOUT') ||
+        errorMsg.includes('ENOTFOUND') ||
+        errorMsg.includes('timeout');
+      
+      // Если ошибка не временная или это последняя попытка - выбрасываем ошибку
+      if (!isRetryable || attempt === maxRetries) {
+        throw error;
+      }
+      
+      // Линейный backoff: 1s, 2s, 3s (не exponential, чтобы не ждать долго)
+      const delay = attempt * 1000;
+      console.log(`   ⚠️  ${operationName}: попытка ${attempt}/${maxRetries} не удалась (${errorMsg.substring(0, 80)}), повтор через ${delay}мс...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
 async function uploadAndPublishPhoto(token, localPath, diskPath) {
   try {
-    // Шаг 1: Получаем URL для загрузки
+    // Шаг 1: Получаем URL для загрузки (с retry при ошибке)
     console.log(`   [DEBUG] Шаг 1: Получение URL для загрузки...`);
     const uploadUrl = `https://cloud-api.yandex.net/v1/disk/resources/upload?path=${encodeURIComponent(diskPath)}&overwrite=true`;
-    const uploadUrlRes = await httpRequest(
-      uploadUrl,
-      { method: 'GET', headers: { Authorization: `OAuth ${token}` } }
+    const uploadUrlRes = await retryWithBackoff(
+      () => httpRequest(uploadUrl, { method: 'GET', headers: { Authorization: `OAuth ${token}` } }),
+      3,
+      'Получение URL для загрузки'
     );
     const { href } = JSON.parse(uploadUrlRes.data);
     console.log(`   [DEBUG] Шаг 1: URL получен, href: ${href.substring(0, 100)}...`);
     
-    // Шаг 2: Загружаем файл
+    // Шаг 2: Загружаем файл (с retry при ошибке)
     console.log(`   [DEBUG] Шаг 2: Загрузка файла (${fs.statSync(localPath).size} байт)...`);
     const fileBody = fs.readFileSync(localPath);
-    await httpRequest(href, { method: 'PUT', headers: { 'Content-Length': fileBody.length } }, fileBody);
+    await retryWithBackoff(
+      () => httpRequest(href, { method: 'PUT', headers: { 'Content-Length': fileBody.length } }, fileBody),
+      3,
+      'Загрузка файла'
+    );
     console.log(`   [DEBUG] Шаг 2: Файл загружен успешно`);
     
-    // Шаг 3: Публикуем файл
+    // Шаг 3: Публикуем файл (с retry при ошибке, больше попыток для критичного шага)
     console.log(`   [DEBUG] Шаг 3: Публикация файла...`);
     const publishUrl = `https://cloud-api.yandex.net/v1/disk/resources/publish?path=${encodeURIComponent(diskPath)}`;
-    await httpRequest(
-      publishUrl,
-      { method: 'PUT', headers: { Authorization: `OAuth ${token}` } }
+    await retryWithBackoff(
+      () => httpRequest(publishUrl, { method: 'PUT', headers: { Authorization: `OAuth ${token}` } }),
+      5, // Больше попыток для публикации (самый проблемный шаг)
+      'Публикация файла'
     );
     console.log(`   [DEBUG] Шаг 3: Файл опубликован успешно`);
     
-    // Шаг 4: Получаем публичный URL
+    // Шаг 4: Получаем публичный URL (с retry при ошибке)
     console.log(`   [DEBUG] Шаг 4: Получение публичного URL...`);
     const infoUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=${encodeURIComponent(diskPath)}`;
-    const info = await httpRequest(
-      infoUrl,
-      { method: 'GET', headers: { Authorization: `OAuth ${token}` } }
+    const info = await retryWithBackoff(
+      () => httpRequest(infoUrl, { method: 'GET', headers: { Authorization: `OAuth ${token}` } }),
+      3,
+      'Получение публичного URL'
     );
     const json = JSON.parse(info.data);
     console.log(`   [DEBUG] Шаг 4: Публичный URL получен`);
@@ -538,7 +587,7 @@ function runScript(scriptPath, args = [], options = {}) {
   });
 }
 
-async function generatePhotoForOldAd(avitoId, materialId, address, photosRoot, textWatermark, textOpacity, patternOpacity) {
+export async function generatePhotoForOldAd(avitoId, materialId, address, photosRoot, textWatermark, textOpacity, patternOpacity) {
   // Определяем, является ли это флагманским объявлением (counter = 1)
   const { parseAdId } = await import('../src/constants/materialAliases.js');
   const parsed = parseAdId(avitoId);
@@ -1128,16 +1177,38 @@ async function main() {
             
             console.log(`\n   ✅ Обновлено фото для объявления ${ad.Id}`);
             successCount++;
+            
+            // Минимальная задержка между фото (только если не последнее)
+            // Это помогает избежать rate limiting и снижает нагрузку на API
+            if (i < adsToUpdatePhoto.length - 1) {
+              const delay = 300 + Math.random() * 200; // 0.3-0.5 секунды случайная задержка
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
           } catch (err) {
             console.log(`\n   ❌ Ошибка при обновлении фото:`);
             console.log(`      ${err.message}`);
+            
+            // Определяем тип ошибки
+            const errorMsg = err.message || String(err);
+            const isTemporaryError = 
+              errorMsg.includes('HTTP 500') || 
+              errorMsg.includes('HTTP 502') || 
+              errorMsg.includes('HTTP 503') || 
+              errorMsg.includes('HTTP 429');
+            
+            if (isTemporaryError) {
+              console.log(`   ⚠️  Временная ошибка сервера (после всех попыток), пропускаем это фото`);
+            } else {
+              console.log(`   ⚠️  Постоянная ошибка, пропускаем это фото`);
+            }
+            
             if (err.stack && err.message.includes('HTTP 500')) {
               console.log(`   [DEBUG] Полный стек ошибки:`);
               console.log(`      ${err.stack.split('\n').slice(0, 5).join('\n      ')}`);
             }
             console.log(`   ⚠️  Фото останется из Excel: ${ad.photoLink || 'не указано'}`);
             skippedCount++;
-            // Продолжаем обработку остальных объявлений
+            // Продолжаем обработку остальных объявлений (не бросаем ошибку)
           }
         }
         console.log(`\n${'═'.repeat(60)}`);
@@ -1459,8 +1530,11 @@ async function main() {
           throw new Error(`Не удалось распарсить DateBegin из плана: "${planDateBegin}"`);
         }
         console.log(`   Дата начала (DateBegin): ${formatDateTime(currentDt)}`);
-        console.log(`   Режим: последовательная публикация товаров`);
+        console.log(`   Режим: чередование товаров (round-robin)`);
       }
+      
+      // Для чередования материалов: сначала собираем все объявления без dateBegin
+      const allTaskAds = []; // Массив массивов: [task0_ads, task1_ads, ...]
       
       for (let taskIdx = 0; taskIdx < plan.tasks.length; taskIdx++) {
         const task = plan.tasks[taskIdx];
@@ -1488,6 +1562,7 @@ async function main() {
         console.log(`   Слотов в задаче: ${slots.length}`);
         
         let taskAdsCount = 0;
+        const taskAllAds = []; // Все объявления этой задачи (для round-robin)
         
           for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
           const slot = slots[slotIdx];
@@ -1500,7 +1575,7 @@ async function main() {
               ? slot.intervalMinMinutes
               : Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
                 ? task.intervalMinMinutes
-                : 10;
+                : 5;
           const maxIntervalCandidate =
             Number.isFinite(slot.intervalMaxMinutes) && slot.intervalMaxMinutes > 0
               ? slot.intervalMaxMinutes
@@ -1510,7 +1585,7 @@ async function main() {
                   ? task.intervalMaxMinutes
                   : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
                     ? task.intervalMinutes
-                    : 30;
+                    : 20;
           const maxInterval = Math.max(minInterval, maxIntervalCandidate);
           const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
           const locationsPlan = buildLocationPlan(
@@ -1634,12 +1709,15 @@ async function main() {
               ad.adId = adId;
               
               // Расставляем время публикации с заданным интервалом (начиная с реального времени первого фото)
-              ad.dateBegin = formatDateTime(dateBeginDt);
+              // В новой логике (useNewLogic) dateBegin будет присвоен позже при распределении по раундам
+              if (!useNewLogic) {
+                ad.dateBegin = formatDateTime(dateBeginDt);
+              }
               
               adsWithTime.push(ad);
               
-              // Обновляем время для следующего объявления
-              if (idx < ads.length - 1) {
+              // Обновляем время для следующего объявления (только для старой логики)
+              if (!useNewLogic && idx < ads.length - 1) {
                 const step = randomInt(minInterval, maxInterval);
                 dateBeginDt = new Date(dateBeginDt.getTime() + step * 60 * 1000);
               }
@@ -1668,21 +1746,87 @@ async function main() {
             slotDateBeginDt = dateBeginDt;
           }
           
-          // Обновляем currentDt для следующего товара (если новая логика)
-          if (useNewLogic) {
-            currentDt = slotDateBeginDt;
-            // Добавляем интервал между товарами (используем тот же интервал, что и между объявлениями)
-            if (slotAds.length > 0) {
-              const step = randomInt(minInterval, maxInterval);
-              currentDt = new Date(currentDt.getTime() + step * 60 * 1000);
-            }
-          }
-
-          generatedAds.push(...slotAds);
+          // Сохраняем объявления слота в общий массив задачи
+          taskAllAds.push(...slotAds);
           taskAdsCount += slotAds.length;
         }
         
+        // Сохраняем все объявления задачи (для round-robin)
+        // В новой логике dateBegin будет присвоен позже при распределении по раундам
+        // В старой логике dateBegin уже присвоен выше
+        allTaskAds.push(taskAllAds);
+        
         console.log(`\n   Итого для задачи "${taskMaterialId}": ${taskAdsCount} объявлений`);
+      }
+      
+      // Теперь распределяем объявления по раундам (round-robin) и присваиваем dateBegin
+      if (useNewLogic && allTaskAds.length > 0) {
+        console.log(`\n   Распределение объявлений по раундам (чередование товаров)...`);
+        
+        // Определяем интервалы (берем из первой задачи, они должны быть одинаковыми)
+        const firstTask = plan.tasks[0];
+        const firstSlot = firstTask.slots && firstTask.slots.length ? firstTask.slots[0] : { DateBegin: planDateBegin, count: firstTask.count };
+        const minInterval =
+          Number.isFinite(firstSlot.intervalMinMinutes) && firstSlot.intervalMinMinutes > 0
+            ? firstSlot.intervalMinMinutes
+            : Number.isFinite(firstTask.intervalMinMinutes) && firstTask.intervalMinMinutes > 0
+              ? firstTask.intervalMinMinutes
+              : 5;
+        const maxIntervalCandidate =
+          Number.isFinite(firstSlot.intervalMaxMinutes) && firstSlot.intervalMaxMinutes > 0
+            ? firstSlot.intervalMaxMinutes
+            : Number.isFinite(firstSlot.intervalMinutes) && firstSlot.intervalMinutes > 0
+              ? firstSlot.intervalMinutes
+              : Number.isFinite(firstTask.intervalMaxMinutes) && firstTask.intervalMaxMinutes > 0
+                ? firstTask.intervalMaxMinutes
+                : Number.isFinite(firstTask.intervalMinutes) && firstTask.intervalMinutes > 0
+                  ? firstTask.intervalMinutes
+                  : 20;
+        const maxInterval = Math.max(minInterval, maxIntervalCandidate);
+        
+        // Находим первое фото для инициализации базового времени
+        let baseDateBeginDt = currentDt;
+        for (const taskAds of allTaskAds) {
+          if (taskAds.length > 0 && taskAds[0].adId) {
+            const firstAdId = taskAds[0].adId;
+            const parsed = parseAdId(firstAdId);
+            if (parsed && parsed.dateLabel) {
+              const photoTime = parseDateLabel(parsed.dateLabel);
+              if (photoTime) {
+                baseDateBeginDt = photoTime;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Распределяем объявления по раундам (round-robin)
+        let dateBeginDt = baseDateBeginDt;
+        const maxLength = Math.max(...allTaskAds.map(ads => ads.length));
+        
+        for (let roundIdx = 0; roundIdx < maxLength; roundIdx++) {
+          for (let taskIdx = 0; taskIdx < allTaskAds.length; taskIdx++) {
+            const taskAds = allTaskAds[taskIdx];
+            if (roundIdx < taskAds.length) {
+              const ad = taskAds[roundIdx];
+              ad.dateBegin = formatDateTime(dateBeginDt);
+              generatedAds.push(ad);
+              
+              // Обновляем время для следующего объявления
+              if (roundIdx < maxLength - 1 || taskIdx < allTaskAds.length - 1) {
+                const step = randomInt(minInterval, maxInterval);
+                dateBeginDt = new Date(dateBeginDt.getTime() + step * 60 * 1000);
+              }
+            }
+          }
+        }
+        
+        console.log(`   Распределено ${generatedAds.length} объявлений по раундам`);
+      } else {
+        // Старая логика: просто добавляем все объявления как есть
+        for (const taskAds of allTaskAds) {
+          generatedAds.push(...taskAds);
+        }
       }
       
       console.log(`\n${'═'.repeat(60)}`);
@@ -1987,5 +2131,9 @@ async function main() {
   }
 }
 
-main();
+// Запускаем main() только если скрипт запущен напрямую, а не импортирован
+// Проверяем, что process.argv[1] указывает на этот файл
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main();
+}
 

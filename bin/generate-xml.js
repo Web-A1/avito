@@ -175,13 +175,13 @@ async function main() {
       const minInterval =
         Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
           ? task.intervalMinMinutes
-          : 10;
+                : 5;
       const maxIntervalCandidate =
         Number.isFinite(task.intervalMaxMinutes) && task.intervalMaxMinutes > 0
           ? task.intervalMaxMinutes
           : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
             ? task.intervalMinutes
-            : 30;
+                    : 20;
       const maxInterval = Math.max(minInterval, maxIntervalCandidate);
       
       const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
@@ -297,7 +297,7 @@ async function main() {
             ? slot.intervalMinMinutes
             : Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
               ? task.intervalMinMinutes
-              : 10;
+                : 5;
         const maxIntervalCandidate =
           Number.isFinite(slot.intervalMaxMinutes) && slot.intervalMaxMinutes > 0
             ? slot.intervalMaxMinutes
@@ -307,7 +307,7 @@ async function main() {
                 ? task.intervalMaxMinutes
                 : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
                   ? task.intervalMinutes
-                  : 30;
+                    : 20;
         const maxInterval = Math.max(minInterval, maxIntervalCandidate);
         const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
         const locationsPlan = buildLocationPlan(
