@@ -12,7 +12,7 @@ import { TOP_5_TITLES } from '../src/constants/titles.js';
 import { fileURLToPath } from 'url';
 import { readCurrentAdsFromXlsx } from '../src/utils/currentAdsReader.js';
 import { loadPhotosMapping } from '../src/utils/photosLinksReader.js';
-import { generateAdId } from '../src/constants/materialAliases.js';
+import { generateAdId, parseAdId, parseDateLabel, getMaterialAlias, getCityAlias } from '../src/constants/materialAliases.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -130,6 +130,7 @@ async function main() {
 
   // План задач: либо из файла, либо одна задача с count/адресами по умолчанию
   let tasks = [];
+  let planDateBegin = null; // DateBegin из корня плана
   const planPath = plan || path.resolve(__dirname, '..', 'data', 'plan.json');
   let aliases = { materials: {}, addresses: {} };
   if (fs.existsSync(planPath)) {
@@ -137,6 +138,7 @@ async function main() {
       const json = JSON.parse(fs.readFileSync(planPath, 'utf8'));
       tasks = json.tasks || [];
       aliases = json.aliases || aliases;
+      planDateBegin = json.DateBegin || null;
     } catch (e) {
       console.warn(`Не удалось прочитать план ${planPath}: ${e.message}`);
     }
@@ -155,36 +157,42 @@ async function main() {
   }
 
   const generatedAds = [];
-  for (const task of tasks) {
-    const slots = task.slots && task.slots.length ? task.slots : [{ DateBegin: task.DateBegin, count: task.count }];
-    for (const slot of slots) {
-      const baseDate = parseDateTime(slot.DateBegin);
+  
+  // Определяем, используем ли новую логику (DateBegin в корне + нет slots) или старую (slots)
+  const useNewLogic = planDateBegin && tasks.every(task => !task.slots || !task.slots.length);
+  
+  if (useNewLogic) {
+    // НОВАЯ ЛОГИКА: DateBegin из корня, товары публикуются последовательно
+    const baseDate = parseDateTime(planDateBegin);
+    if (!baseDate) {
+      throw new Error(`Не удалось распарсить DateBegin из плана: "${planDateBegin}"`);
+    }
+    
+    let currentDt = baseDate; // Текущее время для публикации
+    
+    for (const task of tasks) {
+      // Определяем интервалы для этого товара
       const minInterval =
-        Number.isFinite(slot.intervalMinMinutes) && slot.intervalMinMinutes > 0
-          ? slot.intervalMinMinutes
-          : Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
-            ? task.intervalMinMinutes
-            : 1;
+        Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
+          ? task.intervalMinMinutes
+          : 10;
       const maxIntervalCandidate =
-        Number.isFinite(slot.intervalMaxMinutes) && slot.intervalMaxMinutes > 0
-          ? slot.intervalMaxMinutes
-          : Number.isFinite(slot.intervalMinutes) && slot.intervalMinutes > 0
-            ? slot.intervalMinutes
-            : Number.isFinite(task.intervalMaxMinutes) && task.intervalMaxMinutes > 0
-              ? task.intervalMaxMinutes
-              : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
-                ? task.intervalMinutes
-                : 6;
+        Number.isFinite(task.intervalMaxMinutes) && task.intervalMaxMinutes > 0
+          ? task.intervalMaxMinutes
+          : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
+            ? task.intervalMinutes
+            : 30;
       const maxInterval = Math.max(minInterval, maxIntervalCandidate);
+      
       const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
       const locationsPlan = buildLocationPlan(
-        slot.count || task.count || 1,
-        slot.locations || task.locations || task.addresses || [],
+        task.count || 1,
+        task.locations || task.addresses || [],
         aliases
       );
 
-      const slotAds = [];
-      let adCounter = 1; // Счётчик для adId в рамках этого слота
+      const taskAds = [];
+      let adCounter = 1; // Счётчик для adId в рамках этого товара
       
       for (const loc of locationsPlan) {
         const ads = generateAds({
@@ -198,36 +206,199 @@ async function main() {
         });
         
         // Присваиваем adId и photoLink каждому объявлению
-        ads.forEach(ad => {
-          // Генерируем adId для нового объявления
-          const adId = generateAdId(materialIdResolved, loc.address, baseDate, adCounter++);
+        // ВАЖНО: adId берется из имени файла фото (реальное время создания), dateBegin = реальное время + интервалы
+        const adsWithTime = [];
+        const matAlias = getMaterialAlias(materialIdResolved);
+        const cityAlias = getCityAlias(loc.address);
+        
+        // Ищем все фото для этой локации в photosMapping
+        // ВАЖНО: для новых объявлений ищем только фото с новым форматом (с временем в dateLabel)
+        const locationPhotos = Object.keys(photosMapping)
+          .map(adId => {
+            const parsed = parseAdId(adId);
+            if (parsed && parsed.materialAlias === matAlias && parsed.cityAlias === cityAlias) {
+              // Для новых объявлений используем только фото с новым форматом (с временем)
+              // Старые фото (без времени) имеют dateLabel в формате "DDMMYY", новые - "DDMMYY-HHmmss"
+              const hasTime = parsed.dateLabel && parsed.dateLabel.includes('-') && parsed.dateLabel.length > 6;
+              return { adId, parsed, url: photosMapping[adId], hasTime };
+            }
+            return null;
+          })
+          .filter(Boolean)
+          .filter(p => p.hasTime) // Только фото с новым форматом (с временем)
+          .sort((a, b) => a.parsed.counter - b.parsed.counter); // Сортируем по counter
+        
+        // Определяем базовое время для dateBegin: берем из первого фото или используем baseDate
+        let dateBeginDt = baseDate;
+        if (locationPhotos.length > 0 && locationPhotos[0].parsed.dateLabel) {
+          const photoTime = parseDateLabel(locationPhotos[0].parsed.dateLabel);
+          if (photoTime) {
+            dateBeginDt = photoTime;
+          }
+        }
+        
+        ads.forEach((ad, idx) => {
+          // Ищем фото с нужным counter
+          const targetCounter = adCounter + idx;
+          const photo = locationPhotos.find(p => p.parsed.counter === targetCounter);
+          
+          let adId = null;
+          if (photo) {
+            adId = photo.adId;
+            ad.photoLink = photo.url;
+          } else {
+            // Если фото не найдено - генерируем adId с базовым временем
+            adId = generateAdId(materialIdResolved, loc.address, baseDate, targetCounter);
+            if (!ad.photoLink && task.photos && task.photos.length) {
+              // Fallback: случайное фото из task.photos если adId не найден
+              ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
+            }
+          }
+          
           ad.adId = adId;
           
-          // Если есть фото с таким adId - используем его URL
-          if (photosMapping[adId]) {
-            ad.photoLink = photosMapping[adId];
-          } else if (!ad.photoLink && task.photos && task.photos.length) {
-            // Fallback: случайное фото из task.photos если adId не найден
-            ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
+          // Расставляем время публикации с заданным интервалом (начиная с реального времени первого фото)
+          ad.dateBegin = formatDateTime(dateBeginDt);
+          
+          adsWithTime.push(ad);
+          
+          // Обновляем время для следующего объявления
+          if (idx < ads.length - 1) {
+            const step = randomInt(minInterval, maxInterval);
+            dateBeginDt = new Date(dateBeginDt.getTime() + step * 60 * 1000);
           }
         });
         
-        slotAds.push(...ads);
+        taskAds.push(...adsWithTime);
+        // Обновляем currentDt для следующего товара (используем тот же интервал, что и между объявлениями)
+        if (adsWithTime.length > 0) {
+          const step = randomInt(minInterval, maxInterval);
+          currentDt = new Date(tempDt.getTime() + step * 60 * 1000);
+        }
       }
 
-      // Расставляем время публикации с заданным интервалом
-      if (baseDate) {
-        let currentDt = baseDate;
-        slotAds.forEach((ad, idx) => {
-          ad.dateBegin = formatDateTime(currentDt);
-          if (idx < slotAds.length - 1) {
-            const step = randomInt(minInterval, maxInterval);
-            currentDt = new Date(currentDt.getTime() + step * 60 * 1000);
+      generatedAds.push(...taskAds);
+      
+      // После завершения товара, следующий начинается после последнего объявления
+      // Используем тот же интервал (10-30 минут), что и между объявлениями
+      if (taskAds.length > 0) {
+        const step = randomInt(minInterval, maxInterval);
+        currentDt = new Date(currentDt.getTime() + step * 60 * 1000);
+      }
+    }
+  } else {
+    // СТАРАЯ ЛОГИКА: поддержка slots для обратной совместимости
+    for (const task of tasks) {
+      const slots = task.slots && task.slots.length ? task.slots : [{ DateBegin: task.DateBegin, count: task.count }];
+      for (const slot of slots) {
+        const baseDate = parseDateTime(slot.DateBegin);
+        const minInterval =
+          Number.isFinite(slot.intervalMinMinutes) && slot.intervalMinMinutes > 0
+            ? slot.intervalMinMinutes
+            : Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
+              ? task.intervalMinMinutes
+              : 10;
+        const maxIntervalCandidate =
+          Number.isFinite(slot.intervalMaxMinutes) && slot.intervalMaxMinutes > 0
+            ? slot.intervalMaxMinutes
+            : Number.isFinite(slot.intervalMinutes) && slot.intervalMinutes > 0
+              ? slot.intervalMinutes
+              : Number.isFinite(task.intervalMaxMinutes) && task.intervalMaxMinutes > 0
+                ? task.intervalMaxMinutes
+                : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
+                  ? task.intervalMinutes
+                  : 30;
+        const maxInterval = Math.max(minInterval, maxIntervalCandidate);
+        const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
+        const locationsPlan = buildLocationPlan(
+          slot.count || task.count || 1,
+          slot.locations || task.locations || task.addresses || [],
+          aliases
+        );
+
+        const slotAds = [];
+        let adCounter = 1; // Счётчик для adId в рамках этого слота
+        
+        for (const loc of locationsPlan) {
+          const ads = generateAds({
+            material: task.material || 'sand',
+            materialId: materialIdResolved,
+            count: loc.count,
+            titles: task.titles && task.titles.length ? task.titles : TOP_5_TITLES,
+            addresses: [loc.address],
+            photos: task.photos || [],
+            currentAds
+          });
+          
+          // Присваиваем adId и photoLink каждому объявлению
+          // ВАЖНО: adId берется из имени файла фото (реальное время создания), dateBegin = реальное время + интервалы
+          const adsWithTime = [];
+          const matAlias = getMaterialAlias(materialIdResolved);
+          const cityAlias = getCityAlias(loc.address);
+          
+          // Ищем все фото для этой локации в photosMapping
+          // ВАЖНО: для новых объявлений ищем только фото с новым форматом (с временем в dateLabel)
+          const locationPhotos = Object.keys(photosMapping)
+            .map(adId => {
+              const parsed = parseAdId(adId);
+              if (parsed && parsed.materialAlias === matAlias && parsed.cityAlias === cityAlias) {
+                // Для новых объявлений используем только фото с новым форматом (с временем)
+                // Старые фото (без времени) имеют dateLabel в формате "DDMMYY", новые - "DDMMYY-HHmmss"
+                const hasTime = parsed.dateLabel && parsed.dateLabel.includes('-') && parsed.dateLabel.length > 6;
+                return { adId, parsed, url: photosMapping[adId], hasTime };
+              }
+              return null;
+            })
+            .filter(Boolean)
+            .filter(p => p.hasTime) // Только фото с новым форматом (с временем)
+            .sort((a, b) => a.parsed.counter - b.parsed.counter); // Сортируем по counter
+          
+          // Определяем базовое время для dateBegin: берем из первого фото или используем baseDate
+          let dateBeginDt = baseDate;
+          if (locationPhotos.length > 0 && locationPhotos[0].parsed.dateLabel) {
+            const photoTime = parseDateLabel(locationPhotos[0].parsed.dateLabel);
+            if (photoTime) {
+              dateBeginDt = photoTime;
+            }
           }
-        });
-      }
+          
+          ads.forEach((ad, idx) => {
+            // Ищем фото с нужным counter
+            const targetCounter = adCounter + idx;
+            const photo = locationPhotos.find(p => p.parsed.counter === targetCounter);
+            
+            let adId = null;
+            if (photo) {
+              adId = photo.adId;
+              ad.photoLink = photo.url;
+            } else {
+              // Если фото не найдено - генерируем adId с базовым временем
+              adId = generateAdId(materialIdResolved, loc.address, baseDate, targetCounter);
+              if (!ad.photoLink && task.photos && task.photos.length) {
+                // Fallback: случайное фото из task.photos если adId не найден
+                ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
+              }
+            }
+            
+            ad.adId = adId;
+            
+            // Расставляем время публикации с заданным интервалом (начиная с реального времени первого фото)
+            ad.dateBegin = formatDateTime(dateBeginDt);
+            
+            adsWithTime.push(ad);
+            
+            // Обновляем время для следующего объявления
+            if (idx < ads.length - 1) {
+              const step = randomInt(minInterval, maxInterval);
+              dateBeginDt = new Date(dateBeginDt.getTime() + step * 60 * 1000);
+            }
+          });
+          
+          slotAds.push(...adsWithTime);
+        }
 
-      generatedAds.push(...slotAds);
+        generatedAds.push(...slotAds);
+      }
     }
   }
 

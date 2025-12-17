@@ -27,7 +27,7 @@ import { generateDescription } from '../src/generators/descriptionGenerator.js';
 import { TOP_5_TITLES } from '../src/constants/titles.js';
 import { readCurrentAdsFromXlsx } from '../src/utils/currentAdsReader.js';
 import { loadPhotosMapping } from '../src/utils/photosLinksReader.js';
-import { generateAdId, getCityAlias, CITY_ALIASES } from '../src/constants/materialAliases.js';
+import { generateAdId, getCityAlias, getMaterialAlias, CITY_ALIASES, parseAdId, parseDateLabel } from '../src/constants/materialAliases.js';
 import { getSandType } from '../src/constants/sandTypes.js';
 import { syncHistoryWithActiveAds, loadHistory, saveHistory, updateHistoryWithAvitoId, commitHistoryFromTmp, discardHistoryTmp } from './lib/photo-variants/history.js';
 import { collectSourcesFromPlan } from './lib/photo-variants/plan.js';
@@ -182,7 +182,10 @@ function readUpdateRules(rulesPath) {
   }
   try {
     const raw = fs.readFileSync(resolved, 'utf8');
-    return JSON.parse(raw);
+    console.log(`   [DEBUG] Сырой файл (первые 200 символов): ${raw.substring(0, 200)}`);
+    const parsed = JSON.parse(raw);
+    console.log(`   [DEBUG] Распарсенный объект:`, JSON.stringify(parsed, null, 2));
+    return parsed;
   } catch (e) {
     throw new Error(`Не удалось прочитать правила обновления ${resolved}: ${e.message}`);
   }
@@ -200,13 +203,24 @@ function resolveAddresses(addresses = [], aliases = {}) {
 }
 
 async function buildUpdateRulesMap(updateRules, currentAds = []) {
-  if (!updateRules) return new Map();
+  if (!updateRules) {
+    console.log(`      [DEBUG] updateRules is null/undefined`);
+    return new Map();
+  }
   
   const rulesMap = new Map();
   
   // Сначала применяем правила из byLists
   if (updateRules.byLists) {
+    console.log(`      [DEBUG] updateRules.byLists =`, JSON.stringify(updateRules.byLists, null, 2));
+    console.log(`      [DEBUG] updateRules.byLists.updateAll (прямой доступ) = ${updateRules.byLists.updateAll}`);
+    console.log(`      [DEBUG] typeof updateRules.byLists.updateAll = ${typeof updateRules.byLists.updateAll}`);
+    
     const { updatePhoto = [], updateDescription = [], customTitles = {}, customDescriptions = {}, newAddresses = {}, updateAll = false } = updateRules.byLists;
+    
+    console.log(`      [DEBUG] byLists.updateAll (после деструктуризации) = ${updateAll}`);
+    console.log(`      [DEBUG] typeof updateAll = ${typeof updateAll}`);
+    console.log(`      [DEBUG] currentAds.length = ${currentAds.length}`);
     
     // Если updateAll = true, автоматически добавляем все объявления из Excel
     if (updateAll && currentAds.length > 0) {
@@ -223,10 +237,16 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
         cityAliasToAddress[alias] = address;
       });
       
+      let processedCount = 0;
+      let skippedNoIdCount = 0;
+      
       // Для каждого объявления из Excel создаем правила
       for (const ad of currentAds) {
         const avitoId = ad.Id || ad.AvitoId;
-        if (!avitoId) continue;
+        if (!avitoId) {
+          skippedNoIdCount++;
+          continue;
+        }
         
         // Парсим Id для определения materialId и address
         const parsed = parseAdId(avitoId);
@@ -243,7 +263,17 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
           materialId = ad.bulkMaterialSubType || 'karier_neseyan_nemyt_pesok';
         }
         if (!address) {
-          address = ad.address || null;
+          // Берем адрес из Excel, но убираем префикс "Московская обл." или "Москва, "
+          let rawAddress = ad.address || null;
+          if (rawAddress) {
+            // Убираем префиксы "Московская обл., " или "Московская область, " или "Москва, "
+            rawAddress = rawAddress
+              .replace(/^московская\s+обл\.\s*,?\s*/i, '')
+              .replace(/^московская\s+область\s*,?\s*/i, '')
+              .replace(/^москва\s*,?\s*/i, '')
+              .trim();
+            address = rawAddress || null;
+          }
         }
         
         // Создаем правила для этого объявления
@@ -254,7 +284,24 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
         rule.updatePhoto = true;
         rule.updateDescription = 'auto';
         if (materialId) rule.materialId = materialId;
-        if (address) rule.address = address;
+        if (address) {
+          rule.address = address; // Адрес БЕЗ префикса "Московская обл." (из CITY_ALIASES или нормализованный из Excel)
+        }
+        
+        processedCount++;
+      }
+      
+      console.log(`      [DEBUG] Обработано объявлений: ${processedCount}`);
+      if (skippedNoIdCount > 0) {
+        console.log(`      [DEBUG] Пропущено (нет Id): ${skippedNoIdCount}`);
+      }
+      console.log(`      [DEBUG] Создано правил: ${rulesMap.size}`);
+    } else {
+      if (!updateAll) {
+        console.log(`      [DEBUG] updateAll = false, пропускаем автоматическое создание правил`);
+      }
+      if (currentAds.length === 0) {
+        console.log(`      [DEBUG] currentAds пуст, пропускаем автоматическое создание правил`);
       }
     }
     
@@ -403,24 +450,49 @@ async function ensureFolder(token, diskPath) {
 }
 
 async function uploadAndPublishPhoto(token, localPath, diskPath) {
-  const uploadUrlRes = await httpRequest(
-    `https://cloud-api.yandex.net/v1/disk/resources/upload?path=${encodeURIComponent(diskPath)}&overwrite=true`,
-    { method: 'GET', headers: { Authorization: `OAuth ${token}` } }
-  );
-  const { href } = JSON.parse(uploadUrlRes.data);
-  const fileBody = fs.readFileSync(localPath);
-  await httpRequest(href, { method: 'PUT', headers: { 'Content-Length': fileBody.length } }, fileBody);
-  
-  await httpRequest(
-    `https://cloud-api.yandex.net/v1/disk/resources/publish?path=${encodeURIComponent(diskPath)}`,
-    { method: 'PUT', headers: { Authorization: `OAuth ${token}` } }
-  );
-  const info = await httpRequest(
-    `https://cloud-api.yandex.net/v1/disk/resources?path=${encodeURIComponent(diskPath)}`,
-    { method: 'GET', headers: { Authorization: `OAuth ${token}` } }
-  );
-  const json = JSON.parse(info.data);
-  return json.public_url || '';
+  try {
+    // Шаг 1: Получаем URL для загрузки
+    console.log(`   [DEBUG] Шаг 1: Получение URL для загрузки...`);
+    const uploadUrl = `https://cloud-api.yandex.net/v1/disk/resources/upload?path=${encodeURIComponent(diskPath)}&overwrite=true`;
+    const uploadUrlRes = await httpRequest(
+      uploadUrl,
+      { method: 'GET', headers: { Authorization: `OAuth ${token}` } }
+    );
+    const { href } = JSON.parse(uploadUrlRes.data);
+    console.log(`   [DEBUG] Шаг 1: URL получен, href: ${href.substring(0, 100)}...`);
+    
+    // Шаг 2: Загружаем файл
+    console.log(`   [DEBUG] Шаг 2: Загрузка файла (${fs.statSync(localPath).size} байт)...`);
+    const fileBody = fs.readFileSync(localPath);
+    await httpRequest(href, { method: 'PUT', headers: { 'Content-Length': fileBody.length } }, fileBody);
+    console.log(`   [DEBUG] Шаг 2: Файл загружен успешно`);
+    
+    // Шаг 3: Публикуем файл
+    console.log(`   [DEBUG] Шаг 3: Публикация файла...`);
+    const publishUrl = `https://cloud-api.yandex.net/v1/disk/resources/publish?path=${encodeURIComponent(diskPath)}`;
+    await httpRequest(
+      publishUrl,
+      { method: 'PUT', headers: { Authorization: `OAuth ${token}` } }
+    );
+    console.log(`   [DEBUG] Шаг 3: Файл опубликован успешно`);
+    
+    // Шаг 4: Получаем публичный URL
+    console.log(`   [DEBUG] Шаг 4: Получение публичного URL...`);
+    const infoUrl = `https://cloud-api.yandex.net/v1/disk/resources?path=${encodeURIComponent(diskPath)}`;
+    const info = await httpRequest(
+      infoUrl,
+      { method: 'GET', headers: { Authorization: `OAuth ${token}` } }
+    );
+    const json = JSON.parse(info.data);
+    console.log(`   [DEBUG] Шаг 4: Публичный URL получен`);
+    return json.public_url || '';
+  } catch (err) {
+    // Добавляем контекст к ошибке
+    const errorMsg = err.message || String(err);
+    const fileSize = fs.existsSync(localPath) ? fs.statSync(localPath).size : 'файл не найден';
+    const encodedPath = encodeURIComponent(diskPath);
+    throw new Error(`${errorMsg} (путь: ${diskPath}, закодированный путь: ${encodedPath.substring(0, 200)}..., размер файла: ${fileSize} байт)`);
+  }
 }
 
 function runScript(scriptPath, args = [], options = {}) {
@@ -516,39 +588,38 @@ async function generatePhotoForOldAd(avitoId, materialId, address, photosRoot, t
     let sourcePalette = null;
     
     if (isFlagship) {
-      // Для флагманского фото ищем fs.jpeg или flagship.jpg в папке originals
-      const flagshipPath = path.join(originalsDir, 'flagship.jpg');
-      const fsJpegPath = path.join(originalsDir, 'fs.jpeg');
+      // Для флагманского фото ищем файлы с "flagship" или "fs" в имени (любое расширение)
+      // Сначала ищем в папке originals
+      const allOriginals = fs.readdirSync(originalsDir)
+        .filter(name => name.match(/\.(jpg|jpeg|png|webp)$/i))
+        .map(name => path.join(originalsDir, name));
+      
+      const flagshipInOriginals = allOriginals.find(p => {
+        const basename = path.basename(p).toLowerCase();
+        return basename.includes('flagship') || basename.includes('fs');
+      });
       
       // Также проверяем в корне материала (для обратной совместимости)
       const baseDir = path.join(photosRoot, materialId);
-      const flagshipPathRoot = path.join(baseDir, 'flagship.jpg');
-      const fsJpegPathRoot = path.join(baseDir, 'fs.jpeg');
+      let flagshipInRoot = null;
+      if (fs.existsSync(baseDir)) {
+        const rootFiles = fs.readdirSync(baseDir)
+          .filter(name => name.match(/\.(jpg|jpeg|png|webp)$/i))
+          .map(name => path.join(baseDir, name));
+        flagshipInRoot = rootFiles.find(p => {
+          const basename = path.basename(p).toLowerCase();
+          return basename.includes('flagship') || basename.includes('fs');
+        });
+      }
       
-      if (fs.existsSync(flagshipPath)) {
-        console.log(`   Используется готовый flagship.jpg из originals (флагманское объявление)`);
+      // Приоритет: originals/flagship* > originals/fs* > корень/flagship* > корень/fs*
+      const flagshipPath = flagshipInOriginals || flagshipInRoot;
+      
+      if (flagshipPath) {
+        const isFlagshipName = path.basename(flagshipPath).toLowerCase().includes('flagship');
+        const location = flagshipInOriginals ? 'originals' : 'корня материала';
+        console.log(`   ${isFlagshipName ? 'Используется готовый' : 'Создаём флагманское фото из'} ${path.basename(flagshipPath)} из ${location} (флагманское объявление)`);
         sourceBuffer = await loadImageBuffer(flagshipPath);
-        const sourceImage = sharp.default(sourceBuffer);
-        sourceMeta = await sourceImage.metadata();
-        sourceStats = await sharp.default(sourceBuffer).stats();
-        sourcePalette = pickTextPalette(sourceStats, null);
-      } else if (fs.existsSync(fsJpegPath)) {
-        console.log(`   Создаём флагманское фото из fs.jpeg из originals (без искажений)`);
-        sourceBuffer = await loadImageBuffer(fsJpegPath);
-        const sourceImage = sharp.default(sourceBuffer);
-        sourceMeta = await sourceImage.metadata();
-        sourceStats = await sharp.default(sourceBuffer).stats();
-        sourcePalette = pickTextPalette(sourceStats, null);
-      } else if (fs.existsSync(flagshipPathRoot)) {
-        console.log(`   Используется готовый flagship.jpg из корня материала (флагманское объявление)`);
-        sourceBuffer = await loadImageBuffer(flagshipPathRoot);
-        const sourceImage = sharp.default(sourceBuffer);
-        sourceMeta = await sourceImage.metadata();
-        sourceStats = await sharp.default(sourceBuffer).stats();
-        sourcePalette = pickTextPalette(sourceStats, null);
-      } else if (fs.existsSync(fsJpegPathRoot)) {
-        console.log(`   Создаём флагманское фото из fs.jpeg из корня материала (без искажений)`);
-        sourceBuffer = await loadImageBuffer(fsJpegPathRoot);
         const sourceImage = sharp.default(sourceBuffer);
         sourceMeta = await sourceImage.metadata();
         sourceStats = await sharp.default(sourceBuffer).stats();
@@ -558,15 +629,15 @@ async function generatePhotoForOldAd(avitoId, materialId, address, photosRoot, t
     
     // Если не нашли готовый флагманский исходник - используем обычный
     if (!sourceBuffer) {
-      // Для флагманского фото ищем fs.jpeg или flagship.jpg среди исходников
+      // Для флагманского фото ищем файлы с "flagship" или "fs" в имени (любое расширение)
       if (isFlagship) {
-        const fsJpegInOriginals = originals.find(p => 
-          path.basename(p).toLowerCase() === 'fs.jpeg' || 
-          path.basename(p).toLowerCase() === 'flagship.jpg'
-        );
+        const flagshipInOriginals = originals.find(p => {
+          const basename = path.basename(p).toLowerCase();
+          return basename.includes('flagship') || basename.includes('fs');
+        });
         
-        if (fsJpegInOriginals) {
-          const sourcePath = fsJpegInOriginals;
+        if (flagshipInOriginals) {
+          const sourcePath = flagshipInOriginals;
           sourceBuffer = await loadImageBuffer(sourcePath);
           const baseImage = sharp.default(sourceBuffer);
           sourceMeta = await baseImage.metadata();
@@ -574,14 +645,14 @@ async function generatePhotoForOldAd(avitoId, materialId, address, photosRoot, t
           sourcePalette = pickTextPalette(sourceStats, null);
           console.log(`   Создаём флагманское фото из ${path.basename(sourcePath)} (без искажений)`);
         } else {
-          // Если не нашли fs.jpeg/flagship.jpg - берем первый исходник
+          // Если не нашли файлы с "flagship" или "fs" - берем первый исходник
           const sourcePath = originals[0];
           sourceBuffer = await loadImageBuffer(sourcePath);
           const baseImage = sharp.default(sourceBuffer);
           sourceMeta = await baseImage.metadata();
           sourceStats = await sharp.default(sourceBuffer).stats();
           sourcePalette = pickTextPalette(sourceStats, null);
-          console.log(`   ⚠️  Флагманское фото из ${path.basename(sourcePath)} (fs.jpeg/flagship.jpg не найден)`);
+          console.log(`   ⚠️  Флагманское фото из ${path.basename(sourcePath)} (файлы с "flagship" или "fs" не найдены)`);
         }
       } else {
         // Для не-флагманских фото берем первый исходник
@@ -870,9 +941,44 @@ async function main() {
       const updateRulesPath = opts.updateRules || DEFAULT_UPDATE_RULES_PATH;
       console.log(`   Путь: ${updateRulesPath}`);
       const updateRules = readUpdateRules(opts.updateRules);
+      
+      if (!updateRules) {
+        console.log(`   ⚠️  Файл правил не найден или не прочитан`);
+      } else {
+        console.log(`   ✅ Файл правил прочитан`);
+        console.log(`   [DEBUG] Полный объект updateRules:`, JSON.stringify(updateRules, null, 2));
+        if (updateRules.byLists) {
+          console.log(`   byLists: присутствует`);
+          console.log(`   [DEBUG] byLists содержимое:`, JSON.stringify(updateRules.byLists, null, 2));
+          if (updateRules.byLists.updateAll !== undefined) {
+            console.log(`      updateAll: ${updateRules.byLists.updateAll} (тип: ${typeof updateRules.byLists.updateAll})`);
+          } else {
+            console.log(`      ⚠️  updateAll отсутствует в byLists!`);
+          }
+        } else {
+          console.log(`   byLists: отсутствует`);
+        }
+        if (updateRules.byId) {
+          console.log(`   byId: ${Object.keys(updateRules.byId).length} правил`);
+        } else {
+          console.log(`   byId: отсутствует`);
+        }
+      }
+      
+      console.log(`   Передано объявлений из Excel: ${currentAds.length}`);
+      if (currentAds.length > 0) {
+        const withId = currentAds.filter(ad => ad.Id || ad.AvitoId).length;
+        const withoutId = currentAds.length - withId;
+        console.log(`      С Id/AvitoId: ${withId}`);
+        if (withoutId > 0) {
+          console.log(`      ⚠️  Без Id/AvitoId: ${withoutId} (будут пропущены)`);
+        }
+      }
+      
       updateRulesMap = await buildUpdateRulesMap(updateRules, currentAds);
+      
       if (updateRulesMap.size > 0) {
-        console.log(`   Найдено правил обновления: ${updateRulesMap.size}`);
+        console.log(`   ✅ Найдено правил обновления: ${updateRulesMap.size}`);
         const updatePhotoCount = Array.from(updateRulesMap.values()).filter(r => r.updatePhoto).length;
         const updateDescCount = Array.from(updateRulesMap.values()).filter(r => r.updateDescription).length;
         const updateTitleCount = Array.from(updateRulesMap.values()).filter(r => r.customTitle).length;
@@ -882,7 +988,13 @@ async function main() {
         if (updateTitleCount > 0) console.log(`      - Обновление заголовка: ${updateTitleCount}`);
         if (updateAddrCount > 0) console.log(`      - Обновление адреса: ${updateAddrCount}`);
       } else {
-        console.log(`   ⚠️  Старые объявления не меняем`);
+        console.log(`   ⚠️  Старые объявления не меняем (правил не создано)`);
+        if (updateRules && updateRules.byLists && updateRules.byLists.updateAll) {
+          console.log(`   ⚠️  ВНИМАНИЕ: updateAll=true, но правила не созданы!`);
+          console.log(`      Возможные причины:`);
+          console.log(`      1. У объявлений нет Id или AvitoId`);
+          console.log(`      2. currentAds был пустым на момент создания правил`);
+        }
       }
     }
     
@@ -924,7 +1036,8 @@ async function main() {
           // Определяем materialId и address из правил обновления или объявления
           const rules = updateRulesMap.get(ad.Id);
           const materialId = rules?.materialId || 'karier_neseyan_nemyt_pesok';
-          const address = rules?.newAddress || ad.address || 'Московская область, Троицк';
+          // Используем адрес из правил (без префикса "Московская обл."), а не из Excel
+          const address = rules?.newAddress || rules?.address || 'Московская область, Троицк';
           
           console.log(`   Параметры:`);
           console.log(`      materialId: ${materialId}`);
@@ -983,8 +1096,9 @@ async function main() {
               });
               console.log(`   [DRY-RUN] Публичный URL: ${mockUrl}`);
             } else {
-              const publicUrl = await uploadAndPublishPhoto(token, photoPath, remotePath);
-              console.log(`   ✅ Фото загружено и опубликовано`);
+              try {
+                const publicUrl = await uploadAndPublishPhoto(token, photoPath, remotePath);
+                console.log(`   ✅ Фото загружено и опубликовано`);
               
               photosLinks.items.push({
                 avitoId: ad.Id,
@@ -1006,6 +1120,10 @@ async function main() {
               console.log(`\n   Удаление локального файла...`);
               fs.unlinkSync(photoPath);
               console.log(`   ✅ Локальный файл удален`);
+              } catch (uploadErr) {
+                // Ошибка при загрузке на Яндекс.Диск
+                throw uploadErr;
+              }
             }
             
             console.log(`\n   ✅ Обновлено фото для объявления ${ad.Id}`);
@@ -1013,6 +1131,10 @@ async function main() {
           } catch (err) {
             console.log(`\n   ❌ Ошибка при обновлении фото:`);
             console.log(`      ${err.message}`);
+            if (err.stack && err.message.includes('HTTP 500')) {
+              console.log(`   [DEBUG] Полный стек ошибки:`);
+              console.log(`      ${err.stack.split('\n').slice(0, 5).join('\n      ')}`);
+            }
             console.log(`   ⚠️  Фото останется из Excel: ${ad.photoLink || 'не указано'}`);
             skippedCount++;
             // Продолжаем обработку остальных объявлений
@@ -1181,6 +1303,16 @@ async function main() {
         let updated = false;
         const changes = [];
         
+        // Нормализуем priceFor для всех старых объявлений (если не обновляется явно)
+        if (ad.priceFor && typeof ad.priceFor === 'string') {
+          const normalized = ad.priceFor.toLowerCase().trim();
+          if (normalized === 'тонну' || normalized === 'тонна' || normalized === 'т' || normalized === 'tonnu') {
+            ad.priceFor = 'тонну';
+          } else if (normalized.includes('м') || normalized.includes('куб') || normalized === 'м³' || normalized === 'м3' || normalized === 'м^3') {
+            ad.priceFor = 'м³';
+          }
+        }
+        
         // Обновляем описание
         if (rules.updateDescription) {
           if (rules.updateDescription === 'auto') {
@@ -1316,6 +1448,20 @@ async function main() {
       console.log(`\n   Обработка задач из плана...`);
       console.log(`   Всего задач: ${plan.tasks.length}`);
       
+      // Определяем, используем ли новую логику (DateBegin в корне + нет slots) или старую (slots)
+      const planDateBegin = plan.DateBegin || null;
+      const useNewLogic = planDateBegin && plan.tasks.every(task => !task.slots || !task.slots.length);
+      
+      let currentDt = null; // Для новой логики - текущее время публикации
+      if (useNewLogic) {
+        currentDt = parseDateTime(planDateBegin);
+        if (!currentDt) {
+          throw new Error(`Не удалось распарсить DateBegin из плана: "${planDateBegin}"`);
+        }
+        console.log(`   Дата начала (DateBegin): ${formatDateTime(currentDt)}`);
+        console.log(`   Режим: последовательная публикация товаров`);
+      }
+      
       for (let taskIdx = 0; taskIdx < plan.tasks.length; taskIdx++) {
         const task = plan.tasks[taskIdx];
         const taskMaterialId = task.materialId || task.material || 'неизвестно';
@@ -1324,20 +1470,37 @@ async function main() {
         console.log(`   Задача ${taskIdx + 1}/${plan.tasks.length}: ${taskMaterialId}`);
         console.log(`   ${'─'.repeat(56)}`);
         
-        const slots = task.slots && task.slots.length ? task.slots : [{ DateBegin: task.DateBegin, count: task.count }];
+        let slots = [];
+        let baseDate = null; // Для генерации adId (используется стабильная дата из плана)
+        let slotBaseDate = null; // Для расстановки времени публикации (может меняться)
+        
+        if (useNewLogic) {
+          // НОВАЯ ЛОГИКА: используем DateBegin из корня, товары публикуются последовательно
+          // Для adId используем дату из плана (стабильная), для времени публикации - currentDt
+          baseDate = parseDateTime(planDateBegin); // Стабильная дата для adId
+          slotBaseDate = currentDt; // Текущее время для публикации
+          slots = [{ DateBegin: formatDateTime(slotBaseDate), count: task.count, locations: task.locations }];
+        } else {
+          // СТАРАЯ ЛОГИКА: поддержка slots для обратной совместимости
+          slots = task.slots && task.slots.length ? task.slots : [{ DateBegin: task.DateBegin, count: task.count }];
+        }
+        
         console.log(`   Слотов в задаче: ${slots.length}`);
         
         let taskAdsCount = 0;
         
-        for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
+          for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
           const slot = slots[slotIdx];
-          const baseDate = parseDateTime(slot.DateBegin);
+          if (!useNewLogic) {
+            baseDate = parseDateTime(slot.DateBegin);
+            slotBaseDate = baseDate;
+          }
           const minInterval =
             Number.isFinite(slot.intervalMinMinutes) && slot.intervalMinMinutes > 0
               ? slot.intervalMinMinutes
               : Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
                 ? task.intervalMinMinutes
-                : 1;
+                : 10;
           const maxIntervalCandidate =
             Number.isFinite(slot.intervalMaxMinutes) && slot.intervalMaxMinutes > 0
               ? slot.intervalMaxMinutes
@@ -1347,7 +1510,7 @@ async function main() {
                   ? task.intervalMaxMinutes
                   : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
                     ? task.intervalMinutes
-                    : 6;
+                    : 30;
           const maxInterval = Math.max(minInterval, maxIntervalCandidate);
           const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
           const locationsPlan = buildLocationPlan(
@@ -1357,14 +1520,47 @@ async function main() {
           );
 
           console.log(`\n   Слот ${slotIdx + 1}/${slots.length}:`);
-          if (baseDate) {
-            console.log(`      Дата начала: ${formatDateTime(baseDate)}`);
+          if (slotBaseDate) {
+            console.log(`      Дата начала: ${formatDateTime(slotBaseDate)}`);
+          }
+          if (useNewLogic && baseDate) {
+            console.log(`      Дата для adId: ${formatDateTime(baseDate)}`);
           }
           console.log(`      Количество объявлений: ${slot.count || task.count || 1}`);
           console.log(`      Интервал между объявлениями: ${minInterval}-${maxInterval} минут`);
           console.log(`      Локаций: ${locationsPlan.length}`);
 
           const slotAds = [];
+          
+          // ВАЖНО: Инициализируем dateBeginDt один раз для всего слота (из первого фото первой локации)
+          // Это обеспечит последовательное увеличение времени через все локации
+          let slotDateBeginDt = useNewLogic ? currentDt : slotBaseDate;
+          
+          // Находим первое фото среди всех локаций для инициализации базового времени
+          for (const loc of locationsPlan) {
+            const matAlias = getMaterialAlias(materialIdResolved);
+            const cityAlias = getCityAlias(loc.address);
+            const firstLocationPhotos = Object.keys(photosMapping)
+              .map(adId => {
+                const parsed = parseAdId(adId);
+                if (parsed && parsed.materialAlias === matAlias && parsed.cityAlias === cityAlias) {
+                  const hasTime = parsed.dateLabel && parsed.dateLabel.includes('-') && parsed.dateLabel.length > 6;
+                  return { adId, parsed, url: photosMapping[adId], hasTime };
+                }
+                return null;
+              })
+              .filter(Boolean)
+              .filter(p => p.hasTime)
+              .sort((a, b) => a.parsed.counter - b.parsed.counter);
+            
+            if (firstLocationPhotos.length > 0 && firstLocationPhotos[0].parsed.dateLabel) {
+              const photoTime = parseDateLabel(firstLocationPhotos[0].parsed.dateLabel);
+              if (photoTime) {
+                slotDateBeginDt = photoTime;
+                break; // Используем время из первого найденного фото
+              }
+            }
+          }
           
           for (const loc of locationsPlan) {
             // Счетчик начинается с 1 для каждой локации (чтобы соответствовать фото, которые генерируются с 01)
@@ -1385,23 +1581,67 @@ async function main() {
             });
             
             // Присваиваем adId и photoLink каждому объявлению
+            // ВАЖНО: adId берется из имени файла фото (реальное время создания), dateBegin = реальное время + интервалы
             let withPhotoCount = 0;
             const adsWithoutPhoto = [];
+            const adsWithTime = [];
+            const matAlias = getMaterialAlias(materialIdResolved);
+            const cityAlias = getCityAlias(loc.address);
+            
+            // Ищем все фото для этой локации в photosMapping
+            // ВАЖНО: для новых объявлений ищем только фото с новым форматом (с временем в dateLabel)
+            const locationPhotos = Object.keys(photosMapping)
+              .map(adId => {
+                const parsed = parseAdId(adId);
+                if (parsed && parsed.materialAlias === matAlias && parsed.cityAlias === cityAlias) {
+                  // Для новых объявлений используем только фото с новым форматом (с временем)
+                  // Старые фото (без времени) имеют dateLabel в формате "DDMMYY", новые - "DDMMYY-HHmmss"
+                  const hasTime = parsed.dateLabel && parsed.dateLabel.includes('-') && parsed.dateLabel.length > 6;
+                  return { adId, parsed, url: photosMapping[adId], hasTime };
+                }
+                return null;
+              })
+              .filter(Boolean)
+              .filter(p => p.hasTime) // Только фото с новым форматом (с временем)
+              .sort((a, b) => a.parsed.counter - b.parsed.counter); // Сортируем по counter
+            
+            // Используем slotDateBeginDt, который продолжается последовательно через все локации
+            let dateBeginDt = slotDateBeginDt;
+            
             ads.forEach((ad, idx) => {
-              const adId = generateAdId(materialIdResolved, loc.address, baseDate, adCounter++);
-              ad.adId = adId;
+              // Ищем фото с нужным counter
+              const targetCounter = adCounter + idx;
+              const photo = locationPhotos.find(p => p.parsed.counter === targetCounter);
               
-              // Если есть фото с таким adId - используем его URL
-              if (photosMapping[adId]) {
-                ad.photoLink = photosMapping[adId];
-                withPhotoCount++;
-              } else if (!ad.photoLink && task.photos && task.photos.length) {
-                // Fallback: используем случайное фото из task.photos
-                ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
+              let adId = null;
+              if (photo) {
+                adId = photo.adId;
+                ad.photoLink = photo.url;
                 withPhotoCount++;
               } else {
-                // Фото не найдено - это ошибка
-                adsWithoutPhoto.push(adId);
+                // Если фото не найдено - генерируем adId с базовым временем
+                adId = generateAdId(materialIdResolved, loc.address, dateBeginDt, targetCounter);
+                if (!ad.photoLink && task.photos && task.photos.length) {
+                  // Fallback: используем случайное фото из task.photos
+                  ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
+                  withPhotoCount++;
+                } else {
+                  // Фото не найдено - это ошибка
+                  adsWithoutPhoto.push(adId);
+                }
+              }
+              
+              ad.adId = adId;
+              
+              // Расставляем время публикации с заданным интервалом (начиная с реального времени первого фото)
+              ad.dateBegin = formatDateTime(dateBeginDt);
+              
+              adsWithTime.push(ad);
+              
+              // Обновляем время для следующего объявления
+              if (idx < ads.length - 1) {
+                const step = randomInt(minInterval, maxInterval);
+                dateBeginDt = new Date(dateBeginDt.getTime() + step * 60 * 1000);
               }
             });
             
@@ -1422,19 +1662,20 @@ async function main() {
             console.log(`         Объявлений: ${loc.count}`);
             console.log(`         С фото: ${withPhotoCount}, без фото: ${loc.count - withPhotoCount}`);
             
-            slotAds.push(...ads);
+            slotAds.push(...adsWithTime);
+            
+            // Обновляем slotDateBeginDt для следующей локации (продолжаем последовательно)
+            slotDateBeginDt = dateBeginDt;
           }
-
-          // Расставляем время публикации с заданным интервалом
-          if (baseDate) {
-            let currentDt = baseDate;
-            slotAds.forEach((ad, idx) => {
-              ad.dateBegin = formatDateTime(currentDt);
-              if (idx < slotAds.length - 1) {
-                const step = randomInt(minInterval, maxInterval);
-                currentDt = new Date(currentDt.getTime() + step * 60 * 1000);
-              }
-            });
+          
+          // Обновляем currentDt для следующего товара (если новая логика)
+          if (useNewLogic) {
+            currentDt = slotDateBeginDt;
+            // Добавляем интервал между товарами (используем тот же интервал, что и между объявлениями)
+            if (slotAds.length > 0) {
+              const step = randomInt(minInterval, maxInterval);
+              currentDt = new Date(currentDt.getTime() + step * 60 * 1000);
+            }
           }
 
           generatedAds.push(...slotAds);
@@ -1642,6 +1883,45 @@ async function main() {
         logStep(currentStep, currentStepName, 'Пропущен (--dry-run)');
       } else {
         logStep(currentStep, currentStepName, 'Пропущен (тестовый режим)');
+      }
+    }
+    
+    // 11. Валидация XML фида
+    currentStep = 11;
+    currentStepName = 'Валидация XML фида';
+    if (!shouldExecuteStep(11, opts.testStep)) {
+      logStep(currentStep, currentStepName, 'Пропущен (не в диапазоне test-step)');
+    } else {
+      logStep(currentStep, currentStepName);
+      
+      // Определяем путь к XML файлу
+      const dateLabelForFile = opts.date || formatDateLabelForFile(new Date());
+      const xmlFilePath = path.join(opts.outDir, `ads_${dateLabelForFile}.xml`);
+      
+      if (!fs.existsSync(xmlFilePath)) {
+        console.log(`   ⚠️  XML файл не найден: ${path.basename(xmlFilePath)}`);
+        console.log(`   Валидация пропущена`);
+      } else {
+        console.log(`   Файл: ${path.basename(xmlFilePath)}`);
+        console.log(`   Полный путь: ${xmlFilePath}`);
+        console.log('');
+        
+        try {
+          // Запускаем валидацию
+          const validateScriptPath = path.resolve(__dirname, 'validate-xml.js');
+          await runScript(
+            validateScriptPath,
+            [xmlFilePath],
+            { silent: false } // Выводим вывод валидатора в консоль
+          );
+          console.log(`\n   Валидация пройдена успешно`);
+        } catch (err) {
+          // Валидатор возвращает код ошибки при наличии критических ошибок
+          console.log(`\n   Валидация завершилась с ошибками`);
+          console.log(`   ${err.message}`);
+          // Не прерываем выполнение - пользователь сам решит, что делать с ошибками
+          console.log(`   Рекомендуется исправить ошибки перед загрузкой в Avito`);
+        }
       }
     }
     

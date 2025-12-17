@@ -6,7 +6,7 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 12px; }
     .task-card { border: 1px solid #8fa3ff; background: #e4e9ff; border-radius: 8px; padding: 12px; margin-bottom: 14px; }
-    .slot-card { border: 1px solid #a8b7ff; background: #eef2ff; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+    h4 { margin-top: 16px; margin-bottom: 8px; }
     .location { border: 1px solid #c1caf5; background: #f6f8ff; border-radius: 4px; padding: 8px; margin-bottom: 8px; }
     .row { margin-bottom: 6px; }
     label { display: inline-block; min-width: 120px; }
@@ -15,7 +15,13 @@
   </style>
 </head>
 <body>
-  <h3>Материал</h3>
+  <h3>План публикаций</h3>
+  <div class="row" style="margin-bottom: 16px;">
+    <label>Дата/время начала (DateBegin):</label>
+    <input type="datetime-local" id="dateBegin" step="60" />
+  </div>
+  
+  <h4>Товары</h4>
   <div id="tasks"></div>
   <button id="addTask">+ Товар</button>
 
@@ -41,6 +47,7 @@
       { name: 'Домодедово, Станционная ул., 26к3' }
     ];
 
+    const dateBeginInput = document.getElementById('dateBegin');
     const tasksDiv = document.getElementById('tasks');
     const addTaskBtn = document.getElementById('addTask');
     const outputPre = document.getElementById('output');
@@ -58,10 +65,10 @@
       return `${pad(d)}.${pad(m)}.${y} ${pad(hh)}:${pad(mm)}`;
     }
 
-    function distributeCounts(slotDiv) {
-      const total = parseInt(slotDiv.querySelector('.slot-count').value, 10) || 0;
+    function distributeCounts(taskDiv) {
+      const total = parseInt(taskDiv.querySelector('.task-count').value, 10) || 0;
       if (!total) return;
-      const locs = Array.from(slotDiv.querySelectorAll('.location'));
+      const locs = Array.from(taskDiv.querySelectorAll('.location'));
       const eligible = locs;
       if (!eligible.length) return;
       const autoTargets = eligible.filter((loc) => !loc.querySelector('.loc-value').dataset.user);
@@ -78,7 +85,7 @@
       });
     }
 
-    function createLocationRow(slotDiv) {
+    function createLocationRow(taskDiv) {
       const div = document.createElement('div');
       div.className = 'location';
       div.innerHTML = `
@@ -100,43 +107,12 @@
       });
       div.querySelector('.removeLoc').onclick = () => {
         div.remove();
-        distributeCounts(slotDiv);
+        distributeCounts(taskDiv);
+        updateOutput();
       };
       return div;
     }
 
-    function createSlot() {
-      const div = document.createElement('div');
-      div.className = 'slot-card';
-      div.innerHTML = `
-        <div class="row">
-          <label>Дата/время:</label>
-          <input type="datetime-local" class="slot-date" step="60" />
-        </div>
-        <div class="row">
-          <label>Count:</label>
-          <input type="number" class="slot-count" min="1" value="10" />
-        </div>
-        <div class="loc-container"></div>
-        <button class="addLoc">+ Локация</button>
-        <button class="removeSlot">Удалить слот</button>
-      `;
-      const locContainer = div.querySelector('.loc-container');
-      const addLocBtn = div.querySelector('.addLoc');
-      addLocBtn.onclick = () => {
-        const row = createLocationRow(div);
-        locContainer.appendChild(row);
-        distributeCounts(div);
-        updateOutput();
-      };
-      div.querySelector('.removeSlot').onclick = () => div.remove();
-      // по умолчанию одна локация
-      locContainer.appendChild(createLocationRow(div));
-      distributeCounts(div);
-      // автораспределение при изменении total count
-      div.querySelector('.slot-count').addEventListener('input', () => distributeCounts(div));
-      return div;
-    }
 
     function createTask() {
       const div = document.createElement('div');
@@ -148,24 +124,34 @@
             ${materials.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
           </select>
         </div>
-        <div class="slots"></div>
-        <button class="addSlot">+ Слот</button>
+        <div class="row">
+          <label>Count:</label>
+          <input type="number" class="task-count" min="1" value="10" />
+        </div>
+        <div class="loc-container"></div>
+        <button class="addLoc">+ Локация</button>
         <button class="removeTask">Удалить товар</button>
       `;
-      const slotsContainer = div.querySelector('.slots');
-      const addSlot = div.querySelector('.addSlot');
-      addSlot.onclick = () => {
-        const slot = createSlot();
-        slotsContainer.appendChild(slot);
-        distributeCounts(slot);
+      const locContainer = div.querySelector('.loc-container');
+      const addLocBtn = div.querySelector('.addLoc');
+      addLocBtn.onclick = () => {
+        const row = createLocationRow(div);
+        locContainer.appendChild(row);
+        distributeCounts(div);
         updateOutput();
       };
       div.querySelector('.removeTask').onclick = () => {
         div.remove();
         updateOutput();
       };
-      // первый слот по умолчанию
-      slotsContainer.appendChild(createSlot());
+      // автораспределение при изменении total count
+      div.querySelector('.task-count').addEventListener('input', () => {
+        distributeCounts(div);
+        updateOutput();
+      });
+      // по умолчанию одна локация
+      locContainer.appendChild(createLocationRow(div));
+      distributeCounts(div);
       return div;
     }
 
@@ -177,45 +163,47 @@
     tasksDiv.appendChild(createTask());
 
     function buildPlan() {
+      const dateRaw = dateBeginInput.value || '';
+      const dateBegin = formatDate(dateRaw);
       const taskNodes = tasksDiv.querySelectorAll('.task-card');
-      const plan = { tasks: [] };
+      const plan = { DateBegin: dateBegin, tasks: [] };
       taskNodes.forEach(task => {
         const materialId = task.querySelector('.task-material').value;
-        const slotNodes = task.querySelectorAll('.slots > .slot-card');
-        const slots = [];
-        slotNodes.forEach(slot => {
-          const dateRaw = slot.querySelector('.slot-date').value || '';
-          const date = formatDate(dateRaw);
-          const count = parseInt(slot.querySelector('.slot-count').value, 10) || 0;
-          const locs = [];
-          slot.querySelectorAll('.location').forEach(loc => {
-            const addr = loc.querySelector('.loc-address').value;
-            const val = parseInt(loc.querySelector('.loc-value').value, 10) || 0;
-            if (val > 0) {
-              locs.push({ address: addr, count: val });
-            }
-          });
-          slots.push({ DateBegin: date, count, locations: locs });
-          distributeCounts(slot);
+        const count = parseInt(task.querySelector('.task-count').value, 10) || 0;
+        const locs = [];
+        task.querySelectorAll('.location').forEach(loc => {
+          const addr = loc.querySelector('.loc-address').value;
+          const val = parseInt(loc.querySelector('.loc-value').value, 10) || 0;
+          if (val > 0) {
+            locs.push({ address: addr, count: val });
+          }
         });
-        plan.tasks.push({ material: 'sand', materialId, slots });
+        plan.tasks.push({ material: 'sand', materialId, count, locations: locs });
       });
       return plan;
     }
 
     function validatePlan(plan) {
-      if (!plan || !plan.tasks) return { valid: false, message: 'План пустой' };
+      if (!plan || !plan.tasks || plan.tasks.length === 0) {
+        return { valid: false, message: 'План пустой' };
+      }
+      if (!plan.DateBegin) {
+        return { valid: false, message: 'Не указана дата/время начала (DateBegin)' };
+      }
       for (const task of plan.tasks) {
-        for (const slot of task.slots || []) {
-          const total = Number(slot.count) || 0;
-          if (!total) return { valid: false, message: 'Не заполнен count в слоте' };
-          let sumCount = 0;
-          (slot.locations || []).forEach((loc) => {
-            sumCount += Number(loc.count) || 0;
-          });
-          if (sumCount > total) {
-            return { valid: false, message: `Локации превышают count: ${sumCount} > ${total}` };
-          }
+        const total = Number(task.count) || 0;
+        if (!total) {
+          return { valid: false, message: `Не заполнен count в товаре "${task.materialId}"` };
+        }
+        let sumCount = 0;
+        (task.locations || []).forEach((loc) => {
+          sumCount += Number(loc.count) || 0;
+        });
+        if (sumCount > total) {
+          return { valid: false, message: `Локации превышают count в товаре "${task.materialId}": ${sumCount} > ${total}` };
+        }
+        if (sumCount === 0) {
+          return { valid: false, message: `Нет локаций с count > 0 в товаре "${task.materialId}"` };
         }
       }
       return { valid: true, message: '' };
@@ -230,6 +218,7 @@
       return plan;
     }
 
+    dateBeginInput.addEventListener('input', updateOutput);
     tasksDiv.addEventListener('input', updateOutput);
     updateOutput();
 

@@ -1,4 +1,6 @@
 {
   "byId": {},
-  "byLists": {}
+  "byLists": {
+    "updateAll": true
+  }
 }

@@ -198,7 +198,7 @@ async function generateVariants({
       const cityAlias = getCityAlias(address);
       // Форматируем дату (функция из materialAliases)
       const dateObj = typeof effectiveDateBegin === 'string' ? parseDateBeginLocal(effectiveDateBegin) : effectiveDateBegin;
-      const dateLabel = dateObj ? formatDateLabelLocal(dateObj) : '000000';
+      const dateLabel = dateObj ? formatDateLabelLocal(dateObj) : '000000-000000';
       const prefix = `${matAlias}_${cityAlias}_${dateLabel}`;
       
       // Показываем информацию об Excel только для первого исходника
@@ -260,23 +260,39 @@ async function generateVariants({
   }
   
   const smallImage = Math.min(meta.width, meta.height) < 1400;
-  const flagshipPath = materialId ? path.join(baseDir, 'flagship.jpg') : '';
+  // Ищем флагманский файл (flagship.* или fs.* с любым расширением)
+  let flagshipPath = '';
+  if (materialId && fs.existsSync(baseDir)) {
+    const baseFiles = fs.readdirSync(baseDir)
+      .filter(name => name.match(/\.(jpg|jpeg|png|webp)$/i));
+    const flagshipFile = baseFiles.find(name => {
+      const lower = name.toLowerCase();
+      return lower.includes('flagship') || lower.includes('fs');
+    });
+    if (flagshipFile) {
+      flagshipPath = path.join(baseDir, flagshipFile);
+    }
+  }
   
   // Вспомогательные функции для форматирования (копии из materialAliases)
   function parseDateBeginLocal(str) {
     if (!str) return null;
-    const m = str.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+    // Парсим формат "DD.MM.YYYY HH:MM" или "DD.MM.YYYY HH:MM:SS" или "DD.MM.YYYY"
+    const m = str.match(/(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
     if (!m) return null;
-    const [_, dd, MM, yyyy] = m;
-    return new Date(`${yyyy}-${MM}-${dd}`);
+    const [_, dd, MM, yyyy, HH = '00', mm = '00', ss = '00'] = m;
+    return new Date(`${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}`);
   }
   
   function formatDateLabelLocal(date) {
-    if (!date || !(date instanceof Date) || isNaN(date.getTime())) return '000000';
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) return '000000-000000';
     const yy = String(date.getFullYear()).substring(2);
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
-    return `${dd}${mm}${yy}`;
+    const HH = String(date.getHours()).padStart(2, '0');
+    const MM = String(date.getMinutes()).padStart(2, '0');
+    const SS = String(date.getSeconds()).padStart(2, '0');
+    return `${dd}${mm}${yy}-${HH}${MM}${SS}`;
   }
 
   const targetCount = count;
@@ -312,7 +328,7 @@ async function generateVariants({
       const matAlias = getMaterialAlias(materialId);
       const cityAlias = getCityAlias(address);
       const dateObj = typeof effectiveDateBegin === 'string' ? parseDateBeginLocal(effectiveDateBegin) : effectiveDateBegin;
-      const dateLabel = dateObj ? formatDateLabelLocal(dateObj) : '000000';
+      const dateLabel = dateObj ? formatDateLabelLocal(dateObj) : '000000-000000';
       console.log(`Флагманское объявление уже было: ${hasFlagshipAd ? 'ДА' : 'НЕТ'}`);
       if (hasFlagshipAd) {
         const flagshipAd = historyData.ads.find(ad => {
@@ -335,7 +351,9 @@ async function generateVariants({
   // Функция для получения имени файла (с поддержкой adId)
   function getFilenameForIndex(idx) {
     if (useAdId) {
-      const adId = generateAdId(materialId, address, effectiveDateBegin, startingCounter + idx);
+      // Используем РЕАЛЬНОЕ время создания файла для имени
+      const photoDateTime = new Date(); // Текущее время создания файла
+      const adId = generateAdId(materialId, address, photoDateTime, startingCounter + idx);
       return `${adId}.jpg`;
     }
     // Fallback: старый формат для обратной совместимости
@@ -391,48 +409,49 @@ async function generateVariants({
             return;
       }
 
-      // Готовый flagship.jpg используем ТОЛЬКО для первого фото (idx === 0)
+      // Готовый флагманский файл используем ТОЛЬКО для первого фото (idx === 0)
       // И ТОЛЬКО для самого первого исходника в батче (counterOffset === 0)
       // И ТОЛЬКО если флагманское объявление еще не было опубликовано
       // Если флагманское уже было - все фото генерируются с искажениями
       if (idx === 0 && counterOffset === 0 && !hasFlagshipAd && flagshipPath && fs.existsSync(flagshipPath)) {
-        console.log(`   Используется готовый flagship.jpg (флагманское объявление еще не было)`);
+        const flagshipFileName = path.basename(flagshipPath);
+        console.log(`   Используется готовый ${flagshipFileName} (флагманское объявление еще не было)`);
         // Читаем файл и валидируем перед копированием
         const flagshipBuffer = await fs.promises.readFile(flagshipPath);
         
-        // Проверяем JPEG заголовок
-        if (flagshipBuffer.length < 3 || flagshipBuffer[0] !== 0xFF || flagshipBuffer[1] !== 0xD8 || flagshipBuffer[2] !== 0xFF) {
-          throw new Error('Готовый flagship.jpg поврежден (неверный JPEG заголовок)');
-        }
-        
-        // Валидируем через sharp
+        // Валидируем через sharp (поддерживаем любые форматы: jpeg, png, webp)
         try {
           const validateImage = await sharp(flagshipBuffer);
           const metadata = await validateImage.metadata();
-          if (!metadata.format || metadata.format !== 'jpeg') {
-            throw new Error(`Неверный формат файла: ${metadata.format}`);
+          if (!metadata.format || !['jpeg', 'png', 'webp'].includes(metadata.format)) {
+            throw new Error(`Неподдерживаемый формат файла: ${metadata.format}`);
           }
         } catch (validationErr) {
-          throw new Error(`Готовый flagship.jpg невалиден: ${validationErr.message}`);
+          throw new Error(`Готовый ${flagshipFileName} невалиден: ${validationErr.message}`);
         }
         
-        // Записываем с гарантией полной записи
-        await fs.promises.writeFile(outPath, flagshipBuffer);
+        // Конвертируем в JPEG для совместимости
+        const jpegBuffer = await sharp(flagshipBuffer)
+          .jpeg({ quality: 92, mozjpeg: true, chromaSubsampling: '4:4:4' })
+          .toBuffer();
+        
+        // Записываем с гарантией полной записи (конвертированный в JPEG)
+        await fs.promises.writeFile(outPath, jpegBuffer);
         await new Promise(resolve => setImmediate(resolve));
         
         // Проверяем записанный файл
         const writtenBuffer = await fs.promises.readFile(outPath);
-        if (writtenBuffer.length !== flagshipBuffer.length) {
-          throw new Error(`Размер записанного файла (${writtenBuffer.length}) не совпадает с оригиналом (${flagshipBuffer.length})`);
+        if (writtenBuffer.length !== jpegBuffer.length) {
+          throw new Error(`Размер записанного файла (${writtenBuffer.length}) не совпадает с оригиналом (${jpegBuffer.length})`);
         }
         
-        const hash = await aHashFromBuffer(flagshipBuffer);
+        const hash = await aHashFromBuffer(jpegBuffer);
         generated[idx] = { path: outPath, hash, attempts: (generated[idx]?.attempts || 0) + 1, filename, originalIndex: idx };
         console.log(`#${idx + 1} - готово`);
         return;
       }
 
-      // Если flagship.jpg НЕТ - создаём его
+      // Если флагманский файл НЕТ - создаём его
       if (generated[idx]?.path && fs.existsSync(generated[idx].path)) {
         try {
           fs.unlinkSync(generated[idx].path);
@@ -441,13 +460,13 @@ async function generateVariants({
         }
       }
 
-      // Создаём flagship: используем fs.jpeg если есть и это первое фото первого исходника без флагманского, иначе baseBuffer
+      // Создаём флагманский файл: используем файл с "fs" в имени если есть и это первое фото первого исходника без флагманского, иначе baseBuffer
       let sourceBuffer = baseBuffer;
       let sourceMeta = meta;
       let sourcePalette = palette;
       let sourceStats = stats;
       
-      // Используем fs.jpeg ТОЛЬКО для первого фото первого исходника (counterOffset === 0), если флагманское объявление еще не было
+          // Используем файл с "fs" в имени ТОЛЬКО для первого фото первого исходника (counterOffset === 0), если флагманское объявление еще не было
       if (idx === 0 && counterOffset === 0 && !hasFlagshipAd && flagshipSource && fs.existsSync(flagshipSource)) {
         const flagshipFileName = path.basename(flagshipSource);
         console.log(`   Создаём flagship из ${flagshipFileName} (без искажений)`);

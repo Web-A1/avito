@@ -1,34 +1,138 @@
 {
+  "DateBegin": "17.12.2025 12:12",
   "tasks": [
     {
       "material": "sand",
       "materialId": "karier_neseyan_nemyt_pesok",
-      "slots": [
+      "count": 5,
+      "locations": [
         {
-          "DateBegin": "17.12.2025 06:26",
-          "count": 30,
-          "locations": [
-            {
-              "address": "Бронницы, Магистральная ул., 3",
-              "count": 6
-            },
-            {
-              "address": "Чехов, ул. Чехова, 20Бк5",
-              "count": 6
-            },
-            {
-              "address": "Подольск, ул. Лапшенкова, 3",
-              "count": 6
-            },
-            {
-              "address": "Троицк, Индустриальная ул., 1",
-              "count": 6
-            },
-            {
-              "address": "Домодедово, Станционная ул., 26к3",
-              "count": 6
-            }
-          ]
+          "address": "Бронницы, Магистральная ул., 3",
+          "count": 1
+        },
+        {
+          "address": "Чехов, ул. Чехова, 20Бк5",
+          "count": 1
+        },
+        {
+          "address": "Подольск, ул. Лапшенкова, 3",
+          "count": 1
+        },
+        {
+          "address": "Троицк, Индустриальная ул., 1",
+          "count": 1
+        },
+        {
+          "address": "Домодедово, Станционная ул., 26к3",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "count": 5,
+      "locations": [
+        {
+          "address": "Бронницы, Магистральная ул., 3",
+          "count": 1
+        },
+        {
+          "address": "Чехов, ул. Чехова, 20Бк5",
+          "count": 1
+        },
+        {
+          "address": "Подольск, ул. Лапшенкова, 3",
+          "count": 1
+        },
+        {
+          "address": "Троицк, Индустриальная ул., 1",
+          "count": 1
+        },
+        {
+          "address": "Домодедово, Станционная ул., 26к3",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "count": 5,
+      "locations": [
+        {
+          "address": "Бронницы, Магистральная ул., 3",
+          "count": 1
+        },
+        {
+          "address": "Чехов, ул. Чехова, 20Бк5",
+          "count": 1
+        },
+        {
+          "address": "Подольск, ул. Лапшенкова, 3",
+          "count": 1
+        },
+        {
+          "address": "Троицк, Индустриальная ул., 1",
+          "count": 1
+        },
+        {
+          "address": "Домодедово, Станционная ул., 26к3",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "count": 5,
+      "locations": [
+        {
+          "address": "Бронницы, Магистральная ул., 3",
+          "count": 1
+        },
+        {
+          "address": "Чехов, ул. Чехова, 20Бк5",
+          "count": 1
+        },
+        {
+          "address": "Подольск, ул. Лапшенкова, 3",
+          "count": 1
+        },
+        {
+          "address": "Троицк, Индустриальная ул., 1",
+          "count": 1
+        },
+        {
+          "address": "Домодедово, Станционная ул., 26к3",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "count": 5,
+      "locations": [
+        {
+          "address": "Бронницы, Магистральная ул., 3",
+          "count": 1
+        },
+        {
+          "address": "Чехов, ул. Чехова, 20Бк5",
+          "count": 1
+        },
+        {
+          "address": "Подольск, ул. Лапшенкова, 3",
+          "count": 1
+        },
+        {
+          "address": "Троицк, Индустриальная ул., 1",
+          "count": 1
+        },
+        {
+          "address": "Домодедово, Станционная ул., 26к3",
+          "count": 1
         }
       ]
     }

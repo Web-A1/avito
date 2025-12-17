@@ -43,7 +43,7 @@ export const BLOCK_7_RANGES = {
 // Параметры для вариаций объявлений
 export const VARIATION_PARAMETERS = {
   // PriceFor (единица измерения цены)
-  PRICE_FOR: ['м³', 'тонну'],
+  PRICE_FOR: ['тонну'],
   
   // Color (цвет песка)
   COLOR: ['Белый', 'Жёлтый', 'Серый'],
@@ -94,7 +94,7 @@ export const CONTACT_PARAMETERS = {
 // Точные значения для флагманских объявлений (без рандома)
 export const FLAGSHIP_PARAMETERS = {
   // PriceFor для флагманского (единица измерения цены)
-  PRICE_FOR: 'м³', // Фиксированное значение
+  PRICE_FOR: 'тонну', // Фиксированное значение
   
   // Color для флагманского (цвет песка)
   COLOR: 'Жёлтый' // Фиксированное значение

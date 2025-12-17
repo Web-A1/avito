@@ -109,19 +109,76 @@ function parseXML(xmlString) {
   return ads;
 }
 
-// Нормализация текста для сравнения (удаление лишних пробелов, приведение к нижнему регистру)
-// Сохраняем основные различия между заголовками (не удаляем все знаки препинания)
+// Извлекает только блоки 1-6 из описания, исключая блок 7 (технические характеристики)
+// Блок 7 всегда идет в конце описания и содержит технические параметры
+// Блок 7 начинается с названия материала и двоеточия, затем идут маркеры: "объем:", "самосвал:", "содержание ХПЧ:"
+function extractBlocks1To6(description) {
+  if (!description || typeof description !== 'string') return '';
+  
+  // Ищем начало блока 7 по маркерам технических характеристик
+  // Эти маркеры всегда присутствуют в блоке 7 и уникальны для него
+  const block7Markers = [
+    // Маркеры технических характеристик (в любом порядке)
+    /(?:объем:|самосвал:|содержание\s+хпч:|насыпная\s+плотность|модуль\s+а:|фракция\s+а:|коэф\s+пнр:|коэф\s+[ψ𝜓])/i
+  ];
+  
+  // Ищем первый маркер блока 7
+  let block7StartIndex = -1;
+  for (const marker of block7Markers) {
+    const match = description.match(marker);
+    if (match && match.index !== undefined) {
+      // Находим начало тега <p> который содержит этот маркер
+      // Ищем последний <p> перед найденным маркером
+      const beforeMarker = description.substring(0, match.index);
+      const lastPTag = beforeMarker.lastIndexOf('<p>');
+      if (lastPTag !== -1) {
+        block7StartIndex = lastPTag;
+        break;
+      }
+    }
+  }
+  
+  // Если блок 7 найден, обрезаем описание до его начала
+  if (block7StartIndex !== -1) {
+    return description.substring(0, block7StartIndex);
+  }
+  
+  // Если блок 7 не найден, возвращаем всё описание (на случай, если структура отличается)
+  return description;
+}
+
+// Нормализация текста для сравнения описаний (строгая проверка уникальности)
+// Удаляет HTML теги, нормализует пробелы, приводит к нижнему регистру
+// ВАЖНО: нормализует только блоки 1-6, блок 7 (технические характеристики) исключается
 function normalizeText(text) {
   if (!text || typeof text !== 'string') return '';
-  return text
+  
+  // Сначала извлекаем только блоки 1-6 (исключаем блок 7)
+  const blocks1To6 = extractBlocks1To6(text);
+  
+  return blocks1To6
+    // Удаляем HTML теги (включая самозакрывающиеся)
+    .replace(/<[^>]+>/g, '')
+    // Декодируем HTML entities (если есть)
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    // Нормализуем все типы пробелов (обычные, неразрывные, табы, переносы строк) в обычные пробелы
+    .replace(/[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]+/g, ' ')
+    // Приводим к нижнему регистру
     .toLowerCase()
-    .replace(/\s+/g, ' ') // Заменяем множественные пробелы на один
+    // Удаляем множественные пробелы
+    .replace(/\s+/g, ' ')
+    // Обрезаем пробелы по краям
     .trim();
 }
 
 // Определяет, является ли объявление старым (из Excel)
 // Старые объявления имеют формат: r00-4070_cheh_031225_01 или s00_dmd_031225_01
-// Новые объявления имеют формат: s00_bron_201225_01
+// Новые объявления имеют формат: s00_bron_201225-125501_01 (с временем HHmmss)
 function isOldAd(adId) {
   if (!adId) return false;
   
@@ -130,12 +187,18 @@ function isOldAd(adId) {
     return true;
   }
   
-  // Проверяем дату в формате DDMMYY (031225 = 03.12.2025, 201225 = 20.12.2025)
-  // Ищем паттерн даты: 6 цифр подряд (DDMMYY)
-  const dateMatch = adId.match(/(\d{2})(\d{2})(\d{2})/);
+  // Проверяем дату в формате DDMMYY или DDMMYY-HHmmss
+  // Ищем паттерн даты: 6 цифр подряд (DDMMYY), возможно с дефисом и временем после
+  // Новый формат: s00_cheh_171225-125501_01 (дата с временем)
+  // Старый формат: s00_cheh_031225_01 (только дата)
+  const dateMatch = adId.match(/(\d{2})(\d{2})(\d{2})(?:-(\d{6}))?/);
   if (dateMatch) {
-    const [, dd, mm, yy] = dateMatch;
-    const dateStr = dd + mm + yy;
+    const [, dd, mm, yy, time] = dateMatch;
+    
+    // Если есть время (новый формат), это новое объявление
+    if (time) {
+      return false;
+    }
     
     // Если дата начинается с 0 (031225), это старый формат
     // Если дата начинается с 1 или 2 (161225, 201225), это новый формат
@@ -172,13 +235,16 @@ function checkUniqueness(ads) {
     }
     
     // Проверка уникальности Description (критично - описания должны быть уникальными)
+    // ВАЖНО: Проверяется уникальность только блоков 1-6, блок 7 (технические характеристики) исключается
+    // Нормализация удаляет HTML теги и нормализует пробелы для строгой проверки
     const normalizedDesc = normalizeText(ad.Description || '');
     if (normalizedDesc && descriptions.has(normalizedDesc)) {
+      const firstOccurrence = descriptions.get(normalizedDesc);
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
         type: 'duplicate_description',
-        message: `Дублирующееся описание. Первое вхождение на позиции ${descriptions.get(normalizedDesc)}`
+        message: `КРИТИЧНО: Дублирующееся описание (после нормализации HTML и пробелов). Первое вхождение на позиции ${firstOccurrence}, текущее на позиции ${i + 1}. Описания должны быть уникальными!`
       });
     } else if (normalizedDesc) {
       descriptions.set(normalizedDesc, i + 1);
@@ -210,7 +276,7 @@ function checkRequiredFields(ads) {
     'CompactionCoefficient',
     'MinSaleQuantity',
     'PriceFor'
-    // DateBegin не включаем в базовый список - добавим только для новых объявлений
+    // DateBegin - опциональное поле (не проверяем обязательность, только формат если присутствует)
   ];
   
   for (let i = 0; i < ads.length; i++) {
@@ -218,11 +284,7 @@ function checkRequiredFields(ads) {
     const missingFields = [];
     const requiredFields = [...baseRequiredFields];
     
-    // DateBegin обязателен только для новых объявлений (не из Excel)
-    const isOld = isOldAd(ad.Id);
-    if (!isOld) {
-      requiredFields.push('DateBegin');
-    }
+    // DateBegin - опциональное поле (не проверяем обязательность)
     
     // Для щебня и гравия добавляем обязательные поля
     if (ad.BulkMaterialType === 'Щебень, гравий') {
@@ -408,23 +470,23 @@ function checkFieldValues(ads) {
       });
     }
     
-    // Проверка AdType
-    if (ad.AdType && !ALLOWED_AD_TYPES.includes(ad.AdType)) {
+    // Проверка AdType - всегда должно быть "Товар от производителя"
+    if (ad.AdType && ad.AdType !== 'Товар от производителя') {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
         type: 'invalid_ad_type',
-        message: `Недопустимый тип объявления: "${ad.AdType}". Допустимые: ${ALLOWED_AD_TYPES.join(', ')}`
+        message: `Недопустимый тип объявления: "${ad.AdType}". Должно быть всегда "Товар от производителя"`
       });
     }
     
-    // Проверка Condition
-    if (ad.Condition && !ALLOWED_CONDITIONS.includes(ad.Condition)) {
+    // Проверка Condition - всегда должно быть "Новое"
+    if (ad.Condition && ad.Condition !== 'Новое') {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
         type: 'invalid_condition',
-        message: `Недопустимое состояние: "${ad.Condition}". Допустимые: ${ALLOWED_CONDITIONS.join(', ')}`
+        message: `Недопустимое состояние: "${ad.Condition}". Должно быть всегда "Новое"`
       });
     }
     
@@ -490,13 +552,13 @@ function checkFieldValues(ads) {
       }
     }
     
-    // Проверка PackagingType
-    if (ad.PackagingType && !ALLOWED_PACKAGING_TYPES.includes(ad.PackagingType)) {
+    // Проверка PackagingType - всегда должно быть "Россыпью"
+    if (ad.PackagingType && ad.PackagingType !== 'Россыпью') {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
         type: 'invalid_packaging_type',
-        message: `Недопустимый тип упаковки: "${ad.PackagingType}". Допустимые: ${ALLOWED_PACKAGING_TYPES.join(', ')}`
+        message: `Недопустимый тип упаковки: "${ad.PackagingType}". Должно быть всегда "Россыпью"`
       });
     }
     
@@ -537,28 +599,28 @@ function checkFieldValues(ads) {
       });
     }
     
-    // Проверка CompactionCoefficient
+    // Проверка CompactionCoefficient - должно быть числом
     if (ad.CompactionCoefficient) {
       const coeff = parseFloat(ad.CompactionCoefficient);
-      if (isNaN(coeff) || coeff < 0 || coeff > 6) {
+      if (isNaN(coeff)) {
         errors.push({
           adIndex: i + 1,
           adId: ad.Id,
           type: 'invalid_compaction_coefficient',
-          message: `Некорректный коэффициент уплотнения: "${ad.CompactionCoefficient}". Должен быть числом от 0 до 6`
+          message: `Некорректный коэффициент уплотнения: "${ad.CompactionCoefficient}". Должно быть числом`
         });
       }
     }
     
-    // Проверка MinSaleQuantity
+    // Проверка MinSaleQuantity - всегда должно быть 20
     if (ad.MinSaleQuantity) {
       const qty = parseFloat(ad.MinSaleQuantity);
-      if (isNaN(qty) || qty < 0) {
+      if (isNaN(qty) || qty !== 20) {
         errors.push({
           adIndex: i + 1,
           adId: ad.Id,
           type: 'invalid_min_sale_quantity',
-          message: `Некорректное минимальное количество: "${ad.MinSaleQuantity}". Должно быть неотрицательным числом`
+          message: `Некорректное минимальное количество: "${ad.MinSaleQuantity}". Должно быть всегда 20`
         });
       }
     }
@@ -667,33 +729,31 @@ function checkMaterialConsistency(ads) {
 
 // Главная функция валидации
 function validateXML(xmlFilePath) {
-  console.log(`\n🔍 Валидация XML файла: ${xmlFilePath}\n`);
-  
   let xmlString;
   try {
     xmlString = readFileSync(xmlFilePath, 'utf-8');
   } catch (error) {
-    console.error(`❌ Ошибка чтения файла: ${error.message}`);
+    console.error(`   Ошибка чтения файла: ${error.message}`);
     process.exit(1);
   }
   
   // Проверка структуры XML
   if (!xmlString.includes('<Ads')) {
-    console.error('❌ Файл не является валидным XML фидом Avito (отсутствует корневой элемент <Ads>)');
+    console.error('   Файл не является валидным XML фидом Avito (отсутствует корневой элемент <Ads>)');
     process.exit(1);
   }
   
   const formatVersionMatch = xmlString.match(/formatVersion="(\d+)"/);
   if (!formatVersionMatch || formatVersionMatch[1] !== '3') {
-    console.warn('⚠️  Предупреждение: formatVersion не равен "3"');
+    console.warn('   Предупреждение: formatVersion не равен "3"');
   }
   
   // Парсинг объявлений
   const ads = parseXML(xmlString);
-  console.log(`📊 Найдено объявлений: ${ads.length}\n`);
+  console.log(`   Найдено объявлений: ${ads.length}`);
   
   if (ads.length === 0) {
-    console.error('❌ Не найдено объявлений в файле');
+    console.error('   Не найдено объявлений в файле');
     process.exit(1);
   }
   
@@ -701,74 +761,89 @@ function validateXML(xmlFilePath) {
   const allErrors = [];
   const allWarnings = [];
   
+  console.log('');
+  console.log('   Выполнение проверок:');
+  console.log('   ────────────────────────────────────────────────────────────');
+  
   // 1. Проверка уникальности
-  console.log('1️⃣  Проверка уникальности...');
+  console.log('   1. Проверка уникальности...');
   const { errors: uniquenessErrors, warnings: uniquenessWarnings } = checkUniqueness(ads);
   allErrors.push(...uniquenessErrors);
   allWarnings.push(...uniquenessWarnings);
-  console.log(`   ✓ Проверено`);
+  console.log('      Проверено');
   
   // 2. Проверка обязательных полей
-  console.log('2️⃣  Проверка обязательных полей...');
+  console.log('   2. Проверка обязательных полей...');
   const requiredErrors = checkRequiredFields(ads);
   allErrors.push(...requiredErrors);
-  console.log(`   ✓ Проверено`);
+  console.log('      Проверено');
   
   // 3. Проверка формата и длины
-  console.log('3️⃣  Проверка формата и длины...');
+  console.log('   3. Проверка формата и длины...');
   const { errors: formatErrors, warnings: formatWarnings } = checkFormatAndLength(ads);
   allErrors.push(...formatErrors);
   allWarnings.push(...formatWarnings);
-  console.log(`   ✓ Проверено`);
+  console.log('      Проверено');
   
   // 4. Проверка значений полей
-  console.log('4️⃣  Проверка значений полей...');
+  console.log('   4. Проверка значений полей...');
   const { errors: valueErrors, warnings: valueWarnings } = checkFieldValues(ads);
   allErrors.push(...valueErrors);
   allWarnings.push(...valueWarnings);
-  console.log(`   ✓ Проверено`);
+  console.log('      Проверено');
   
   // 5. Проверка соответствия материала
-  console.log('5️⃣  Проверка соответствия материала...');
+  console.log('   5. Проверка соответствия материала...');
   const { errors: materialErrors, warnings: materialWarnings } = checkMaterialConsistency(ads);
   allErrors.push(...materialErrors);
   allWarnings.push(...materialWarnings);
-  console.log(`   ✓ Проверено`);
+  console.log('      Проверено');
+  
+  console.log('   ────────────────────────────────────────────────────────────');
+  console.log('');
   
   // Вывод результатов
-  console.log('\n' + '='.repeat(80));
-  console.log('📋 РЕЗУЛЬТАТЫ ВАЛИДАЦИИ\n');
-  
   if (allErrors.length === 0 && allWarnings.length === 0) {
-    console.log('✅ Все проверки пройдены успешно!');
+    console.log('   Результат: Все проверки пройдены успешно');
     return;
   }
   
   if (allErrors.length > 0) {
-    console.log(`❌ КРИТИЧЕСКИЕ ОШИБКИ (${allErrors.length}):\n`);
+    console.log(`   КРИТИЧЕСКИЕ ОШИБКИ (${allErrors.length}):`);
+    console.log('');
     allErrors.forEach((error, idx) => {
-      console.log(`   ${idx + 1}. [Объявление #${error.adIndex}, Id: ${error.adId}]`);
-      console.log(`      Тип: ${error.type}`);
-      console.log(`      ${error.message}\n`);
+      console.log(`      ${idx + 1}. [Объявление #${error.adIndex}, Id: ${error.adId}]`);
+      console.log(`         Тип: ${error.type}`);
+      console.log(`         ${error.message}`);
+      if (idx < allErrors.length - 1) {
+        console.log('');
+      }
     });
   }
   
   if (allWarnings.length > 0) {
-    console.log(`\n⚠️  ПРЕДУПРЕЖДЕНИЯ (${allWarnings.length}):\n`);
+    if (allErrors.length > 0) {
+      console.log('');
+    }
+    console.log(`   ПРЕДУПРЕЖДЕНИЯ (${allWarnings.length}):`);
+    console.log('');
     allWarnings.forEach((warning, idx) => {
-      console.log(`   ${idx + 1}. [Объявление #${warning.adIndex}, Id: ${warning.adId}]`);
-      console.log(`      Тип: ${warning.type}`);
-      console.log(`      ${warning.message}\n`);
+      console.log(`      ${idx + 1}. [Объявление #${warning.adIndex}, Id: ${warning.adId}]`);
+      console.log(`         Тип: ${warning.type}`);
+      console.log(`         ${warning.message}`);
+      if (idx < allWarnings.length - 1) {
+        console.log('');
+      }
     });
   }
   
-  console.log('='.repeat(80));
+  console.log('');
   
   if (allErrors.length > 0) {
-    console.log(`\n❌ Валидация завершена с ошибками. Исправьте ${allErrors.length} критических ошибок перед загрузкой в Avito.`);
+    console.log(`   Валидация завершена с ошибками. Исправьте ${allErrors.length} критических ошибок перед загрузкой в Avito.`);
     process.exit(1);
   } else {
-    console.log(`\n⚠️  Валидация завершена с предупреждениями. Рекомендуется исправить ${allWarnings.length} предупреждений.`);
+    console.log(`   Валидация завершена с предупреждениями. Рекомендуется исправить ${allWarnings.length} предупреждений.`);
   }
 }
 

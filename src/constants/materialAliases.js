@@ -1,7 +1,7 @@
 /**
  * Алиасы материалов и городов для генерации коротких уникальных ID объявлений.
- * Формат adId: {material}_{city}_{date}_{counter}
- * Пример: s00_bron_241210_001
+ * Формат adId: {material}_{city}_{date}-{time}_{counter}
+ * Пример: s00_bron_241210-125501_01 (12:55:01)
  */
 
 // Алиасы материалов (короткие коды)
@@ -76,34 +76,37 @@ export function getCityAlias(address) {
 function parseDateBegin(str) {
   if (!str) return null;
   // Формат: "10.12.2025 21:06" или "10.12.2025"
-  const m = str.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+  const m = str.match(/(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
   if (!m) return null;
-  const [_, dd, MM, yyyy] = m;
-  return new Date(`${yyyy}-${MM}-${dd}`);
+  const [_, dd, MM, yyyy, HH = '00', mm = '00', ss = '00'] = m;
+  return new Date(`${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}`);
 }
 
 /**
- * Форматирует дату в короткий формат DDMMYY
+ * Форматирует дату и время в короткий формат DDMMYY-HHmmss
  * @param {Date|string} date - объект Date или строка DateBegin
- * @returns {string} - например, "101224" для 10 декабря 2024
+ * @returns {string} - например, "101224-210600" для 10 декабря 2024 21:06:00
  */
 function formatDateLabel(date) {
   const d = typeof date === 'string' ? parseDateBegin(date) : date;
-  if (!d || !(d instanceof Date) || isNaN(d.getTime())) return '000000';
+  if (!d || !(d instanceof Date) || isNaN(d.getTime())) return '000000-000000';
   
   const yy = String(d.getFullYear()).substring(2);
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  return `${dd}${mm}${yy}`;
+  const HH = String(d.getHours()).padStart(2, '0');
+  const MM = String(d.getMinutes()).padStart(2, '0');
+  const SS = String(d.getSeconds()).padStart(2, '0');
+  return `${dd}${mm}${yy}-${HH}${MM}${SS}`;
 }
 
 /**
  * Генерирует уникальный ID объявления
  * @param {string} materialId - ID материала
  * @param {string} address - адрес объявления
- * @param {Date|string} dateBegin - дата начала публикации
+ * @param {Date|string} dateBegin - дата начала публикации (с временем)
  * @param {number} counter - порядковый номер (1-999)
- * @returns {string} - например, "s00_bron_241210_001"
+ * @returns {string} - например, "s00_bron_241210-125501_01"
  */
 export function generateAdId(materialId, address, dateBegin, counter) {
   const matAlias = getMaterialAlias(materialId);
@@ -115,7 +118,7 @@ export function generateAdId(materialId, address, dateBegin, counter) {
 
 /**
  * Парсит adId обратно в компоненты
- * @param {string} adId - ID объявления (например, "s00_bron_161225_01")
+ * @param {string} adId - ID объявления (например, "s00_bron_161225-125501_01")
  * @returns {Object|null} - {materialAlias, cityAlias, dateLabel, counter} или null
  */
 export function parseAdId(adId) {
@@ -126,10 +129,40 @@ export function parseAdId(adId) {
   const counter = parseInt(parts[3], 10);
   if (isNaN(counter)) return null;
   
+  // dateLabel может быть в формате "DDMMYY-HHmmss" или "DDMMYY" (для обратной совместимости)
+  const dateLabel = parts[2];
+  
   return {
     materialAlias: parts[0],
     cityAlias: parts[1],
-    dateLabel: parts[2],
+    dateLabel,
     counter
   };
+}
+
+/**
+ * Парсит dateLabel обратно в объект Date
+ * @param {string} dateLabel - дата в формате "DDMMYY-HHmmss" или "DDMMYY"
+ * @returns {Date|null}
+ */
+export function parseDateLabel(dateLabel) {
+  if (!dateLabel || typeof dateLabel !== 'string') return null;
+  
+  // Формат с временем: DDMMYY-HHmmss
+  const withTimeMatch = dateLabel.match(/^(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/);
+  if (withTimeMatch) {
+    const [, dd, mm, yy, HH, MM, SS] = withTimeMatch;
+    const yyyy = 2000 + parseInt(yy, 10);
+    return new Date(yyyy, parseInt(mm, 10) - 1, parseInt(dd, 10), parseInt(HH, 10), parseInt(MM, 10), parseInt(SS, 10));
+  }
+  
+  // Формат без времени: DDMMYY (для обратной совместимости)
+  const withoutTimeMatch = dateLabel.match(/^(\d{2})(\d{2})(\d{2})$/);
+  if (withoutTimeMatch) {
+    const [, dd, mm, yy] = withoutTimeMatch;
+    const yyyy = 2000 + parseInt(yy, 10);
+    return new Date(yyyy, parseInt(mm, 10) - 1, parseInt(dd, 10), 0, 0, 0);
+  }
+  
+  return null;
 }

@@ -1,4 +1,15 @@
 {
+  "byId": {}
+}
+
+{
+  "byId": {},
+  "byLists": {
+    "updateAll": true
+  }
+}
+
+{
   "byId": {
     "12345678": {
       "updatePhoto": true,
@@ -32,6 +43,7 @@
     }
   }
 }
+
 
 
 

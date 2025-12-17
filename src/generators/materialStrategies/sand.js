@@ -59,7 +59,8 @@ export function buildSandAd({ materialId, titles = [], addresses = [], photos = 
     ? FLAGSHIP_PARAMETERS.COLOR 
     : randomChoice(VARIATION_PARAMETERS.COLOR);
   
-  // Для флагманского объявления используем точную базовую цену без вариаций
+  // Генерируем цену (всегда за тонну)
+  // basePrice всегда в ₽/т
   const price = sandType
     ? (isFlagship 
         ? sandType.basePrice 

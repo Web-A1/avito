@@ -35,6 +35,20 @@ function normalizeExistingAd(ad = {}) {
     compactionCoefficient: ad['коэффициент_уплотнения'] || ad['compactioncoefficient'],
     minSaleQuantity: ad['минимальный_заказ'] || ad['minsalequantity']
   };
+  
+  // Нормализация priceFor: приводим к нижнему регистру и проверяем допустимые значения
+  if (map.priceFor) {
+    const normalized = String(map.priceFor).toLowerCase().trim();
+    // Нормализуем к допустимым значениям: 'м³' или 'тонну'
+    if (normalized === 'тонну' || normalized === 'тонна' || normalized === 'т' || normalized === 'tonnu') {
+      map.priceFor = 'тонну';
+    } else if (normalized === 'м³' || normalized === 'м3' || normalized === 'м^3' || normalized.includes('м') || normalized.includes('куб')) {
+      map.priceFor = 'м³';
+    } else {
+      // Если не распознали, оставляем как есть (но в нижнем регистре)
+      map.priceFor = normalized;
+    }
+  }
 
   let photoLink = '';
   let photoLinks = [];
