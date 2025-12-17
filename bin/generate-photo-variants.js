@@ -161,7 +161,16 @@ async function generateVariants({
   // Флагманское = первое объявление (counter = 1) для товара+локация (независимо от даты)
   // Генерируется один раз и в дальнейшем не меняется
   let hasFlagshipAd = false;
-  const useAdId = !!(dateBegin && materialId && address);
+  // Если dateBegin пустой, используем текущую дату для генерации adId (формат DD.MM.YYYY)
+  let effectiveDateBegin = dateBegin;
+  if (!effectiveDateBegin) {
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const MM = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    effectiveDateBegin = `${dd}.${MM}.${yyyy}`;
+  }
+  const useAdId = !!(materialId && address);
   
   if (useAdId && counterOffset === 0) {
     const matAlias = getMaterialAlias(materialId);
@@ -188,7 +197,7 @@ async function generateVariants({
       const matAlias = getMaterialAlias(materialId);
       const cityAlias = getCityAlias(address);
       // Форматируем дату (функция из materialAliases)
-      const dateObj = typeof dateBegin === 'string' ? parseDateBeginLocal(dateBegin) : dateBegin;
+      const dateObj = typeof effectiveDateBegin === 'string' ? parseDateBeginLocal(effectiveDateBegin) : effectiveDateBegin;
       const dateLabel = dateObj ? formatDateLabelLocal(dateObj) : '000000';
       const prefix = `${matAlias}_${cityAlias}_${dateLabel}`;
       
@@ -302,7 +311,7 @@ async function generateVariants({
     if (useAdId) {
       const matAlias = getMaterialAlias(materialId);
       const cityAlias = getCityAlias(address);
-      const dateObj = typeof dateBegin === 'string' ? parseDateBeginLocal(dateBegin) : dateBegin;
+      const dateObj = typeof effectiveDateBegin === 'string' ? parseDateBeginLocal(effectiveDateBegin) : effectiveDateBegin;
       const dateLabel = dateObj ? formatDateLabelLocal(dateObj) : '000000';
       console.log(`Флагманское объявление уже было: ${hasFlagshipAd ? 'ДА' : 'НЕТ'}`);
       if (hasFlagshipAd) {
@@ -326,7 +335,7 @@ async function generateVariants({
   // Функция для получения имени файла (с поддержкой adId)
   function getFilenameForIndex(idx) {
     if (useAdId) {
-      const adId = generateAdId(materialId, address, dateBegin, startingCounter + idx);
+      const adId = generateAdId(materialId, address, effectiveDateBegin, startingCounter + idx);
       return `${adId}.jpg`;
     }
     // Fallback: старый формат для обратной совместимости
@@ -774,7 +783,7 @@ async function generateVariants({
       const photoNumberLabel = totalPhotosGlobal > 0 ? `[${currentPhotoNumber}/${totalPhotosGlobal}]` : '';
       const originalIndex = generated[i].originalIndex !== undefined ? generated[i].originalIndex : i;
       const adId = useAdId 
-        ? generateAdId(materialId, address, dateBegin, startingCounter + originalIndex)
+        ? generateAdId(materialId, address, effectiveDateBegin, startingCounter + originalIndex)
         : null;
       
       // Определяем реальный исходник
@@ -864,8 +873,8 @@ async function generateVariants({
   
   // Создаём новые записи в формате {adId, hash, ...metadata}
   const newAds = successfulGenerated.map((item, idx) => {
-    const adId = useAdId 
-      ? generateAdId(materialId, address, dateBegin, startingCounter + generated.indexOf(item))
+    const adId = useAdId
+      ? generateAdId(materialId, address, effectiveDateBegin, startingCounter + generated.indexOf(item))
       : `legacy_${String(idx + 1).padStart(3, '0')}`;
     
     return {

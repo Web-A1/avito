@@ -5,28 +5,28 @@
       "materialId": "karier_neseyan_nemyt_pesok",
       "slots": [
         {
-          "DateBegin": "20.12.2025 20:02",
-          "count": 25,
+          "DateBegin": "17.12.2025 06:26",
+          "count": 30,
           "locations": [
             {
               "address": "Бронницы, Магистральная ул., 3",
-              "count": 5
+              "count": 6
             },
             {
               "address": "Чехов, ул. Чехова, 20Бк5",
-              "count": 5
+              "count": 6
             },
             {
               "address": "Подольск, ул. Лапшенкова, 3",
-              "count": 5
+              "count": 6
             },
             {
               "address": "Троицк, Индустриальная ул., 1",
-              "count": 5
+              "count": 6
             },
             {
               "address": "Домодедово, Станционная ул., 26к3",
-              "count": 5
+              "count": 6
             }
           ]
         }

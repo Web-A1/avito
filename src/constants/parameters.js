@@ -67,6 +67,30 @@ export const FIXED_PARAMETERS = {
   BULK_MATERIAL_SUBTYPE: 'Карьерный'
 };
 
+// Контактная информация и метаданные объявлений
+export const CONTACT_PARAMETERS = {
+  // Телефон для связи
+  CONTACT_PHONE: '74999389529',
+  
+  // Email для связи
+  EMAIL: 'a1@capital-craft.ru',
+  
+  // Способ связи
+  CONTACT_METHOD: 'По телефону и в сообщениях',
+  
+  // Название компании
+  COMPANY_NAME: 'NERUDA',
+  
+  // Целевая аудитория
+  TARGET_AUDIENCE: 'Частные лица и бизнес',
+  
+  // Плата за размещение
+  LISTING_FEE: 'Package',
+  
+  // Имя менеджера
+  MANAGER_NAME: 'Владимир'
+};
+
 // Точные значения для флагманских объявлений (без рандома)
 export const FLAGSHIP_PARAMETERS = {
   // PriceFor для флагманского (единица измерения цены)
