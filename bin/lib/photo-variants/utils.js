@@ -45,15 +45,8 @@ export function sanitizeName(str = '') {
 export function formatAddressLabel(addr = '') {
   const raw = String(addr || '').trim();
   if (!raw) return 'default';
-  const normalized = raw.replace(/\s+/g, ' ');
-  const prefixes = [/^московская\s+обл\./i, /^московская\s+область/i];
-  const hasPrefix = prefixes.some((rx) => rx.test(normalized));
-  if (hasPrefix) {
-    const withoutPrefix = normalized.replace(/^московская\s+обл\.\s*,?/i, '').replace(/^московская\s+область\s*,?/i, '');
-    const city = withoutPrefix.replace(/^,\s*/, '').trim();
-    if (city) return `${city}, МО`;
-  }
-  return normalized;
+  // Только нормализуем пробелы, адрес оставляем как в источнике
+  return raw.replace(/\s+/g, ' ');
 }
 
 /**
@@ -75,4 +68,3 @@ export function findLatestExcel(dir) {
   
   return files.length > 0 ? files[0].path : null;
 }
-

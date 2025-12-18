@@ -5,7 +5,7 @@
  * По умолчанию:
  * - читаем план data/plan.json (aliases.materials поддерживаются)
  * - берём исходники из data/photos/<materialId>/variants/*.jpg|jpeg|png
- * - складываем на Диск в папку Cursor_for_Avito/<date>/<materialId>/
+ * - складываем на Диск в одну папку Cursor_for_Avito/ (без подкаталогов по материалу/адресу/дате)
  * - результат сохраняем в output/photos_links_<date>.json
  *
  * Пример:
@@ -517,7 +517,7 @@ async function publishFile(token, diskPath) {
   return publicUrl;
 }
 
-async function processMaterial(token, materialId, diskRoot, dateLabel) {
+async function processMaterial(token, materialId, diskRoot, dateLabel, folderName) {
   const files = listVariantFiles(materialId);
   console.log(`   Найдено файлов в variants для ${materialId}: ${files.length}`);
   
@@ -587,22 +587,18 @@ async function processMaterial(token, materialId, diskRoot, dateLabel) {
     return [];
   }
   
-  const rootPath = `disk:/${diskRoot}`;
-  const materialPath = `${rootPath}/${materialId}`;
+  const baseRootPath = `disk:/${diskRoot}`;
+  const rootPath = `${baseRootPath}/${folderName}`;
+  await ensureFolder(token, baseRootPath);
   await ensureFolder(token, rootPath);
-  await ensureFolder(token, materialPath);
   
   const results = [];
   const uploadedFiles = [];
   
-  // Обрабатываем каждую группу по адресу
+  // Обрабатываем каждую группу по адресу (группировка только для логов,
+  // все фото всё равно летят в одну общую папку на Яндекс.Диске)
   for (const [safeAddress, addressFiles] of filesByAddress) {
     if (addressFiles.length === 0) continue;
-    
-    const addressPath = `${materialPath}/${safeAddress}`;
-    const datePath = `${addressPath}/${dateLabel}`;
-    await ensureFolder(token, addressPath);
-    await ensureFolder(token, datePath);
     
     console.log(`   Материал: ${materialId}`);
     console.log(`   Адрес: ${safeAddress}`);
@@ -611,7 +607,9 @@ async function processMaterial(token, materialId, diskRoot, dateLabel) {
     // Функция для обработки одного файла
     const processFile = async (file) => {
       try {
-        const remotePath = `${datePath}/${file.name}`;
+        // Все фото складываем в одну общую папку на Яндекс.Диске для этой генерации:
+        // disk:/<diskRoot>/<dateLabel>/<fileName>
+        const remotePath = `${rootPath}/${file.name}`;
         
         // Загружаем файл с валидацией
         const fileInfo = await uploadFile(token, file.path, remotePath);
@@ -732,9 +730,10 @@ async function main() {
     }
 
     const dateLabel = formatDateLabel(opts.date);
+    const folderName = dateLabel.replace(/\s+/g, '_'); // имя папки на Диске для этой генерации
     const allResults = [];
     for (const mat of materials) {
-      const res = await processMaterial(token, mat, opts.diskRoot, dateLabel);
+      const res = await processMaterial(token, mat, opts.diskRoot, dateLabel, folderName);
       allResults.push(...res);
     }
 
@@ -748,6 +747,7 @@ async function main() {
         {
           date: dateLabel,
           diskRoot: opts.diskRoot,
+          diskPath: `${opts.diskRoot}/${folderName}`,
           items: allResults
         },
         null,

@@ -171,6 +171,9 @@ async function generateVariants({
     effectiveDateBegin = `${dd}.${MM}.${yyyy}`;
   }
   const useAdId = !!(materialId && address);
+  // Базовое время для adId: реальное время старта генерации локации
+  const adIdBaseTime = new Date();
+  const getAdIdDate = (counter = 1) => new Date(adIdBaseTime.getTime() + (counter - 1) * 1000);
   
   if (useAdId && counterOffset === 0) {
     const matAlias = getMaterialAlias(materialId);
@@ -351,9 +354,10 @@ async function generateVariants({
   // Функция для получения имени файла (с поддержкой adId)
   function getFilenameForIndex(idx) {
     if (useAdId) {
-      // Используем РЕАЛЬНОЕ время создания файла для имени
-      const photoDateTime = new Date(); // Текущее время создания файла
-      const adId = generateAdId(materialId, address, photoDateTime, startingCounter + idx);
+      // Используем реальное время (с шагом в 1 сек на каждый counter) для имени
+      const counter = startingCounter + idx;
+      const photoDateTime = getAdIdDate(counter);
+      const adId = generateAdId(materialId, address, photoDateTime, counter);
       return `${adId}.jpg`;
     }
     // Fallback: старый формат для обратной совместимости
@@ -801,8 +805,9 @@ async function generateVariants({
       const currentPhotoNumber = globalPhotoIndex + i + 1;
       const photoNumberLabel = totalPhotosGlobal > 0 ? `[${currentPhotoNumber}/${totalPhotosGlobal}]` : '';
       const originalIndex = generated[i].originalIndex !== undefined ? generated[i].originalIndex : i;
+      const adCounter = startingCounter + originalIndex;
       const adId = useAdId 
-        ? generateAdId(materialId, address, effectiveDateBegin, startingCounter + originalIndex)
+        ? generateAdId(materialId, address, getAdIdDate(adCounter), adCounter)
         : null;
       
       // Определяем реальный исходник
@@ -892,8 +897,9 @@ async function generateVariants({
   
   // Создаём новые записи в формате {adId, hash, ...metadata}
   const newAds = successfulGenerated.map((item, idx) => {
+    const counter = startingCounter + generated.indexOf(item);
     const adId = useAdId
-      ? generateAdId(materialId, address, effectiveDateBegin, startingCounter + generated.indexOf(item))
+      ? generateAdId(materialId, address, getAdIdDate(counter), counter)
       : `legacy_${String(idx + 1).padStart(3, '0')}`;
     
     return {

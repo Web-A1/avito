@@ -43,7 +43,10 @@
 - `output/ads_*.xml` — сгенерированные XML-фиды для ручной загрузки в Авито.
 - `output/ads_*_manifest.json` — манифесты с перечнем `adId` из соответствующего XML.
 - `output/photos_links_*.json` — маппинг `adId` → `public_url` для фото на Яндекс.Диске (актуален только последний файл).
-- `src/generators/*` — генерация объявлений и описаний.
+- `src/generators/*` — генерация объявлений и описаний:
+  - `src/generators/materials/sand/*` — генераторы описаний и техпараметров для песка.
+  - `src/generators/materials/rubble/*` — генераторы описаний и техпараметров для щебня.
+  - в корне `src/generators/` — только универсальные вещи (`adGenerator`, `materialStrategies`, алгоритмы и т.п.).
 - `src/constants/*` — константы: заголовки, блоки 1–7, типы песка, алиасы материалов/городов и т.п.
 - `src/algorithms/*` — алгоритмы уникализации (разделители, латиница, порядок блоков).
 - `src/utils/*` — утилиты чтения Excel (`currentAdsReader`) и `photos_links` (`photosLinksReader`).

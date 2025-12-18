@@ -1,6 +1,6 @@
 {
-  "byId": {},
   "byLists": {
-    "updateAll": true
+    "updateAll": true,
+    "updateDescriptionForAll": true
   }
 }

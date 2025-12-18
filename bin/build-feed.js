@@ -23,8 +23,8 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { generateAds } from '../src/generators/adGenerator.js';
 import { generateXml } from '../src/xml/xmlGenerator.js';
-import { generateDescription } from '../src/generators/descriptionGenerator.js';
-import { TOP_5_TITLES } from '../src/constants/titles.js';
+import { generateDescription } from '../src/generators/materials/sand/descriptionGenerator.js';
+import { TOP_5_TITLES, EXACT_TITLES } from '../src/constants/titles.js';
 import { readCurrentAdsFromXlsx } from '../src/utils/currentAdsReader.js';
 import { loadPhotosMapping } from '../src/utils/photosLinksReader.js';
 import { generateAdId, getCityAlias, getMaterialAlias, CITY_ALIASES, parseAdId, parseDateLabel } from '../src/constants/materialAliases.js';
@@ -207,17 +207,25 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
     console.log(`      [DEBUG] updateRules is null/undefined`);
     return new Map();
   }
-  
+
   const rulesMap = new Map();
-  
+
   // Сначала применяем правила из byLists
   if (updateRules.byLists) {
     console.log(`      [DEBUG] updateRules.byLists =`, JSON.stringify(updateRules.byLists, null, 2));
     console.log(`      [DEBUG] updateRules.byLists.updateAll (прямой доступ) = ${updateRules.byLists.updateAll}`);
     console.log(`      [DEBUG] typeof updateRules.byLists.updateAll = ${typeof updateRules.byLists.updateAll}`);
     
-    const { updatePhoto = [], updateDescription = [], customTitles = {}, customDescriptions = {}, newAddresses = {}, updateAll = false } = updateRules.byLists;
-    
+    const {
+      updatePhoto = [],
+      updateDescription = [],
+      customTitles = {},
+      customDescriptions = {},
+      newAddresses = {},
+      updateAll = false,
+      updateDescriptionForAll = false
+    } = updateRules.byLists;
+
     console.log(`      [DEBUG] byLists.updateAll (после деструктуризации) = ${updateAll}`);
     console.log(`      [DEBUG] typeof updateAll = ${typeof updateAll}`);
     console.log(`      [DEBUG] currentAds.length = ${currentAds.length}`);
@@ -263,16 +271,10 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
           materialId = ad.bulkMaterialSubType || 'karier_neseyan_nemyt_pesok';
         }
         if (!address) {
-          // Берем адрес из Excel, но убираем префикс "Московская обл." или "Москва, "
-          let rawAddress = ad.address || null;
+          // Берём адрес из Excel как есть (в полном формате, как в выгрузке Авито)
+          const rawAddress = (ad.address || '').trim();
           if (rawAddress) {
-            // Убираем префиксы "Московская обл., " или "Московская область, " или "Москва, "
-            rawAddress = rawAddress
-              .replace(/^московская\s+обл\.\s*,?\s*/i, '')
-              .replace(/^московская\s+область\s*,?\s*/i, '')
-              .replace(/^москва\s*,?\s*/i, '')
-              .trim();
-            address = rawAddress || null;
+            address = rawAddress;
           }
         }
         
@@ -281,11 +283,16 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
           rulesMap.set(avitoId, {});
         }
         const rule = rulesMap.get(avitoId);
+        // По умолчанию updateAll обновляет только фото.
+        // Описание трогаем только если явно указан флаг updateDescriptionForAll = true.
         rule.updatePhoto = true;
-        rule.updateDescription = 'auto';
+        if (updateDescriptionForAll) {
+          rule.updateDescription = 'auto';
+        }
         if (materialId) rule.materialId = materialId;
         if (address) {
-          rule.address = address; // Адрес БЕЗ префикса "Московская обл." (из CITY_ALIASES или нормализованный из Excel)
+          // Адрес в полном формате, как в plan.json и выгрузке Авито
+          rule.address = address;
         }
         
         processedCount++;
@@ -332,7 +339,7 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
       }
       rulesMap.get(avitoId).updateDescription = desc;
     });
-    
+
     Object.entries(newAddresses).forEach(([avitoId, addr]) => {
       if (!rulesMap.has(avitoId)) {
         rulesMap.set(avitoId, {});
@@ -340,7 +347,27 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
       rulesMap.get(avitoId).newAddress = addr;
     });
   }
-  
+
+  // Автоматическая нормализация адресов для старых объявлений.
+  // Идея: если адрес из Excel (после обрезки префиксов в buildUpdateRulesMap)
+  // в точности совпадает с одним из утверждённых адресов Avito (CITY_ALIASES),
+  // то считаем его "каноническим" и записываем как newAddress.
+  //
+  // Это позволяет:
+  //  - привести старые объявления к тем же адресам, что и в plan.json/CITY_ALIASES;
+  //  - чтобы в финальном XML у старых объявлений адрес совпадал с утверждённым адресом профиля;
+  //  - уменьшить количество ошибок вида "Не получилось определить адрес по идентификатору / GEO-параметрам".
+  for (const [avitoId, rule] of rulesMap.entries()) {
+    if (!rule) continue;
+    // Пользовательский newAddress (из byId/byLists.newAddresses) имеет приоритет и не трогаем его.
+    if (rule.newAddress) continue;
+    if (!rule.address) continue;
+
+    if (CITY_ALIASES[rule.address]) {
+      rule.newAddress = rule.address;
+    }
+  }
+
   // Затем применяем правила из byId (имеют приоритет)
   if (updateRules.byId) {
     Object.entries(updateRules.byId).forEach(([avitoId, rules]) => {
@@ -607,13 +634,15 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
     throw new Error(`В ${originalsDir} нет исходных файлов`);
   }
   
-  // Создаем временную папку для генерации
-  const tempDir = path.join(photosRoot, materialId, 'temp_updates');
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
+  // Папка variants как для новых объявлений: data/photos/<materialId>/<safeAddress>/variants/
+  const { formatAddressLabel, sanitizeName } = await import('./lib/photo-variants/utils.js');
+  const safeAddress = sanitizeName(formatAddressLabel(address));
+  const variantsDir = path.join(photosRoot, materialId, safeAddress, 'variants');
+  if (!fs.existsSync(variantsDir)) {
+    fs.mkdirSync(variantsDir, { recursive: true });
   }
   
-  const outputPath = path.join(tempDir, `${avitoId}.jpg`);
+  const outputPath = path.join(variantsDir, `${avitoId}.jpg`);
   
   // Используем функции из lib/photo-variants для генерации фото с водяным знаком
   try {
@@ -806,77 +835,27 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
           .toBuffer()
       : finalBuffer; // Если нет слоев (не должно быть, если textWatermark указан)
     
-    // Валидация буфера ПЕРЕД записью
-    try {
-      const validateImage = sharp.default(resultBuffer);
-      const metadata = await validateImage.metadata();
-      if (!metadata.format || metadata.format !== 'jpeg') {
-        throw new Error(`Неверный формат файла: ${metadata.format}`);
-      }
-      if (metadata.width === 0 || metadata.height === 0) {
-        throw new Error(`Неверные размеры: ${metadata.width}x${metadata.height}`);
-      }
-      if (resultBuffer.length === 0) {
-        throw new Error('Буфер пустой (0 байт)');
-      }
-      // Проверяем JPEG заголовок
-      if (resultBuffer.length < 3 || resultBuffer[0] !== 0xFF || resultBuffer[1] !== 0xD8 || resultBuffer[2] !== 0xFF) {
-        throw new Error('Буфер не является валидным JPEG (неверный заголовок)');
-      }
-    } catch (validationErr) {
-      console.error(`   ❌ Ошибка валидации фото ${path.basename(outputPath)} перед записью: ${validationErr.message}`);
-      throw new Error(`Фото повреждено при генерации: ${validationErr.message}`);
+    // Лёгкая валидация буфера ПЕРЕД записью (только базовые проверки, без тяжелых циклов)
+    const validateImage = sharp.default(resultBuffer);
+    const metadata = await validateImage.metadata();
+    if (!metadata.format || metadata.format !== 'jpeg') {
+      throw new Error(`Неверный формат файла: ${metadata.format}`);
+    }
+    if (!metadata.width || !metadata.height) {
+      throw new Error(`Неверные размеры: ${metadata.width}x${metadata.height}`);
+    }
+    if (!resultBuffer.length) {
+      throw new Error('Буфер пустой (0 байт)');
+    }
+    // Простая проверка JPEG-заголовка
+    if (resultBuffer.length < 3 || resultBuffer[0] !== 0xFF || resultBuffer[1] !== 0xD8 || resultBuffer[2] !== 0xFF) {
+      throw new Error('Буфер не является валидным JPEG (неверный заголовок)');
     }
     
-    // Сохраняем результат с гарантией полной записи
+    // Сохраняем результат (без дополнительных циклов post-write валидации)
     await fs.promises.writeFile(outputPath, resultBuffer);
     await new Promise(resolve => setImmediate(resolve));
-    
-    // Проверяем записанный файл
-    let retries = 3;
-    let fileValid = false;
-    while (retries > 0 && !fileValid) {
-      try {
-        const fileStats = await fs.promises.stat(outputPath);
-        if (fileStats.size === 0) {
-          throw new Error('Файл пустой после записи (0 байт)');
-        }
-        if (fileStats.size !== resultBuffer.length) {
-          throw new Error(`Размер файла (${fileStats.size}) не совпадает с размером буфера (${resultBuffer.length})`);
-        }
-        
-        // Читаем файл и проверяем JPEG заголовок
-        const fileBuffer = await fs.promises.readFile(outputPath);
-        if (fileBuffer.length < 3 || fileBuffer[0] !== 0xFF || fileBuffer[1] !== 0xD8 || fileBuffer[2] !== 0xFF) {
-          throw new Error('Файл не является валидным JPEG (неверный заголовок)');
-        }
-        
-        // Сравниваем первые байты для проверки целостности
-        const compareLength = Math.min(100, resultBuffer.length);
-        for (let j = 0; j < compareLength; j++) {
-          if (fileBuffer[j] !== resultBuffer[j]) {
-            throw new Error(`Файл поврежден: несовпадение байта на позиции ${j}`);
-          }
-        }
-        
-        fileValid = true;
-      } catch (fileErr) {
-        retries--;
-        if (retries === 0) {
-          console.error(`   ❌ Ошибка проверки файла ${path.basename(outputPath)} после записи: ${fileErr.message}`);
-          // Удаляем поврежденный файл
-          try {
-            await fs.promises.unlink(outputPath);
-          } catch (unlinkErr) {
-            // Игнорируем ошибки удаления
-          }
-          throw new Error(`Файл поврежден после записи: ${fileErr.message}`);
-        }
-        // Ждем перед повторной попыткой
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-    }
-    
+
     return outputPath;
   } catch (err) {
     // Если не удалось сгенерировать, используем упрощенный подход
@@ -1084,9 +1063,23 @@ async function main() {
       }
     }
     
+    // Множество уже существующих Id из Excel, чтобы не дублировать их для новых объявлений
+    const existingIdsSet = new Set(
+      (currentAds || [])
+        .map(ad => ad.Id || ad.id)
+        .filter(Boolean)
+    );
+    
     const dateLabel = formatDateLabel(opts.date);
-    const photosLinks = { date: dateLabel, diskRoot: opts.diskRoot, items: [] };
+    const diskFolderName = dateLabel.replace(/\s+/g, '_');
+    const photosLinks = {
+      date: dateLabel,
+      diskRoot: opts.diskRoot,
+      diskPath: `${opts.diskRoot}/${diskFolderName}`,
+      items: []
+    };
     let finalPhotosPath = null;
+    let photosMapping = {};
     
     // 4. Обрабатываем старые объявления (обновление фото)
     currentStep = 4;
@@ -1148,69 +1141,19 @@ async function main() {
             console.log(`   ✅ Фото создано: ${path.basename(photoPath)}`);
             
             // Загружаем на Яндекс.Диск
-            console.log(`\n   Загрузка на Яндекс.Диск...`);
-            const token = process.env.YANDEX_DISK_TOKEN;
-            if (!token) {
-              throw new Error('YANDEX_DISK_TOKEN не найден в окружении');
-            }
-            
-            // Определяем safeAddress для структуры папок
+            // Локальная история ведётся по materialId + safeAddress, поэтому
+            // для истории вычисляем safeAddress и обновляем hashes.json.
             const { formatAddressLabel, sanitizeName } = await import('./lib/photo-variants/utils.js');
             const safeAddress = sanitizeName(formatAddressLabel(address));
-            
-            // Новая структура: disk:/<diskRoot>/<materialId>/<safeAddress>/<dateLabel>/<filename>
-            const rootPath = `disk:/${opts.diskRoot}`;
-            const materialPath = `${rootPath}/${materialId}`;
-            const addressPath = `${materialPath}/${safeAddress}`;
-            const datePath = `${addressPath}/${dateLabel}`;
-            
-            console.log(`   Создание папок на Диске...`);
-            await ensureFolder(token, rootPath);
-            await ensureFolder(token, materialPath);
-            await ensureFolder(token, addressPath);
-            await ensureFolder(token, datePath);
-            
-            const remotePath = `${datePath}/${ad.Id}.jpg`;
-            console.log(`   Путь: ${materialId}/${safeAddress}/${dateLabel}/${ad.Id}.jpg`);
-            
-            if (opts.dryRun) {
-              console.log(`   [DRY-RUN] Фото было бы загружено на: ${remotePath}`);
-              const mockUrl = `https://disk.yandex.ru/i/MOCK_URL_${ad.Id}`;
-              photosLinks.items.push({
-                avitoId: ad.Id,
-                file: `${ad.Id}.jpg`,
-                public_url: mockUrl
-              });
-              console.log(`   [DRY-RUN] Публичный URL: ${mockUrl}`);
-            } else {
-              try {
-                const publicUrl = await uploadAndPublishPhoto(token, photoPath, remotePath);
-                console.log(`   ✅ Фото загружено и опубликовано`);
-              
-              photosLinks.items.push({
-                avitoId: ad.Id,
-                file: `${ad.Id}.jpg`,
-                public_url: publicUrl
-              });
-              
-              // Обновляем историю с AvitoId и новым хешем фото
-              try {
-                const { aHashFromBuffer } = await import('./lib/photo-variants/hashing.js');
-                const photoHash = await aHashFromBuffer(fs.readFileSync(photoPath));
-                const materialPathLocal = path.join(rules.materialId || 'karier_neseyan_nemyt_pesok', safeAddress);
-                updateHistoryWithAvitoId(materialPathLocal, ad.Id, photoHash, `${ad.Id}.jpg`);
-              } catch (histErr) {
-                console.warn(`   ⚠️  Не удалось обновить историю: ${histErr.message}`);
-              }
-              
-              // Удаляем локальный файл
-              console.log(`\n   Удаление локального файла...`);
-              fs.unlinkSync(photoPath);
-              console.log(`   ✅ Локальный файл удален`);
-              } catch (uploadErr) {
-                // Ошибка при загрузке на Яндекс.Диск
-                throw uploadErr;
-              }
+
+            // Обновляем историю с AvitoId и новым хешем фото
+            try {
+              const { aHashFromBuffer } = await import('./lib/photo-variants/hashing.js');
+              const photoHash = await aHashFromBuffer(fs.readFileSync(photoPath));
+              const materialPathLocal = path.join(rules.materialId || 'karier_neseyan_nemyt_pesok', safeAddress);
+              updateHistoryWithAvitoId(materialPathLocal, ad.Id, photoHash, `${ad.Id}.jpg`);
+            } catch (histErr) {
+              console.warn(`   ⚠️  Не удалось обновить историю: ${histErr.message}`);
             }
             
             console.log(`\n   ✅ Обновлено фото для объявления ${ad.Id}`);
@@ -1307,7 +1250,9 @@ async function main() {
       if (!token) {
         throw new Error('YANDEX_DISK_TOKEN не найден в окружении');
       }
-      console.log(`   Структура папок: ${opts.diskRoot}/<материал>/<адрес>/<дата>/`);
+      // Все фото (новые и старые) складываются в единую папку этой генерации:
+      // disk:/<diskRoot>/<dateLabel>/<fileName>
+      console.log(`   Структура папок: ${opts.diskRoot}/${diskFolderName}/ (единая папка без подкаталогов по материалу/адресу)`);
       console.log(`   Дата генерации: ${dateLabel}`);
       console.log('');
       
@@ -1355,7 +1300,8 @@ async function main() {
           'utf8'
         );
         
-        // Подсчет статистики
+        // Загружаем маппинг фото (file → public_url) для использования в шагах 7 и 8
+        photosMapping = loadPhotosMapping(finalPhotosPath);
         const totalPhotos = photosLinks.items.length;
         const updatedPhotosCount = photosLinks.items.filter(item => 
           currentAds.some(ad => ad.Id === item.avitoId)
@@ -1416,8 +1362,10 @@ async function main() {
         if (ad.priceFor && typeof ad.priceFor === 'string') {
           const normalized = ad.priceFor.toLowerCase().trim();
           if (normalized === 'тонну' || normalized === 'тонна' || normalized === 'т' || normalized === 'tonnu') {
+            // Строгое значение из справочника Авито
             ad.priceFor = 'тонну';
-          } else if (normalized.includes('м') || normalized.includes('куб') || normalized === 'м³' || normalized === 'м3' || normalized === 'м^3') {
+          } else if (normalized === 'м³' || normalized === 'м3' || normalized === 'м^3' || normalized.includes('м') || normalized.includes('куб')) {
+            // Строгое значение из справочника Авито
             ad.priceFor = 'м³';
           }
         }
@@ -1505,14 +1453,16 @@ async function main() {
           console.log(`      Адрес обновлен`);
         }
         
-        // Обновляем фото (если было обновлено на шаге 4)
-        const photoItem = photosLinks.items.find(item => item.avitoId === ad.Id);
-        if (photoItem) {
-          console.log(`\n   Фото:`);
-          ad.photoLink = photoItem.public_url;
-          updated = true;
-          changes.push('фото');
-          console.log(`      Фото обновлено`);
+        // Обновляем фото (если для этого объявления есть запись в маппинге)
+        if (photosMapping && Object.keys(photosMapping).length > 0) {
+          const mappedUrl = photosMapping[ad.Id];
+          if (mappedUrl) {
+            console.log(`\n   Фото:`);
+            ad.photoLink = mappedUrl;
+            updated = true;
+            changes.push('фото');
+            console.log(`      Фото обновлено`);
+          }
         }
         
         if (updated) {
@@ -1545,12 +1495,11 @@ async function main() {
     } else {
       logStep(currentStep, currentStepName);
       
-      // Загружаем маппинг фото
-      const photosMappingPath = path.join(opts.outDir, `photos_links_${dateLabel}.json`);
+      // Маппинг фото уже загружен на шаге 6 (photosMapping),
+      // Здесь просто выводим краткую статистику.
+      const photosMappingCount = photosMapping ? Object.keys(photosMapping).length : 0;
       console.log(`\n   Загрузка маппинга фото:`);
-      console.log(`      Файл: ${path.basename(photosMappingPath)}`);
-      const photosMapping = loadPhotosMapping(photosMappingPath);
-      const photosMappingCount = Object.keys(photosMapping).length;
+      console.log(`      Файл: ${finalPhotosPath ? path.basename(finalPhotosPath) : 'нет'}${photosMappingCount ? '' : ' (маппинг пустой)'}`);
       console.log(`      Найдено фото в маппинге: ${photosMappingCount}`);
       
       var generatedAds = [];
@@ -1623,7 +1572,7 @@ async function main() {
                   ? task.intervalMaxMinutes
                   : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
                     ? task.intervalMinutes
-                    : 20;
+                    : 30;
           const maxInterval = Math.max(minInterval, maxIntervalCandidate);
           const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
           const locationsPlan = buildLocationPlan(
@@ -1681,12 +1630,23 @@ async function main() {
             
             // Определяем, какие объявления будут флагманскими (counter = 1)
             const flagshipFlags = Array(loc.count).fill(false).map((_, idx) => idx === 0);
-            
+
+            // Заголовки:
+            // - если явно заданы в задаче → используем их;
+            // - для щебня по умолчанию берём EXACT_TITLES[materialId] (без слова "песок");
+            // - для песка оставляем TOP_5_TITLES как базовый набор.
+            const isRubbleTask = (task.material || 'sand') === 'rubble';
+            const defaultTitles = task.titles && task.titles.length
+              ? task.titles
+              : isRubbleTask
+                ? (EXACT_TITLES[materialIdResolved] || ['Щебень', 'Щебень вторичный'])
+                : TOP_5_TITLES;
+
             const ads = generateAds({
               material: task.material || 'sand',
               materialId: materialIdResolved,
               count: loc.count,
-              titles: task.titles && task.titles.length ? task.titles : TOP_5_TITLES,
+              titles: defaultTitles,
               addresses: [loc.address],
               photos: task.photos || [],
               currentAds,
@@ -1715,7 +1675,8 @@ async function main() {
                 return null;
               })
               .filter(Boolean)
-              .filter(p => p.hasTime) // Только фото с новым форматом (с временем)
+              // Только фото с новым форматом (с временем) и Id, которых нет в Excel (чтобы не дублировать Id старых объявлений)
+              .filter(p => p.hasTime && !existingIdsSet.has(p.adId))
               .sort((a, b) => a.parsed.counter - b.parsed.counter); // Сортируем по counter
             
             // Используем slotDateBeginDt, который продолжается последовательно через все локации
@@ -2180,4 +2141,3 @@ async function main() {
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   main();
 }
-

@@ -65,9 +65,10 @@ export function buildLightSpotsSvg(width, height) {
 }
 
 /**
- * Вычисляет адаптивный opacity на основе калибровки с однотонными образцами
- * Эталон: brightness 180 → opacity 15%
- * Линейная интерполяция для более тёмных фото
+ * Вычисляет адаптивный opacity на основе калибровки с однотонными образцами.
+ * Эталон для песка/светлых фонов:
+ * - brightness ≈ 180 → opacity ~15–17%
+ * - для ещё более светлых фото чуть усиливаем ВЗ, чтобы он не терялся на фоне.
  */
 export function calculateAdaptiveOpacity(stats) {
   const channels = stats?.channels || [];
@@ -85,9 +86,10 @@ export function calculateAdaptiveOpacity(stats) {
   const visualContrast = Math.abs(watermarkBrightness - avgBrightness) / 255;
   
   // ФОРМУЛА НА ОСНОВЕ КАЛИБРОВКИ С ОДНОТОННЫМИ ОБРАЗЦАМИ:
-  // brightness 180 → opacity 15% (эталон, "норм")
+  // brightness 180 → opacity ≈15% (эталон, "норм")
   // brightness 0   → opacity ~7% (базовый уровень для чёрного)
-  // НЕЛИНЕЙНАЯ кривая (степенная функция ^2.7) для плавного перехода
+  // НЕЛИНЕЙНАЯ кривая (степенная функция ^2.7) для плавного перехода +
+  // небольшой boost для очень светлых однородных фото (как светлый песок).
   
   let baseOpacity;
   
@@ -98,11 +100,14 @@ export function calculateAdaptiveOpacity(stats) {
     const ratio = avgBrightness / 180;
     baseOpacity = 0.070 + Math.pow(ratio, 2.7) * 0.080;
   } else {
-    // Для очень светлых фото (> 180) оставляем на уровне эталона
-    baseOpacity = 0.15;
+    // Для очень светлых фото (> 180) заметно усиливаем ВЗ,
+    // чтобы он не терялся на светлых однородных фонах.
+    // brightness 180–240 → ~0.17–0.22
+    const ratio = Math.min(1, (avgBrightness - 180) / 60);
+    baseOpacity = 0.17 + ratio * 0.05;
   }
   
-  // КОЭФФИЦИЕНТ ДЕТАЛИЗАЦИИ (для реальных фото с текстурой):
+  // КОЕФФИЦИЕНТ ДЕТАЛИЗАЦИИ (для реальных фото с текстурой):
   // На тёмных фото с высокой текстурой ВЗ "прячется" → нужен больший opacity
   // На светлых фото (>150) коэффициент = 0 (ВЗ и так заметен)
   const detailFactor = (avgStdev / 50) * Math.max(0, 1 - avgBrightness / 150);
@@ -128,7 +133,15 @@ export function calculateAdaptiveOpacity(stats) {
   // ДОП. BOOST ДЛЯ СРЕДНИХ ФОТО, КОТОРЫЕ ЕЩЁ ЧУТЬ НЕ ДОТЯГИВАЮТ
   // Работает только когда уже посчитанный opacity ниже 16%
   let midBoost = 0;
-  const preAdjustOpacity = baseOpacity * (1 + detailFactor + darkBoost);
+
+  // Дополнительный boost для очень светлых и достаточно однородных фото (как светлый песок):
+  // если яркость > 195 и детализация низкая/средняя, немного усиливаем ВЗ.
+  let brightBoost = 0;
+  if (avgBrightness > 195 && avgStdev < 45) {
+    brightBoost = 0.15; // +15%
+  }
+
+  const preAdjustOpacity = baseOpacity * (1 + detailFactor + darkBoost + brightBoost);
   if (
     preAdjustOpacity < 0.16 &&
     avgBrightness >= 90 &&
@@ -140,11 +153,54 @@ export function calculateAdaptiveOpacity(stats) {
   }
 
   // Применяем все коэффициенты к базовому opacity
-  const adjustedOpacity = preAdjustOpacity * (1 + midBoost);
+  let adjustedOpacity = preAdjustOpacity * (1 + midBoost);
   
-  // Диапазон для рандомизации: ±8% (уменьшили с ±15% для более стабильного результата)
-  const minOpacity = Math.max(0.05, adjustedOpacity * 0.92);
-  const maxOpacity = Math.min(0.8, adjustedOpacity * 1.08);
+  // Специальный режим для тёплых песчаных фото (вариант A):
+  // делаем водяной знак заметным, но не агрессивным (~30–35%).
+  const meanR = means[0] ?? avgBrightness;
+  const meanG = means[1] ?? avgBrightness;
+  const meanB = means[2] ?? avgBrightness;
+  const isWarmSandLike =
+    meanR > meanG &&
+    meanG > meanB &&
+    (meanR - meanB) > 60; // тёплый жёлто-коричневый тон
+
+  let minOpacity;
+  let maxOpacity;
+
+  const inSandBrightnessRange = avgBrightness >= 110 && avgBrightness <= 170;
+  const inSandDetailRange = avgStdev >= 25 && avgStdev <= 50;
+
+  // Рубленый/щебёночный серый фон (как вторичный щебень):
+  const isRubbleLike =
+    !isWarmSandLike &&
+    avgBrightness >= 90 &&
+    avgBrightness <= 190 &&
+    avgStdev >= 25 &&
+    avgStdev <= 75 &&
+    Math.abs(meanR - meanG) < 25 &&
+    Math.abs(meanG - meanB) < 25;
+
+  if (isWarmSandLike && inSandBrightnessRange && inSandDetailRange) {
+    // Песок: водяной знак заметный, но мягкий (~22–28%)
+    const base = Math.max(adjustedOpacity, 0.25);
+    minOpacity = 0.22;
+    maxOpacity = 0.28;
+  } else if (isRubbleLike) {
+    // Щебень/серый камень: заметный, но ещё более деликатный ВЗ (~30–50%).
+    const base = Math.max(adjustedOpacity, 0.35);
+    minOpacity = Math.max(0.30, base * 0.97);
+    maxOpacity = Math.min(0.50, base * 1.06);
+  } else if (avgBrightness > 195 && avgStdev < 45) {
+    // Очень светлые нейтральные фото (снег, светлый бетон и т.п.)
+    const base = Math.max(adjustedOpacity, 0.33);
+    minOpacity = Math.max(0.30, base * 0.95);
+    maxOpacity = Math.min(0.40, base * 1.05);
+  } else {
+    // Стандартный режим для всех остальных
+    minOpacity = Math.max(0.05, adjustedOpacity * 0.92);
+    maxOpacity = Math.min(0.8, adjustedOpacity * 1.08);
+  }
   
   return { minOpacity, maxOpacity, visualContrast, avgBrightness, avgStdev, detailFactor };
 }
@@ -158,7 +214,27 @@ export function pickTextPalette(stats, forcedColor) {
   const channels = stats?.channels || [];
   const means = channels.slice(0, 3).map((c) => c?.mean ?? 128);
   const avg = means.reduce((sum, v) => sum + v, 0) / (means.length || 1);
-  if (avg >= 170) return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'bright' };
+
+  // Рубленый/щебёночный серый фон: каналы близки, без выраженного тёплого сдвига.
+  const meanR = means[0];
+  const meanG = means[1];
+  const meanB = means[2];
+  const isRubbleLike =
+    avg >= 110 &&
+    avg <= 170 &&
+    Math.abs(meanR - meanG) < 20 &&
+    Math.abs(meanG - meanB) < 20;
+
+  if (isRubbleLike) {
+    // Для щебня используем полупрозрачные белые буквы БЕЗ тёмного контура.
+    return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'rubble' };
+  }
+
+  if (avg >= 170) {
+    // На очень светлых фонах делаем белый текст с тёмным контуром
+    // для повышения читаемости.
+    return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,1)', mode: 'bright' };
+  }
   if (avg <= 110) return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'dark' };
   return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'mid' };
 }
@@ -171,10 +247,15 @@ export function buildTextPatternSvg(width, height, text, opacity, fillColor, str
   const tileW = cellSize * 2.7;
   const tileH = cellSize * 1.65;
   const rotation = Math.random() < 0.5 ? randomBetween(-22, -18) : randomBetween(18, 22);
-  // Используем переданный opacity напрямую в SVG, БЕЗ жёстких минимумов и лишних множителей!
-  const fillOpacity = opacity; // Используем адаптивный opacity напрямую
-  const strokeOpacity = 0; // Обводка не нужна
-  const strokeWidth = 0; // Обводка не используется
+  // Используем переданный opacity напрямую в SVG.
+  const fillOpacity = opacity;
+  let strokeOpacity = 0;
+  let strokeWidth = 0;
+  if (mode === 'bright') {
+    // На светлых фонах умеренный контур.
+    strokeOpacity = 0.35;
+    strokeWidth = 1.1;
+  }
   const pad = fontSize * 1.1;
   const offsetX = randomBetween(-tileW * 0.5, tileW * 0.5);
   const offsetY = randomBetween(-tileH * 0.5, tileH * 0.5);
@@ -194,4 +275,3 @@ export function buildTextPatternSvg(width, height, text, opacity, fillColor, str
     </svg>`
   );
 }
-

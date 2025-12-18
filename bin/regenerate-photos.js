@@ -124,11 +124,13 @@ function loadUrlToAdIdMapping(photosLinksPath) {
     
     if (data.items && Array.isArray(data.items)) {
       data.items.forEach(item => {
-        if (item.public_url && item.avitoId) {
-          // Нормализуем URL (приводим к единому виду yadi.sk)
-          const normalizedUrl = normalizeYandexDiskUrl(item.public_url);
-          mapping[normalizedUrl] = item.avitoId;
-        }
+        if (!item.public_url) return;
+        // При отсутствии avitoId используем имя файла без расширения как adId
+        const adId = item.avitoId || (item.file ? item.file.replace(/\.(jpg|jpeg|png|webp)$/i, '') : null);
+        if (!adId) return;
+        // Нормализуем URL (приводим к единому виду yadi.sk)
+        const normalizedUrl = normalizeYandexDiskUrl(item.public_url);
+        mapping[normalizedUrl] = adId;
       });
     }
     

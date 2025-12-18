@@ -110,6 +110,24 @@ export const BLOCK_7_TEMPLATE_HTML = (params) => {
   return `<p>${sandType}:<br> - объем: ${volume} м³<br> - самосвал: ${truckBrand} гос. номер: ${truckNumber}<br> - содержание ХПЧ: ${xpc} %<br> - содержание ГП: ${gp} %<br> - насыпная плотность D: ${density} кг/м³<br> - модуль А: ${module}<br> - фракция А: ${fraction}<br> - коэф ПНР: ${pnr} кг/см²<br> - коэф 𝜓: ${psi}</p>`;
 };
 
+// Блок 7 для щебня (технические характеристики, рандомные значения)
+// HTML формат: простой текст с <br> для переносов строк
+export const RUBBLE_BLOCK_7_TEMPLATE_HTML = (params) => {
+  const {
+    fraction, // Фракция (например, "5–20" или "40–70")
+    volume, // Объём партии в м³
+    truckBrand, // Марка самосвала
+    truckNumber, // Номер машины
+    concreteGrade, // Марка по прочности (число, без "М")
+    frostResistance, // Морозостойкость (число, без "F")
+    flakinessIndex, // Индекс лещадности (группа)
+    density, // Насыпная плотность (т/м³)
+    compactionCoefficient // Коэффициент уплотнения
+  } = params;
+
+  return `<p>Щебень вторичный ${fraction}:<br> - фракция: ${fraction}<br> - объём партии: ${volume} м³<br> - самосвал: ${truckBrand} гос. номер: ${truckNumber}<br> - марка по прочности: М${concreteGrade}<br> - морозостойкость: F${frostResistance}<br> - индекс лещадности: ${flakinessIndex} группа<br> - насыпная плотность: ${density} т/м³<br> - коэффициент уплотнения: ${compactionCoefficient}</p>`;
+};
+
 // Пример использования шаблона Блока 7:
 // const block7 = BLOCK_7_TEMPLATE({
 //   sandType: "Песок карьерный немытый",

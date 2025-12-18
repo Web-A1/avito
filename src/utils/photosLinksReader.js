@@ -44,6 +44,13 @@ export function loadPhotosMapping(filePath) {
     
     if (data.items && Array.isArray(data.items)) {
       data.items.forEach(item => {
+        // Пропускаем записи без публичного URL — такие фото нельзя использовать в XML.
+        if (!item.public_url) {
+          console.warn(
+            `   ⚠️  Пропускаем фото ${item.file || '<без имени>'} из ${path.basename(resolvedPath)}: пустой public_url`
+          );
+          return;
+        }
         // Извлекаем adId из имени файла: s00_bron_251210_001.jpg → s00_bron_251210_001
         const adId = item.file.replace(/\.(jpg|jpeg|png|webp)$/i, '');
         mapping[adId] = item.public_url;

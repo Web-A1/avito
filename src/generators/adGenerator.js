@@ -5,10 +5,11 @@
 
 import { isDuplicate } from '../validators/duplicateChecker.js';
 import { sandStrategy } from './materialStrategies/sand.js';
+import { rubbleStrategy } from './materialStrategies/rubble.js';
 
 const STRATEGIES = {
-  sand: sandStrategy
-  // TODO: добавить стратегии для щебня и других материалов
+  sand: sandStrategy,
+  rubble: rubbleStrategy
 };
 
 /**

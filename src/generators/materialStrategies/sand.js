@@ -3,7 +3,7 @@
  * Выделена отдельно, чтобы легко добавить другие материалы (щебень и т.д.).
  */
 
-import { generateDescription } from '../descriptionGenerator.js';
+import { generateDescription } from '../materials/sand/descriptionGenerator.js';
 import { getSandType } from '../../constants/sandTypes.js';
 import { VARIATION_PARAMETERS, FIXED_PARAMETERS, FLAGSHIP_PARAMETERS, generatePrice } from '../../constants/parameters.js';
 

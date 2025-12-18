@@ -33,18 +33,23 @@
 
   <script>
     const materials = [
-      { id: 'karier_neseyan_nemyt_pesok', name: 'Песок карьерный несеяный немытый' },
-      { id: 'karier_seyan_nemyt_pesok', name: 'Песок карьерный сеяный немытый' },
-      { id: 'karier_seyan_myt_pesok_1.5', name: 'Песок карьерный сеяный мытый (мелкий 1.5)' },
-      { id: 'karier_seyan_myt_pesok_2', name: 'Песок карьерный сеяный мытый (средний 2)' },
-      { id: 'karier_seyan_myt_pesok_2.5', name: 'Песок карьерный сеяный мытый (крупный 2.5)' }
+      // Песок
+      { id: 'karier_neseyan_nemyt_pesok', name: 'Песок карьерный несеяный немытый', material: 'sand' },
+      { id: 'karier_seyan_nemyt_pesok', name: 'Песок карьерный сеяный немытый', material: 'sand' },
+      { id: 'karier_seyan_myt_pesok_1.5', name: 'Песок карьерный сеяный мытый (мелкий 1.5)', material: 'sand' },
+      { id: 'karier_seyan_myt_pesok_2', name: 'Песок карьерный сеяный мытый (средний 2)', material: 'sand' },
+      { id: 'karier_seyan_myt_pesok_2.5', name: 'Песок карьерный сеяный мытый (крупный 2.5)', material: 'sand' },
+      // Щебень вторичный
+      { id: 'scheben_vtorichnyi_5_20', name: 'Щебень вторичный 5–20 мм', material: 'rubble' },
+      { id: 'scheben_vtorichnyi_40_70', name: 'Щебень вторичный 40–70 мм', material: 'rubble' }
     ];
+    // Полные адреса в точности как в выгрузке Авито (колонка Address)
     const locations = [
-      { name: 'Бронницы, Магистральная ул., 3' },
-      { name: 'Чехов, ул. Чехова, 20Бк5' },
-      { name: 'Подольск, ул. Лапшенкова, 3' },
-      { name: 'Троицк, Индустриальная ул., 1' },
-      { name: 'Домодедово, Станционная ул., 26к3' }
+      { name: 'Московская обл., Бронницы, Магистральная ул., 3' },
+      { name: 'Московская обл., Чехов, ул. Чехова, 20Бк5' },
+      { name: 'Московская обл., Подольск, ул. Лапшенкова, 3' },
+      { name: 'Москва, Троицк, Индустриальная ул., 1' },
+      { name: 'Московская обл., Домодедово, Станционная ул., 26к3' }
     ];
 
     const dateBeginInput = document.getElementById('dateBegin');
@@ -178,7 +183,9 @@
             locs.push({ address: addr, count: val });
           }
         });
-        plan.tasks.push({ material: 'sand', materialId, count, locations: locs });
+        const materialCfg = materials.find(m => m.id === materialId);
+        const material = materialCfg && materialCfg.material ? materialCfg.material : 'sand';
+        plan.tasks.push({ material, materialId, count, locations: locs });
       });
       return plan;
     }

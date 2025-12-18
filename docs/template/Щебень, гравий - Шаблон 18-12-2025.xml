@@ -1,14 +1,5 @@
 <Ads formatVersion="3" target="Avito.ru">
 	<Ad>
-		<Id></Id>
-		<DateBegin></DateBegin>
-		<DateEnd></DateEnd>
-		<ListingFee></ListingFee>
-		<AdStatus></AdStatus>
-		<AvitoId></AvitoId>
-		<ManagerName></ManagerName>
-		<ContactPhone></ContactPhone>
-		<Category></Category>
 		<Address></Address>
 		<Latitude></Latitude>
 		<Longitude></Longitude>
@@ -23,6 +14,15 @@
 		<Promo></Promo>
 		<PromoAutoOptions></PromoAutoOptions>
 		<PromoManualOptions></PromoManualOptions>
+		<Category></Category>
+		<Id></Id>
+		<DateBegin></DateBegin>
+		<DateEnd></DateEnd>
+		<ListingFee></ListingFee>
+		<AdStatus></AdStatus>
+		<AvitoId></AvitoId>
+		<ManagerName></ManagerName>
+		<ContactPhone></ContactPhone>
 		<PackagingType></PackagingType>
 		<BagValue></BagValue>
 		<PackagingTypeBag></PackagingTypeBag>

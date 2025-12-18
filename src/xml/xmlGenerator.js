@@ -203,7 +203,7 @@ function extractFlakinessIndexFromText(description) {
 
 // Извлекает марку бетона (ConcreteGrade) из текста
 function extractConcreteGradeFromText(description) {
-  // Паттерны для поиска: "М300", "М-300", "марка М300", "ConcreteGrade: М300"
+  // Паттерны для поиска: "М300"/"M300", "М-300"/"M-300", "марка М300", "ConcreteGrade: M300"
   const patterns = [
     /(?:марка|concretegrade|grade)[\s:]*[МM][\s-]*(\d+)/i,
     /[МM][\s-]*(\d+)/i
@@ -212,7 +212,9 @@ function extractConcreteGradeFromText(description) {
   for (const pattern of patterns) {
     const match = description.match(pattern);
     if (match) {
-      return `М${match[1]}`;
+      // Для совместимости с Авито используем латинскую букву "M" (а не кириллическую "М")
+      // в значении ConcreteGrade, например "M300".
+      return `M${match[1]}`;
     }
   }
   

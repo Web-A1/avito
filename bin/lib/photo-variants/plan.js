@@ -10,13 +10,15 @@ export function collectSourcesFromPlan(plan, aliases = { materials: {}, photos: 
   const materialAliases = aliases.materials || {};
   const folders = new Map();
   const addrCounts = new Map();
+  const planDateBegin = plan.DateBegin || '';
 
   tasks.forEach((t) => {
     const materialId = materialAliases[t.materialId] || t.materialId;
     const photoKey = t.photoKey || materialId;
     const slots = t.slots && t.slots.length ? t.slots : [{ locations: t.locations }];
     slots.forEach((slot) => {
-      const dateBegin = slot.DateBegin || t.DateBegin || '';
+      // При отсутствии DateBegin в слоте/задаче используем DateBegin из корня плана (с сохранением времени)
+      const dateBegin = slot.DateBegin || t.DateBegin || planDateBegin || '';
       const locs = (slot.locations && slot.locations.length ? slot.locations : [{ address: 'default' }]) || [
         { address: 'default' }
       ];
