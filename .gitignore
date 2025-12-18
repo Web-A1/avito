@@ -19,3 +19,11 @@ coverage/
 *.swp
 *.swo
 tmp/
+
+# Временные и артефактные файлы фида/фото
+output/*.backup
+output/photos_links_*.json
+output/test_validation.xml
+
+# Временные файлы истории по фото
+**/hashes.json.tmp

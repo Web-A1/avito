@@ -904,6 +904,43 @@ function logError(stepNum, stepName, error) {
   }
 }
 
+function cleanupOutputDir(outDir, { keepFiles = [] } = {}) {
+  try {
+    if (!fs.existsSync(outDir)) return;
+    const keep = new Set(keepFiles.map((p) => path.basename(p)).filter(Boolean));
+    const files = fs.readdirSync(outDir);
+
+    for (const name of files) {
+      const fullPath = path.join(outDir, name);
+      let stat;
+      try {
+        stat = fs.statSync(fullPath);
+      } catch {
+        continue;
+      }
+      if (!stat.isFile()) continue;
+
+      const isCandidate =
+        /^ads_.*\.xml$/.test(name) ||
+        /^ads_.*_manifest\.json$/.test(name) ||
+        /^photos_links_.*\.json$/.test(name) ||
+        name.endsWith('.backup') ||
+        name === 'test_validation.xml';
+
+      if (isCandidate && !keep.has(name)) {
+        try {
+          fs.unlinkSync(fullPath);
+          console.log(`   [CLEANUP] Удалён файл: ${name}`);
+        } catch (e) {
+          console.log(`   [CLEANUP] Не удалось удалить ${name}: ${e.message}`);
+        }
+      }
+    }
+  } catch (e) {
+    console.log(`   [CLEANUP] Ошибка при очистке output: ${e.message}`);
+  }
+}
+
 async function main() {
   let currentStep = 0;
   let currentStepName = '';
@@ -1049,6 +1086,7 @@ async function main() {
     
     const dateLabel = formatDateLabel(opts.date);
     const photosLinks = { date: dateLabel, diskRoot: opts.diskRoot, items: [] };
+    let finalPhotosPath = null;
     
     // 4. Обрабатываем старые объявления (обновление фото)
     currentStep = 4;
@@ -1310,7 +1348,7 @@ async function main() {
         
         // Сохраняем объединенный маппинг (новые + обновленные для старых)
         console.log(`   Сохранение объединенного маппинга...`);
-        const finalPhotosPath = path.join(opts.outDir, `photos_links_${dateLabel}.json`);
+        finalPhotosPath = path.join(opts.outDir, `photos_links_${dateLabel}.json`);
         fs.writeFileSync(
           finalPhotosPath,
           JSON.stringify(photosLinks, null, 2),
@@ -1944,6 +1982,12 @@ async function main() {
         } else {
           console.log(`\n   Временная история не найдена (возможно, фото не генерировались)`);
         }
+
+        // 9.x. Очистка старых файлов в output (оставляем только актуальные ads/manifest/photos_links)
+        console.log(`\n   Очистка старых файлов в output...`);
+        cleanupOutputDir(opts.outDir, {
+          keepFiles: [xmlFilePath, xmlManifestPath, finalPhotosPath].filter(Boolean)
+        });
       }
     }
     
