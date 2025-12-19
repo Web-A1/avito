@@ -224,6 +224,86 @@ function normalizeText(text) {
   return normalizeHtmlText(blocks1To6);
 }
 
+function loadPlan(planPath) {
+  try {
+    const raw = readFileSync(planPath, 'utf-8');
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+function checkDateBeginAgainstPlan(ads, planPath) {
+  const errors = [];
+  const warnings = [];
+
+  const plan = loadPlan(planPath);
+  if (!plan) {
+    warnings.push({
+      adIndex: '-',
+      adId: '-',
+      type: 'plan_missing',
+      message: `Не удалось прочитать план: ${planPath}`
+    });
+    return { errors, warnings };
+  }
+
+  const queue = plan.publicationQueue || [];
+  if (!queue.length) {
+    warnings.push({
+      adIndex: '-',
+      adId: '-',
+      type: 'plan_queue_missing',
+      message: `В плане отсутствует publicationQueue`
+    });
+    return { errors, warnings };
+  }
+
+  const adsWithDate = ads.filter(ad => ad.DateBegin);
+  if (adsWithDate.length !== queue.length) {
+    errors.push({
+      adIndex: '-',
+      adId: '-',
+      type: 'date_begin_count_mismatch',
+      message: `Количество объявлений с DateBegin в XML (${adsWithDate.length}) не совпадает с publicationQueue (${queue.length})`
+    });
+  }
+
+  const expectedMaterial = {
+    sand: 'Песок',
+    rubble: 'Щебень'
+  };
+
+  const len = Math.min(queue.length, adsWithDate.length);
+  for (let i = 0; i < len; i++) {
+    const planItem = queue[i];
+    const ad = adsWithDate[i];
+    const issues = [];
+
+    if (planItem.DateBegin !== ad.DateBegin) {
+      issues.push(`DateBegin план: ${planItem.DateBegin}, xml: ${ad.DateBegin}`);
+    }
+    if (planItem.location && ad.Address && planItem.location !== ad.Address) {
+      issues.push(`Адрес план: "${planItem.location}", xml: "${ad.Address}"`);
+    }
+    const expectedType = expectedMaterial[planItem.material];
+    if (expectedType && ad.BulkMaterialType && !ad.BulkMaterialType.includes(expectedType)) {
+      issues.push(`Материал план: ${expectedType}, xml BulkMaterialType: ${ad.BulkMaterialType}`);
+    }
+
+    if (issues.length > 0) {
+      errors.push({
+        adIndex: i + 1,
+        adId: ad.Id,
+        type: 'date_begin_mismatch',
+        message: issues.join(' | ')
+      });
+    }
+  }
+
+  return { errors, warnings };
+}
+
 // Определяет, является ли объявление старым (из Excel)
 // Старые объявления имеют формат: r00-4070_cheh_031225_01 или s00_dmd_031225_01
 // Новые объявления имеют формат: s00_bron_201225-125501_01 (с временем HHmmss)
@@ -890,6 +970,13 @@ function validateXML(xmlFilePath) {
   allErrors.push(...materialErrors);
   allWarnings.push(...materialWarnings);
   console.log('      Проверено');
+
+  // 6. Сверка DateBegin с plan.json
+  console.log('   6. Сверка DateBegin с plan.json...');
+  const { errors: planErrors, warnings: planWarnings } = checkDateBeginAgainstPlan(ads, planFilePath);
+  allErrors.push(...planErrors);
+  allWarnings.push(...planWarnings);
+  console.log('      Проверено');
   
   console.log('   ────────────────────────────────────────────────────────────');
   console.log('');
@@ -941,6 +1028,7 @@ function validateXML(xmlFilePath) {
 
 // Запуск скрипта
 const xmlFilePath = process.argv[2] || resolve(__dirname, '../output/ads_16.12.xml');
+const planFilePath = process.argv[3] || resolve(__dirname, '../data/plan.json');
 
 if (!xmlFilePath) {
   console.error('Использование: node bin/validate-xml.js <путь_к_xml_файлу>');

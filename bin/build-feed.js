@@ -973,8 +973,13 @@ async function main() {
     if (!plan || !plan.tasks || plan.tasks.length === 0) {
       throw new Error(`План не найден или пуст. Путь: ${planPath}`);
     }
+    const publicationQueue = plan.publicationQueue || [];
+    if (!publicationQueue.length) {
+      throw new Error(`В плане отсутствует publicationQueue. Сформируйте план через tools/plan-builder/index.html.`);
+    }
     const aliases = plan.aliases || { materials: {}, addresses: {} };
     console.log(`   Найдено задач: ${plan.tasks.length}`);
+    console.log(`   Очередь публикаций: ${publicationQueue.length} элементов`);
     if (aliases.materials && Object.keys(aliases.materials).length > 0) {
       console.log(`   Алиасы материалов: ${Object.keys(aliases.materials).length}`);
     }
@@ -1530,22 +1535,15 @@ async function main() {
       console.log(`\n   Обработка задач из плана...`);
       console.log(`   Всего задач: ${plan.tasks.length}`);
       
-      // Используем только новую логику: DateBegin в корне + чередование товаров (round-robin)
       const planDateBegin = plan.DateBegin || null;
       if (!planDateBegin) {
-        throw new Error(`В плане не указан DateBegin (ожидается новая логика).`);
+        throw new Error(`В плане не указан DateBegin.`);
       }
-      
-      const currentDt = parseDateTime(planDateBegin);
-      if (!currentDt) {
-        throw new Error(`Не удалось распарсить DateBegin из плана: "${planDateBegin}"`);
-      }
-      console.log(`   Дата начала (DateBegin): ${formatDateTime(currentDt)}`);
-      console.log(`   Режим: чередование товаров (round-robin)`);
-      
-      // Для чередования материалов: сначала собираем все объявления без dateBegin
-      const allTaskAds = []; // Массив массивов: [task0_ads, task1_ads, ...]
-      
+      console.log(`   Режим: строгие даты из publicationQueue (слотов нет)`);
+
+      // Готовим пул объявлений по связке materialId+address
+      const adsByKey = new Map();
+
       for (let taskIdx = 0; taskIdx < plan.tasks.length; taskIdx++) {
         const task = plan.tasks[taskIdx];
         const taskMaterialId = task.materialId || task.material || 'неизвестно';
@@ -1554,263 +1552,140 @@ async function main() {
         console.log(`   Задача ${taskIdx + 1}/${plan.tasks.length}: ${taskMaterialId}`);
         console.log(`   ${'─'.repeat(56)}`);
         
-        const slots = [{ DateBegin: formatDateTime(currentDt), count: task.count, locations: task.locations }];
-        const baseDate = parseDateTime(planDateBegin); // Стабильная дата для adId
-        const slotBaseDate = currentDt; // Текущее время для публикации
-        
-        console.log(`   Слотов в задаче: ${slots.length}`);
-        
         let taskAdsCount = 0;
-        const taskAllAds = []; // Все объявления этой задачи (для round-robin)
-        
-          for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
-          const slot = slots[slotIdx];
-          const minInterval =
-            Number.isFinite(slot.intervalMinMinutes) && slot.intervalMinMinutes > 0
-              ? slot.intervalMinMinutes
-              : Number.isFinite(task.intervalMinMinutes) && task.intervalMinMinutes > 0
-                ? task.intervalMinMinutes
-                : 5;
-          const maxIntervalCandidate =
-            Number.isFinite(slot.intervalMaxMinutes) && slot.intervalMaxMinutes > 0
-              ? slot.intervalMaxMinutes
-              : Number.isFinite(slot.intervalMinutes) && slot.intervalMinutes > 0
-                ? slot.intervalMinutes
-                : Number.isFinite(task.intervalMaxMinutes) && task.intervalMaxMinutes > 0
-                  ? task.intervalMaxMinutes
-                  : Number.isFinite(task.intervalMinutes) && task.intervalMinutes > 0
-                    ? task.intervalMinutes
-                    : 30;
-          const maxInterval = Math.max(minInterval, maxIntervalCandidate);
-          const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
-          const locationsPlan = buildLocationPlan(
-            slot.count || task.count || 1,
-            slot.locations || task.locations || task.addresses || [],
-            aliases
-          );
+        const materialIdResolved = resolveMaterialId(task.materialId || 'karier_neseyan_nemyt_pesok', aliases);
+        const locationsPlan = buildLocationPlan(
+          task.count || 1,
+          task.locations || task.addresses || [],
+          aliases
+        );
 
-          console.log(`\n   Слот ${slotIdx + 1}/${slots.length}:`);
-          if (slotBaseDate) {
-            console.log(`      Дата начала: ${formatDateTime(slotBaseDate)}`);
-          }
-          if (baseDate) {
-            console.log(`      Дата для adId: ${formatDateTime(baseDate)}`);
-          }
-          console.log(`      Количество объявлений: ${slot.count || task.count || 1}`);
-          console.log(`      Интервал между объявлениями: ${minInterval}-${maxInterval} минут`);
-          console.log(`      Локаций: ${locationsPlan.length}`);
+        for (const loc of locationsPlan) {
+          const adCounterStart = 1;
+          const flagshipFlags = Array(loc.count).fill(false).map((_, idx) => idx === 0);
 
-          const slotAds = [];
-          
-          // ВАЖНО: Инициализируем dateBeginDt один раз для всего слота (из первого фото первой локации)
-          // Это обеспечит последовательное увеличение времени через все локации
-          let slotDateBeginDt = slotBaseDate;
-          
-          // Находим первое фото среди всех локаций для инициализации базового времени
-          for (const loc of locationsPlan) {
-            const matAlias = getMaterialAlias(materialIdResolved);
-            const cityAlias = getCityAlias(loc.address);
-            const firstLocationPhotos = Object.keys(photosMapping)
-              .map(adId => {
-                const parsed = parseAdId(adId);
-                if (parsed && parsed.materialAlias === matAlias && parsed.cityAlias === cityAlias) {
-                  const hasTime = parsed.dateLabel && parsed.dateLabel.includes('-') && parsed.dateLabel.length > 6;
-                  return { adId, parsed, url: photosMapping[adId], hasTime };
-                }
-                return null;
-              })
-              .filter(Boolean)
-              .filter(p => p.hasTime)
-              .sort((a, b) => a.parsed.counter - b.parsed.counter);
-            
-            if (firstLocationPhotos.length > 0 && firstLocationPhotos[0].parsed.dateLabel) {
-              const photoTime = parseDateLabel(firstLocationPhotos[0].parsed.dateLabel);
-              if (photoTime) {
-                slotDateBeginDt = photoTime;
-                break; // Используем время из первого найденного фото
+          const isRubbleTask = (task.material || 'sand') === 'rubble';
+          const defaultTitles = task.titles && task.titles.length
+            ? task.titles
+            : isRubbleTask
+              ? (EXACT_TITLES[materialIdResolved] || ['Щебень', 'Щебень вторичный'])
+              : TOP_5_TITLES;
+
+          const ads = generateAds({
+            material: task.material || 'sand',
+            materialId: materialIdResolved,
+            count: loc.count,
+            titles: defaultTitles,
+            addresses: [loc.address],
+            photos: task.photos || [],
+            currentAds,
+            isFlagship: flagshipFlags
+          });
+
+          let withPhotoCount = 0;
+          const adsWithoutPhoto = [];
+          const matAlias = getMaterialAlias(materialIdResolved);
+          const cityAlias = getCityAlias(loc.address);
+
+          const locationPhotos = Object.keys(photosMapping)
+            .map(adId => {
+              const parsed = parseAdId(adId);
+              if (parsed && parsed.materialAlias === matAlias && parsed.cityAlias === cityAlias) {
+                const hasTime = parsed.dateLabel && parsed.dateLabel.includes('-') && parsed.dateLabel.length > 6;
+                return { adId, parsed, url: photosMapping[adId], hasTime };
               }
-            }
-          }
-          
-          for (const loc of locationsPlan) {
-            // Счетчик начинается с 1 для каждой локации (чтобы соответствовать фото, которые генерируются с 01)
-            let adCounter = 1;
-            
-            // Определяем, какие объявления будут флагманскими (counter = 1)
-            const flagshipFlags = Array(loc.count).fill(false).map((_, idx) => idx === 0);
+              return null;
+            })
+            .filter(Boolean)
+            .filter(p => p.hasTime && !existingIdsSet.has(p.adId))
+            .sort((a, b) => a.parsed.counter - b.parsed.counter);
 
-            // Заголовки:
-            // - если явно заданы в задаче → используем их;
-            // - для щебня по умолчанию берём EXACT_TITLES[materialId] (без слова "песок");
-            // - для песка оставляем TOP_5_TITLES как базовый набор.
-            const isRubbleTask = (task.material || 'sand') === 'rubble';
-            const defaultTitles = task.titles && task.titles.length
-              ? task.titles
-              : isRubbleTask
-                ? (EXACT_TITLES[materialIdResolved] || ['Щебень', 'Щебень вторичный'])
-                : TOP_5_TITLES;
+          ads.forEach((ad, idx) => {
+            const targetCounter = adCounterStart + idx;
+            const photo = locationPhotos.find(p => p.parsed.counter === targetCounter);
+            const queueDate = parseDateTime(planDateBegin) || new Date();
 
-            const ads = generateAds({
-              material: task.material || 'sand',
-              materialId: materialIdResolved,
-              count: loc.count,
-              titles: defaultTitles,
-              addresses: [loc.address],
-              photos: task.photos || [],
-              currentAds,
-              isFlagship: flagshipFlags
-            });
-            
-            // Присваиваем adId и photoLink каждому объявлению
-            // ВАЖНО: adId берется из имени файла фото (реальное время создания), dateBegin = реальное время + интервалы
-            let withPhotoCount = 0;
-            const adsWithoutPhoto = [];
-            const adsWithTime = [];
-            const matAlias = getMaterialAlias(materialIdResolved);
-            const cityAlias = getCityAlias(loc.address);
-            
-            // Ищем все фото для этой локации в photosMapping
-            // ВАЖНО: для новых объявлений ищем только фото с новым форматом (с временем в dateLabel)
-            const locationPhotos = Object.keys(photosMapping)
-              .map(adId => {
-                const parsed = parseAdId(adId);
-                if (parsed && parsed.materialAlias === matAlias && parsed.cityAlias === cityAlias) {
-                  // Для новых объявлений используем только фото с новым форматом (с временем)
-                  // Старые фото (без времени) имеют dateLabel в формате "DDMMYY", новые - "DDMMYY-HHmmss"
-                  const hasTime = parsed.dateLabel && parsed.dateLabel.includes('-') && parsed.dateLabel.length > 6;
-                  return { adId, parsed, url: photosMapping[adId], hasTime };
-                }
-                return null;
-              })
-              .filter(Boolean)
-              // Только фото с новым форматом (с временем) и Id, которых нет в Excel (чтобы не дублировать Id старых объявлений)
-              .filter(p => p.hasTime && !existingIdsSet.has(p.adId))
-              .sort((a, b) => a.parsed.counter - b.parsed.counter); // Сортируем по counter
-            
-            // Используем slotDateBeginDt, который продолжается последовательно через все локации
-            let dateBeginDt = slotDateBeginDt;
-            
-            ads.forEach((ad, idx) => {
-              // Ищем фото с нужным counter
-              const targetCounter = adCounter + idx;
-              const photo = locationPhotos.find(p => p.parsed.counter === targetCounter);
-              
-              let adId = null;
-              if (photo) {
-                adId = photo.adId;
-                ad.photoLink = photo.url;
+            if (photo) {
+              ad.adId = photo.adId;
+              ad.photoLink = photo.url;
+              withPhotoCount++;
+            } else {
+              ad.adId = generateAdId(materialIdResolved, loc.address, queueDate, targetCounter);
+              if (!ad.photoLink && task.photos && task.photos.length) {
+                ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
                 withPhotoCount++;
               } else {
-                // Если фото не найдено - генерируем adId с базовым временем
-                adId = generateAdId(materialIdResolved, loc.address, dateBeginDt, targetCounter);
-                if (!ad.photoLink && task.photos && task.photos.length) {
-                  // Fallback: используем случайное фото из task.photos
-                  ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
-                  withPhotoCount++;
-                } else {
-                  // Фото не найдено - это ошибка
-                  adsWithoutPhoto.push(adId);
-                }
+                adsWithoutPhoto.push(ad.adId);
               }
-              
-              ad.adId = adId;
-              
-              // dateBegin будет присвоен позже при распределении по раундам
-              
-              adsWithTime.push(ad);
-            });
-            
-            // Проверяем, что все объявления имеют фото
-            if (adsWithoutPhoto.length > 0) {
-              throw new Error(
-                `Обнаружены объявления без фото (${adsWithoutPhoto.length} из ${ads.length}):\n` +
-                `  Локация: ${loc.address}\n` +
-                `  Объявления без фото: ${adsWithoutPhoto.slice(0, 5).join(', ')}${adsWithoutPhoto.length > 5 ? '...' : ''}\n` +
-                `  Проверьте:\n` +
-                `  1. Загружены ли фото на Яндекс.Диск (шаг 6)\n` +
-                `  2. Корректен ли маппинг фото (файл photos_links_${dateLabel}.json)\n` +
-                `  3. Совпадают ли adId в маппинге с генерируемыми adId`
-              );
             }
-            
-            console.log(`      Локация: ${loc.address}`);
-            console.log(`         Объявлений: ${loc.count}`);
-            console.log(`         С фото: ${withPhotoCount}, без фото: ${loc.count - withPhotoCount}`);
-            
-            slotAds.push(...adsWithTime);
-            
-            // Обновляем slotDateBeginDt для следующей локации (продолжаем последовательно)
-            slotDateBeginDt = dateBeginDt;
+          });
+
+          if (adsWithoutPhoto.length > 0) {
+            throw new Error(
+              `Обнаружены объявления без фото (${adsWithoutPhoto.length} из ${ads.length}):\n` +
+              `  Локация: ${loc.address}\n` +
+              `  Объявления без фото: ${adsWithoutPhoto.slice(0, 5).join(', ')}${adsWithoutPhoto.length > 5 ? '...' : ''}\n` +
+              `  Проверьте:\n` +
+              `  1. Загружены ли фото на Яндекс.Диск (шаг 6)\n` +
+              `  2. Корректен ли маппинг фото (файл photos_links_${dateLabel}.json)\n` +
+              `  3. Совпадают ли adId в маппинге с генерируемыми adId`
+            );
           }
-          
-          // Сохраняем объявления слота в общий массив задачи
-          taskAllAds.push(...slotAds);
-          taskAdsCount += slotAds.length;
+
+          console.log(`      Локация: ${loc.address}`);
+          console.log(`         Объявлений: ${loc.count}`);
+          console.log(`         С фото: ${withPhotoCount}, без фото: ${loc.count - withPhotoCount}`);
+
+          const key = `${materialIdResolved}::${loc.address}`;
+          adsByKey.set(key, {
+            ads,
+            index: 0,
+            materialIdResolved,
+            location: loc.address,
+            task,
+            locationPhotos
+          });
+
+          taskAdsCount += ads.length;
         }
-        
-        // Сохраняем все объявления задачи (для round-robin)
-        // dateBegin будет присвоен позже при распределении по раундам
-        allTaskAds.push(taskAllAds);
-        
+
         console.log(`\n   Итого для задачи "${taskMaterialId}": ${taskAdsCount} объявлений`);
       }
-      
-      // Теперь распределяем объявления по раундам (round-robin) и присваиваем dateBegin
-      if (allTaskAds.length > 0) {
-        console.log(`\n   Распределение объявлений по раундам (чередование товаров)...`);
-        
-        // Определяем интервалы (берем из первой задачи, они должны быть одинаковыми)
-        const firstTask = plan.tasks[0];
-        const minInterval =
-          Number.isFinite(firstTask.intervalMinMinutes) && firstTask.intervalMinMinutes > 0
-            ? firstTask.intervalMinMinutes
-            : 5;
-        const maxIntervalCandidate =
-          Number.isFinite(firstTask.intervalMaxMinutes) && firstTask.intervalMaxMinutes > 0
-            ? firstTask.intervalMaxMinutes
-            : Number.isFinite(firstTask.intervalMinutes) && firstTask.intervalMinutes > 0
-              ? firstTask.intervalMinutes
-              : 20;
-        const maxInterval = Math.max(minInterval, maxIntervalCandidate);
-        
-        // Находим первое фото для инициализации базового времени
-        let baseDateBeginDt = currentDt;
-        for (const taskAds of allTaskAds) {
-          if (taskAds.length > 0 && taskAds[0].adId) {
-            const firstAdId = taskAds[0].adId;
-            const parsed = parseAdId(firstAdId);
-            if (parsed && parsed.dateLabel) {
-              const photoTime = parseDateLabel(parsed.dateLabel);
-              if (photoTime) {
-                baseDateBeginDt = photoTime;
-                break;
-              }
-            }
+
+      console.log(`\n   Присваиваем даты строго по publicationQueue (элементов: ${publicationQueue.length})...`);
+      publicationQueue.forEach((item) => {
+        const materialIdResolved = resolveMaterialId(item.materialId, aliases);
+        const resolvedLocation = resolveAddresses([item.location], aliases)[0];
+        const key = `${materialIdResolved}::${resolvedLocation}`;
+        const entry = adsByKey.get(key);
+        if (!entry || entry.index >= entry.ads.length) {
+          console.warn(`Нет объявления для очереди: ${item.materialId} @ ${item.location}`);
+          return;
+        }
+
+        const ad = entry.ads[entry.index];
+        const targetCounter = entry.index + 1;
+        const photo = entry.locationPhotos.find((p) => p.parsed.counter === targetCounter);
+        const queueDate = parseDateTime(item.DateBegin);
+
+        if (photo) {
+          ad.adId = photo.adId;
+          ad.photoLink = photo.url;
+        } else {
+          const baseDate = queueDate || parseDateTime(planDateBegin) || new Date();
+          ad.adId = generateAdId(entry.materialIdResolved, entry.location, baseDate, targetCounter);
+          if (!ad.photoLink && entry.task.photos && entry.task.photos.length) {
+            ad.photoLink = entry.task.photos[Math.floor(Math.random() * entry.task.photos.length)];
           }
         }
-        
-        // Распределяем объявления по раундам (round-robin)
-        let dateBeginDt = baseDateBeginDt;
-        const maxLength = Math.max(...allTaskAds.map(ads => ads.length));
-        
-        for (let roundIdx = 0; roundIdx < maxLength; roundIdx++) {
-          for (let taskIdx = 0; taskIdx < allTaskAds.length; taskIdx++) {
-            const taskAds = allTaskAds[taskIdx];
-            if (roundIdx < taskAds.length) {
-              const ad = taskAds[roundIdx];
-              ad.dateBegin = formatDateTime(dateBeginDt);
-              generatedAds.push(ad);
-              
-              // Обновляем время для следующего объявления
-              if (roundIdx < maxLength - 1 || taskIdx < allTaskAds.length - 1) {
-                const step = randomInt(minInterval, maxInterval);
-                dateBeginDt = new Date(dateBeginDt.getTime() + step * 60 * 1000);
-              }
-            }
-          }
-        }
-        
-        console.log(`   Распределено ${generatedAds.length} объявлений по раундам`);
+
+        ad.dateBegin = item.DateBegin;
+        generatedAds.push(ad);
+        entry.index += 1;
+      });
+
+      if (generatedAds.length !== publicationQueue.length) {
+        console.warn(`⚠️  Сгенерировано объявлений: ${generatedAds.length}, в publicationQueue: ${publicationQueue.length}`);
       }
       
       console.log(`\n${'═'.repeat(60)}`);
@@ -1892,19 +1767,15 @@ async function main() {
         console.log(`   Перенос истории из временных файлов...`);
         const { formatAddressLabel, sanitizeName } = await import('./lib/photo-variants/utils.js');
         
-        // Собираем все уникальные комбинации materialId + address из плана
+        // Собираем все уникальные комбинации materialId + address из publicationQueue
         const locationsMap = new Map();
-        for (const task of plan.tasks) {
-          const materialId = task.materialId;
-          for (const slot of task.slots || []) {
-            for (const loc of slot.locations || []) {
-              const address = loc.address;
-              if (materialId && address) {
-                const key = `${materialId}|${address}`;
-                if (!locationsMap.has(key)) {
-                  locationsMap.set(key, { materialId, address });
-                }
-              }
+        for (const item of publicationQueue) {
+          const materialId = item.materialId;
+          const address = item.location;
+          if (materialId && address) {
+            const key = `${materialId}|${address}`;
+            if (!locationsMap.has(key)) {
+              locationsMap.set(key, { materialId, address });
             }
           }
         }
@@ -1963,18 +1834,14 @@ async function main() {
           // Используем адреса из плана для определения локаций
           const locationsMap = new Map();
           
-          // Собираем все уникальные комбинации materialId + address из плана
-          for (const task of plan.tasks) {
-            const materialId = task.materialId;
-            for (const slot of task.slots || []) {
-              for (const loc of slot.locations || []) {
-                const address = loc.address;
-                if (materialId && address) {
-                  const key = `${materialId}|${address}`;
-                  if (!locationsMap.has(key)) {
-                    locationsMap.set(key, { materialId, address });
-                  }
-                }
+          // Собираем все уникальные комбинации materialId + address из publicationQueue
+          for (const item of publicationQueue) {
+            const materialId = item.materialId;
+            const address = item.location;
+            if (materialId && address) {
+              const key = `${materialId}|${address}`;
+              if (!locationsMap.has(key)) {
+                locationsMap.set(key, { materialId, address });
               }
             }
           }
