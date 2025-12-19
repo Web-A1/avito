@@ -27,7 +27,7 @@ import { generateDescription } from '../src/generators/materials/sand/descriptio
 import { TOP_5_TITLES, EXACT_TITLES } from '../src/constants/titles.js';
 import { readCurrentAdsFromXlsx } from '../src/utils/currentAdsReader.js';
 import { loadPhotosMapping } from '../src/utils/photosLinksReader.js';
-import { generateAdId, getCityAlias, getMaterialAlias, CITY_ALIASES, parseAdId, parseDateLabel } from '../src/constants/materialAliases.js';
+import { generateAdId, getCityAlias, getMaterialAlias, CITY_ALIASES, MATERIAL_ALIASES, parseAdId, parseDateLabel } from '../src/constants/materialAliases.js';
 import { getSandType } from '../src/constants/sandTypes.js';
 import { syncHistoryWithActiveAds, loadHistory, saveHistory, updateHistoryWithAvitoId, commitHistoryFromTmp, discardHistoryTmp } from './lib/photo-variants/history.js';
 import { collectSourcesFromPlan } from './lib/photo-variants/plan.js';
@@ -46,6 +46,9 @@ const DEFAULT_UPDATE_RULES_PATH = path.resolve(__dirname, '..', 'update_old_ads.
 const DEFAULT_PHOTOS_ROOT = path.resolve(__dirname, '..', 'data', 'photos');
 const DEFAULT_OUTPUT_DIR = path.resolve(__dirname, '..', 'output');
 const DEFAULT_DISK_ROOT = 'Cursor_for_Avito';
+const MATERIAL_ALIAS_TO_ID = Object.fromEntries(
+  Object.entries(MATERIAL_ALIASES).map(([materialId, alias]) => [alias, materialId])
+);
 
 /**
  * Форматирует дату в московское время (UTC+3)
@@ -64,6 +67,12 @@ function formatMoscowTime(date = new Date()) {
   const min = String(moscowTime.getUTCMinutes()).padStart(2, '0');
   
   return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+}
+
+function resolveMaterialIdFromAdId(adId) {
+  const parsed = parseAdId(adId);
+  if (!parsed) return null;
+  return MATERIAL_ALIAS_TO_ID[parsed.materialAlias] || null;
 }
 
 function parseArgs() {
@@ -1377,7 +1386,7 @@ async function main() {
               console.log(`\n   Описание:`);
               console.log(`      Режим: автогенерация`);
               // Автогенерация описания
-              const materialId = rules.materialId || 'karier_neseyan_nemyt_pesok';
+              const materialId = rules.materialId || resolveMaterialIdFromAdId(ad.Id) || 'karier_neseyan_nemyt_pesok';
               const sandType = getSandType(materialId);
               
               const descResult = generateDescription(materialId, sandType?.displayName || 'Песок карьерный');
