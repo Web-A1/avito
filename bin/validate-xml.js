@@ -165,6 +165,53 @@ function extractBlocks1To6(description) {
   return description;
 }
 
+// Извлекает блоки 1 и 2 из описания (по HTML-структуре: <p>... и <p><strong>...</strong></p><ol>...)
+function extractBlocks1And2(description) {
+  if (!description || typeof description !== 'string') {
+    return { block1: '', block2: '' };
+  }
+
+  const blocks1To6 = extractBlocks1To6(description);
+  const block2StartMatch = blocks1To6.match(/<p>\s*<strong>[\s\S]*?<\/strong>\s*<\/p>\s*<ol>/i);
+  const block2StartIndex = block2StartMatch && block2StartMatch.index !== undefined
+    ? block2StartMatch.index
+    : -1;
+
+  let block2 = '';
+  if (block2StartIndex !== -1) {
+    const block2EndIndex = blocks1To6.indexOf('</ol>', block2StartIndex);
+    if (block2EndIndex !== -1) {
+      block2 = blocks1To6.substring(block2StartIndex, block2EndIndex + '</ol>'.length);
+    }
+  }
+
+  let block1 = '';
+  const beforeBlock2 = block2StartIndex !== -1 ? blocks1To6.slice(0, block2StartIndex) : blocks1To6;
+  const block1Match = beforeBlock2.match(/<p>[\s\S]*?<\/p>/i);
+  if (block1Match) {
+    block1 = block1Match[0];
+  }
+
+  return { block1, block2 };
+}
+
+function normalizeHtmlText(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  return text
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]+/g, ' ')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Нормализация текста для сравнения описаний (строгая проверка уникальности)
 // Удаляет HTML теги, нормализует пробелы, приводит к нижнему регистру
 // ВАЖНО: нормализует только блоки 1-6, блок 7 (технические характеристики) исключается
@@ -174,24 +221,7 @@ function normalizeText(text) {
   // Сначала извлекаем только блоки 1-6 (исключаем блок 7)
   const blocks1To6 = extractBlocks1To6(text);
   
-  return blocks1To6
-    // Удаляем HTML теги (включая самозакрывающиеся)
-    .replace(/<[^>]+>/g, '')
-    // Декодируем HTML entities (если есть)
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    // Нормализуем все типы пробелов (обычные, неразрывные, табы, переносы строк) в обычные пробелы
-    .replace(/[\s\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]+/g, ' ')
-    // Приводим к нижнему регистру
-    .toLowerCase()
-    // Удаляем множественные пробелы
-    .replace(/\s+/g, ' ')
-    // Обрезаем пробелы по краям
-    .trim();
+  return normalizeHtmlText(blocks1To6);
 }
 
 // Определяет, является ли объявление старым (из Excel)
@@ -685,6 +715,8 @@ function checkMaterialConsistency(ads) {
     const bulkType = ad.BulkMaterialType;
     const title = (ad.Title || '').toLowerCase();
     let description = (ad.Description || '').toLowerCase();
+    const { block1, block2 } = extractBlocks1And2(ad.Description || '');
+    const block1And2Text = normalizeHtmlText(`${block1} ${block2}`);
     
     // Удаляем раздел ассортимента из проверки (всё после "Ассортимент товаров в наличии")
     const assortmentIndex = description.indexOf('ассортимент товаров в наличии');
@@ -700,6 +732,7 @@ function checkMaterialConsistency(ads) {
       const hasSandInDesc = sandKeywords.some(kw => mainDescription.includes(kw));
       const hasRubbleInTitle = rubbleKeywords.some(kw => title.includes(kw));
       const hasRubbleInMainDesc = rubbleKeywords.some(kw => mainDescription.includes(kw));
+      const hasRubbleInBlock1And2 = rubbleKeywords.some(kw => block1And2Text.includes(kw));
       
       // Критично: если в заголовке упоминается щебень/гравий вместо песка
       if (hasRubbleInTitle && !hasSandInTitle) {
@@ -707,7 +740,16 @@ function checkMaterialConsistency(ads) {
           adIndex: i + 1,
           adId: ad.Id,
           type: 'material_mismatch',
-          message: `Несоответствие: BulkMaterialType="Песок", но в Title упоминается щебень/гравий: "${ad.Title}"`
+          message: `Title mismatch (adId=${ad.Id}): BulkMaterialType="Песок", но в Title упоминается щебень/гравий: "${ad.Title}"`
+        });
+      }
+      // Критично: если в блоках 1/2 упоминается щебень/гравий
+      if (hasRubbleInBlock1And2) {
+        errors.push({
+          adIndex: i + 1,
+          adId: ad.Id,
+          type: 'material_mismatch',
+          message: `Block1/2 mismatch (adId=${ad.Id}): BulkMaterialType="Песок", но в блоках 1/2 упоминается щебень/гравий`
         });
       }
       // Предупреждение: если в основном описании упоминается щебень/гравий как основной материал
@@ -733,6 +775,7 @@ function checkMaterialConsistency(ads) {
       const hasRubbleInMainDesc = rubbleKeywords.some(kw => mainDescription.includes(kw));
       const hasSandInTitle = sandKeywords.some(kw => title.includes(kw));
       const hasSandInMainDesc = sandKeywords.some(kw => mainDescription.includes(kw));
+      const hasSandInBlock1And2 = sandKeywords.some(kw => block1And2Text.includes(kw));
       
       // Критично: если в заголовке упоминается песок вместо щебня/гравия
       if (hasSandInTitle && !hasRubbleInTitle) {
@@ -740,7 +783,16 @@ function checkMaterialConsistency(ads) {
           adIndex: i + 1,
           adId: ad.Id,
           type: 'material_mismatch',
-          message: `Несоответствие: BulkMaterialType="Щебень, гравий", но в Title упоминается песок: "${ad.Title}"`
+          message: `Title mismatch (adId=${ad.Id}): BulkMaterialType="Щебень, гравий", но в Title упоминается песок: "${ad.Title}"`
+        });
+      }
+      // Критично: если в блоках 1/2 упоминается песок
+      if (hasSandInBlock1And2) {
+        errors.push({
+          adIndex: i + 1,
+          adId: ad.Id,
+          type: 'material_mismatch',
+          message: `Block1/2 mismatch (adId=${ad.Id}): BulkMaterialType="Щебень, гравий", но в блоках 1/2 упоминается песок`
         });
       }
       // Предупреждение: если в основном описании упоминается песок как основной материал
