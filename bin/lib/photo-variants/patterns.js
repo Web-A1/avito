@@ -163,7 +163,7 @@ export function calculateAdaptiveOpacity(stats) {
   const isWarmSandLike =
     meanR > meanG &&
     meanG > meanB &&
-    (meanR - meanB) > 60; // тёплый жёлто-коричневый тон
+    (meanR - meanB) > 45; // тёплый жёлто-коричневый тон
 
   let minOpacity;
   let maxOpacity;
@@ -182,15 +182,15 @@ export function calculateAdaptiveOpacity(stats) {
     Math.abs(meanG - meanB) < 25;
 
   if (isWarmSandLike && inSandBrightnessRange && inSandDetailRange) {
-    // Песок: водяной знак заметный, но мягкий (~22–28%)
-    const base = Math.max(adjustedOpacity, 0.25);
-    minOpacity = 0.22;
-    maxOpacity = 0.28;
+    // Песок: заметный, но мягкий (~40–48%)
+    const base = Math.max(adjustedOpacity, 0.42);
+    minOpacity = Math.max(0.40, base * 0.96);
+    maxOpacity = Math.min(0.48, base * 1.07);
   } else if (isRubbleLike) {
-    // Щебень/серый камень: заметный, но ещё более деликатный ВЗ (~30–50%).
-    const base = Math.max(adjustedOpacity, 0.35);
-    minOpacity = Math.max(0.30, base * 0.97);
-    maxOpacity = Math.min(0.50, base * 1.06);
+    // Щебень/серый камень: заметный, но ещё более деликатный ВЗ (~40–50%).
+    const base = Math.max(adjustedOpacity, 0.42);
+    minOpacity = Math.max(0.36, base * 0.95);
+    maxOpacity = Math.min(0.55, base * 1.12);
   } else if (avgBrightness > 195 && avgStdev < 45) {
     // Очень светлые нейтральные фото (снег, светлый бетон и т.п.)
     const base = Math.max(adjustedOpacity, 0.33);
