@@ -1519,19 +1519,18 @@ async function main() {
       console.log(`\n   Обработка задач из плана...`);
       console.log(`   Всего задач: ${plan.tasks.length}`);
       
-      // Определяем, используем ли новую логику (DateBegin в корне + нет slots) или старую (slots)
+      // Используем только новую логику: DateBegin в корне + чередование товаров (round-robin)
       const planDateBegin = plan.DateBegin || null;
-      const useNewLogic = planDateBegin && plan.tasks.every(task => !task.slots || !task.slots.length);
-      
-      let currentDt = null; // Для новой логики - текущее время публикации
-      if (useNewLogic) {
-        currentDt = parseDateTime(planDateBegin);
-        if (!currentDt) {
-          throw new Error(`Не удалось распарсить DateBegin из плана: "${planDateBegin}"`);
-        }
-        console.log(`   Дата начала (DateBegin): ${formatDateTime(currentDt)}`);
-        console.log(`   Режим: чередование товаров (round-robin)`);
+      if (!planDateBegin) {
+        throw new Error(`В плане не указан DateBegin (ожидается новая логика).`);
       }
+      
+      const currentDt = parseDateTime(planDateBegin);
+      if (!currentDt) {
+        throw new Error(`Не удалось распарсить DateBegin из плана: "${planDateBegin}"`);
+      }
+      console.log(`   Дата начала (DateBegin): ${formatDateTime(currentDt)}`);
+      console.log(`   Режим: чередование товаров (round-robin)`);
       
       // Для чередования материалов: сначала собираем все объявления без dateBegin
       const allTaskAds = []; // Массив массивов: [task0_ads, task1_ads, ...]
@@ -1544,20 +1543,9 @@ async function main() {
         console.log(`   Задача ${taskIdx + 1}/${plan.tasks.length}: ${taskMaterialId}`);
         console.log(`   ${'─'.repeat(56)}`);
         
-        let slots = [];
-        let baseDate = null; // Для генерации adId (используется стабильная дата из плана)
-        let slotBaseDate = null; // Для расстановки времени публикации (может меняться)
-        
-        if (useNewLogic) {
-          // НОВАЯ ЛОГИКА: используем DateBegin из корня, товары публикуются последовательно
-          // Для adId используем дату из плана (стабильная), для времени публикации - currentDt
-          baseDate = parseDateTime(planDateBegin); // Стабильная дата для adId
-          slotBaseDate = currentDt; // Текущее время для публикации
-          slots = [{ DateBegin: formatDateTime(slotBaseDate), count: task.count, locations: task.locations }];
-        } else {
-          // СТАРАЯ ЛОГИКА: поддержка slots для обратной совместимости
-          slots = task.slots && task.slots.length ? task.slots : [{ DateBegin: task.DateBegin, count: task.count }];
-        }
+        const slots = [{ DateBegin: formatDateTime(currentDt), count: task.count, locations: task.locations }];
+        const baseDate = parseDateTime(planDateBegin); // Стабильная дата для adId
+        const slotBaseDate = currentDt; // Текущее время для публикации
         
         console.log(`   Слотов в задаче: ${slots.length}`);
         
@@ -1566,10 +1554,6 @@ async function main() {
         
           for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
           const slot = slots[slotIdx];
-          if (!useNewLogic) {
-            baseDate = parseDateTime(slot.DateBegin);
-            slotBaseDate = baseDate;
-          }
           const minInterval =
             Number.isFinite(slot.intervalMinMinutes) && slot.intervalMinMinutes > 0
               ? slot.intervalMinMinutes
@@ -1598,7 +1582,7 @@ async function main() {
           if (slotBaseDate) {
             console.log(`      Дата начала: ${formatDateTime(slotBaseDate)}`);
           }
-          if (useNewLogic && baseDate) {
+          if (baseDate) {
             console.log(`      Дата для adId: ${formatDateTime(baseDate)}`);
           }
           console.log(`      Количество объявлений: ${slot.count || task.count || 1}`);
@@ -1609,7 +1593,7 @@ async function main() {
           
           // ВАЖНО: Инициализируем dateBeginDt один раз для всего слота (из первого фото первой локации)
           // Это обеспечит последовательное увеличение времени через все локации
-          let slotDateBeginDt = useNewLogic ? currentDt : slotBaseDate;
+          let slotDateBeginDt = slotBaseDate;
           
           // Находим первое фото среди всех локаций для инициализации базового времени
           for (const loc of locationsPlan) {
@@ -1720,19 +1704,9 @@ async function main() {
               
               ad.adId = adId;
               
-              // Расставляем время публикации с заданным интервалом (начиная с реального времени первого фото)
-              // В новой логике (useNewLogic) dateBegin будет присвоен позже при распределении по раундам
-              if (!useNewLogic) {
-                ad.dateBegin = formatDateTime(dateBeginDt);
-              }
+              // dateBegin будет присвоен позже при распределении по раундам
               
               adsWithTime.push(ad);
-              
-              // Обновляем время для следующего объявления (только для старой логики)
-              if (!useNewLogic && idx < ads.length - 1) {
-                const step = randomInt(minInterval, maxInterval);
-                dateBeginDt = new Date(dateBeginDt.getTime() + step * 60 * 1000);
-              }
             });
             
             // Проверяем, что все объявления имеют фото
@@ -1764,36 +1738,28 @@ async function main() {
         }
         
         // Сохраняем все объявления задачи (для round-robin)
-        // В новой логике dateBegin будет присвоен позже при распределении по раундам
-        // В старой логике dateBegin уже присвоен выше
+        // dateBegin будет присвоен позже при распределении по раундам
         allTaskAds.push(taskAllAds);
         
         console.log(`\n   Итого для задачи "${taskMaterialId}": ${taskAdsCount} объявлений`);
       }
       
       // Теперь распределяем объявления по раундам (round-robin) и присваиваем dateBegin
-      if (useNewLogic && allTaskAds.length > 0) {
+      if (allTaskAds.length > 0) {
         console.log(`\n   Распределение объявлений по раундам (чередование товаров)...`);
         
         // Определяем интервалы (берем из первой задачи, они должны быть одинаковыми)
         const firstTask = plan.tasks[0];
-        const firstSlot = firstTask.slots && firstTask.slots.length ? firstTask.slots[0] : { DateBegin: planDateBegin, count: firstTask.count };
         const minInterval =
-          Number.isFinite(firstSlot.intervalMinMinutes) && firstSlot.intervalMinMinutes > 0
-            ? firstSlot.intervalMinMinutes
-            : Number.isFinite(firstTask.intervalMinMinutes) && firstTask.intervalMinMinutes > 0
-              ? firstTask.intervalMinMinutes
-              : 5;
+          Number.isFinite(firstTask.intervalMinMinutes) && firstTask.intervalMinMinutes > 0
+            ? firstTask.intervalMinMinutes
+            : 5;
         const maxIntervalCandidate =
-          Number.isFinite(firstSlot.intervalMaxMinutes) && firstSlot.intervalMaxMinutes > 0
-            ? firstSlot.intervalMaxMinutes
-            : Number.isFinite(firstSlot.intervalMinutes) && firstSlot.intervalMinutes > 0
-              ? firstSlot.intervalMinutes
-              : Number.isFinite(firstTask.intervalMaxMinutes) && firstTask.intervalMaxMinutes > 0
-                ? firstTask.intervalMaxMinutes
-                : Number.isFinite(firstTask.intervalMinutes) && firstTask.intervalMinutes > 0
-                  ? firstTask.intervalMinutes
-                  : 20;
+          Number.isFinite(firstTask.intervalMaxMinutes) && firstTask.intervalMaxMinutes > 0
+            ? firstTask.intervalMaxMinutes
+            : Number.isFinite(firstTask.intervalMinutes) && firstTask.intervalMinutes > 0
+              ? firstTask.intervalMinutes
+              : 20;
         const maxInterval = Math.max(minInterval, maxIntervalCandidate);
         
         // Находим первое фото для инициализации базового времени
@@ -1834,11 +1800,6 @@ async function main() {
         }
         
         console.log(`   Распределено ${generatedAds.length} объявлений по раундам`);
-      } else {
-        // Старая логика: просто добавляем все объявления как есть
-        for (const taskAds of allTaskAds) {
-          generatedAds.push(...taskAds);
-        }
       }
       
       console.log(`\n${'═'.repeat(60)}`);
