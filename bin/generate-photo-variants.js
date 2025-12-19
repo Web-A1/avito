@@ -630,20 +630,15 @@ async function generateVariants({
       indices.forEach(i => layerList.push(allLayers[i]));
 
       if (textWatermark) {
-        // АДАПТИВНЫЙ OPACITY на основе визуального контраста и детализированности
+        const hasForcedOpacity =
+          typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0;
+        // Если opacity задано явно — используем фиксированное значение для стабильной видимости.
+        // Иначе используем адаптивный диапазон на основе визуального контраста и детализированности.
         const { minOpacity, maxOpacity } = calculateAdaptiveOpacity(stats);
-        
-        // Используем адаптивный диапазон
         const baseValue = randomBetween(minOpacity, maxOpacity);
-        
-        const textOpacity =
-          clampOpacity(
-            typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
-              ? forcedTextOpacity
-              : baseValue,
-            minOpacity,
-            maxOpacity
-          ) || minOpacity;
+        const textOpacity = hasForcedOpacity
+          ? clampOpacity(forcedTextOpacity, 0.05, 0.6)
+          : clampOpacity(baseValue, minOpacity, maxOpacity) || minOpacity;
 
         // Для текста всегда используем точные размеры (он легковесный)
         const textPng = await sharp(

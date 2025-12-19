@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "generate": "node bin/generate-xml.js",
-    "photo:variants": "node bin/generate-photo-variants.js --plan data/plan.json --text-watermark \"NERUDA\" --text-opacity 0.03 --pattern-opacity 0.03",
+    "photo:variants": "node bin/generate-photo-variants.js --plan data/plan.json --text-watermark \"NERUDA\" --text-opacity 0.18 --pattern-opacity 0.03",
     "photos:upload": "node bin/upload-photos.js",
     "build:feed": "node bin/build-feed.js",
     "clean:history": "node bin/clean-history.js",
