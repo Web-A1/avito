@@ -168,8 +168,8 @@ export function calculateAdaptiveOpacity(stats) {
   let minOpacity;
   let maxOpacity;
 
-  const inSandBrightnessRange = avgBrightness >= 110 && avgBrightness <= 170;
-  const inSandDetailRange = avgStdev >= 25 && avgStdev <= 50;
+  const inSandBrightnessRange = avgBrightness >= 110 && avgBrightness <= 190;
+  const inSandDetailRange = avgStdev >= 25 && avgStdev <= 60;
 
   // Рубленый/щебёночный серый фон (как вторичный щебень):
   const isRubbleLike =
@@ -182,23 +182,23 @@ export function calculateAdaptiveOpacity(stats) {
     Math.abs(meanG - meanB) < 25;
 
   if (isWarmSandLike && inSandBrightnessRange && inSandDetailRange) {
-    // Песок: заметный, но мягкий (~40–48%)
-    const base = Math.max(adjustedOpacity, 0.42);
-    minOpacity = Math.max(0.40, base * 0.96);
-    maxOpacity = Math.min(0.48, base * 1.07);
+    // Песок: заметный, но мягкий (~45–55%)
+    const base = Math.max(adjustedOpacity, 0.46);
+    minOpacity = Math.max(0.44, base * 0.96);
+    maxOpacity = Math.min(0.55, base * 1.08);
   } else if (isRubbleLike) {
-    // Щебень/серый камень: заметный, но ещё более деликатный ВЗ (~40–50%).
-    const base = Math.max(adjustedOpacity, 0.42);
-    minOpacity = Math.max(0.36, base * 0.95);
-    maxOpacity = Math.min(0.55, base * 1.12);
+    // Щебень/серый камень: заметный, но ещё более деликатный ВЗ (~40–58%).
+    const base = Math.max(adjustedOpacity, 0.44);
+    minOpacity = Math.max(0.40, base * 0.95);
+    maxOpacity = Math.min(0.58, base * 1.12);
   } else if (avgBrightness > 195 && avgStdev < 45) {
     // Очень светлые нейтральные фото (снег, светлый бетон и т.п.)
-    const base = Math.max(adjustedOpacity, 0.33);
-    minOpacity = Math.max(0.30, base * 0.95);
-    maxOpacity = Math.min(0.40, base * 1.05);
+    const base = Math.max(adjustedOpacity, 0.38);
+    minOpacity = Math.max(0.34, base * 0.95);
+    maxOpacity = Math.min(0.46, base * 1.05);
   } else {
     // Стандартный режим для всех остальных
-    minOpacity = Math.max(0.05, adjustedOpacity * 0.92);
+    minOpacity = Math.max(0.08, adjustedOpacity * 0.92);
     maxOpacity = Math.min(0.8, adjustedOpacity * 1.08);
   }
   
