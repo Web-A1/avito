@@ -503,8 +503,8 @@ async function generateVariants({
             : 0.05;
         
         // Используем адаптивный диапазон для всех режимов
-        const baseValue = randomBetween(minOpacity, maxOpacity);
-        
+        // Фиксированный opacity: берём середину диапазона, без рандома
+        const baseValue = (minOpacity + maxOpacity) / 2;
         const textOpacity =
           clampOpacity(
             typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
@@ -635,7 +635,8 @@ async function generateVariants({
         // Если opacity задано явно — используем фиксированное значение для стабильной видимости.
         // Иначе используем адаптивный диапазон на основе визуального контраста и детализированности.
         const { minOpacity, maxOpacity } = calculateAdaptiveOpacity(stats);
-        const baseValue = randomBetween(minOpacity, maxOpacity);
+        // Фиксированный opacity: середина диапазона, без рандома
+        const baseValue = (minOpacity + maxOpacity) / 2;
         const textOpacity = hasForcedOpacity
           ? clampOpacity(forcedTextOpacity, minOpacity, maxOpacity)
           : clampOpacity(baseValue, minOpacity, maxOpacity) || minOpacity;

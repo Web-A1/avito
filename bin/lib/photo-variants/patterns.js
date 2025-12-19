@@ -163,43 +163,90 @@ export function calculateAdaptiveOpacity(stats) {
   const isWarmSandLike =
     meanR > meanG &&
     meanG > meanB &&
-    (meanR - meanB) > 45; // тёплый жёлто-коричневый тон
+    (meanR - meanB) > 25 && // тёплый жёлто-коричневый тон (ослабили порог)
+    avgBrightness >= 100; // отсечка по яркости, чтобы не ловить грязно-серые кадры
 
   let minOpacity;
   let maxOpacity;
 
-  const inSandBrightnessRange = avgBrightness >= 110 && avgBrightness <= 190;
-  const inSandDetailRange = avgStdev >= 25 && avgStdev <= 60;
+  const inSandBrightnessRange = avgBrightness >= 115 && avgBrightness <= 205;
+  const inSandDetailRange = avgStdev >= 25 && avgStdev <= 80; // позволяем более детализированный песок
+  const sandHighDetail = avgStdev >= 60; // визуально "зернистый" песок
+
+  // Мало детализированные средние по яркости кадры (часть немытого песка)
+  const isLowDetailMidtone =
+    avgBrightness >= 125 &&
+    avgBrightness <= 155 &&
+    avgStdev < 40;
+
+  // Нейтральный песок/земляные кадры без ярко выраженного тёплого оттенка
+  const isNeutralSandLike =
+    !isWarmSandLike &&
+    avgBrightness >= 95 &&
+    avgBrightness <= 155 &&
+    avgStdev >= 45 &&
+    avgStdev <= 85 &&
+    meanR - meanB >= -5 && // слегка тёплый/нейтральный тон
+    meanR - meanB <= 24;
 
   // Рубленый/щебёночный серый фон (как вторичный щебень):
   const isRubbleLike =
     !isWarmSandLike &&
-    avgBrightness >= 90 &&
-    avgBrightness <= 190 &&
-    avgStdev >= 25 &&
-    avgStdev <= 75 &&
-    Math.abs(meanR - meanG) < 25 &&
-    Math.abs(meanG - meanB) < 25;
+    avgBrightness >= 105 &&
+    avgBrightness <= 195 &&
+    avgStdev >= 18 &&
+    avgStdev <= 80 &&
+    Math.abs(meanR - meanG) < 12 &&
+    Math.abs(meanG - meanB) < 12 &&
+    (Math.max(meanR, meanG, meanB) - Math.min(meanR, meanG, meanB)) < 18;
 
   if (isWarmSandLike && inSandBrightnessRange && inSandDetailRange) {
-    // Песок: делаем ВЗ заметнее, чтобы он не терялся на светлом тёплом фоне (~60–72%).
-    const base = Math.max(adjustedOpacity, 0.62);
-    minOpacity = Math.max(0.60, base * 0.96);
-    maxOpacity = Math.min(0.72, base * 1.06);
+    // Тёплый песок: убираем тёмный контур, но даём уверенный диапазон.
+    if (sandHighDetail) {
+      // Сильно детализированный тёплый песок → более выраженный ВЗ.
+      const base = Math.max(adjustedOpacity, 0.50);
+      minOpacity = Math.max(0.48, base * 0.97);
+      maxOpacity = Math.min(0.62, base * 1.10);
+    } else {
+      // Однородный/мало детализированный тёплый песок → усиленный, но без перетяга.
+      const base = Math.max(adjustedOpacity, 0.40);
+      minOpacity = Math.max(0.38, base * 0.96);
+      maxOpacity = Math.min(0.50, base * 1.08);
+    }
+  } else if (isLowDetailMidtone) {
+    // Средняя яркость и низкая детализация (немытый песок) → уверенный ВЗ.
+    const base = Math.max(adjustedOpacity, 0.38);
+    minOpacity = Math.max(0.36, base * 0.96);
+    maxOpacity = Math.min(0.48, base * 1.10);
+  } else if (isNeutralSandLike) {
+    // Нейтральный песок/земля без яркого тепла: средний диапазон.
+    const base = Math.max(adjustedOpacity, 0.34 + Math.max(0, (avgStdev - 55) * 0.0025));
+    minOpacity = Math.max(0.32, base * 0.95);
+    maxOpacity = Math.min(0.50, base * 1.10);
   } else if (isRubbleLike) {
-    // Щебень/серый камень: заметный, но ещё более деликатный ВЗ (~46–60%).
-    const base = Math.max(adjustedOpacity, 0.48);
-    minOpacity = Math.max(0.46, base * 0.95);
-    maxOpacity = Math.min(0.60, base * 1.10);
+    // Щебень/серый камень: заметный, без излишней агрессии.
+    const base = Math.max(adjustedOpacity, avgBrightness < 130 ? 0.56 : 0.60);
+    minOpacity = Math.max(0.56, base * 0.97);
+    maxOpacity = Math.min(0.72, base * 1.12);
   } else if (avgBrightness > 195 && avgStdev < 45) {
     // Очень светлые нейтральные фото (снег, светлый бетон и т.п.)
     const base = Math.max(adjustedOpacity, 0.44);
     minOpacity = Math.max(0.40, base * 0.95);
     maxOpacity = Math.min(0.52, base * 1.05);
+  } else if (avgBrightness < 115) {
+    // Тёмные кадры: по умолчанию усиливаем, чтобы ВЗ не терялся.
+    const base = Math.max(adjustedOpacity, avgBrightness < 95 ? 0.32 : 0.30);
+    const textureBoost =
+      avgStdev >= 60 ? 0.04 :
+      avgStdev >= 45 ? 0.02 : 0; // детализированные или слабодетализированные тёмные кадры
+    const tunedBase = base + textureBoost;
+    minOpacity = Math.max(0.30, tunedBase * 0.95);
+    maxOpacity = Math.min(0.50, tunedBase * 1.12);
   } else {
-    // Стандартный режим для всех остальных
-    minOpacity = Math.max(0.12, adjustedOpacity * 0.92);
-    maxOpacity = Math.min(0.7, adjustedOpacity * 1.08);
+    // Средние по яркости кадры (универсальный диапазон)
+    const base = Math.max(adjustedOpacity, 0.30);
+    minOpacity = Math.max(0.28, base * 0.95);
+    maxOpacity = Math.min(0.48, base * 1.16);
   }
   
   return { minOpacity, maxOpacity, visualContrast, avgBrightness, avgStdev, detailFactor };
@@ -232,14 +279,13 @@ export function pickTextPalette(stats, forcedColor) {
   }
 
   if (isWarmSandLike) {
-    // Для тёплого песка добавляем деликатный тёмный контур для читаемости.
-    return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,1)', mode: 'sand' };
+    // Для тёплого песка убираем контур совсем, чтобы не было чёрных точек.
+    return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'sand' };
   }
 
   if (avg >= 170) {
-    // На очень светлых фонах делаем белый текст с тёмным контуром
-    // для повышения читаемости.
-    return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,1)', mode: 'bright' };
+    // На очень светлых фонах делаем белый текст с мягким контуром.
+    return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0.6)', mode: 'bright' };
   }
   if (avg <= 110) return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'dark' };
   return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'mid' };
@@ -258,14 +304,14 @@ export function buildTextPatternSvg(width, height, text, opacity, fillColor, str
   let strokeOpacity = 0;
   let strokeWidth = 0;
   if (mode === 'bright') {
-    // На светлых фонах умеренный контур.
-    strokeOpacity = 0.35;
-    strokeWidth = 1.1;
+    // На светлых фонах мягкий контур, чтобы не давал точек.
+    strokeOpacity = 0.18;
+    strokeWidth = 0.9;
   }
   if (mode === 'sand') {
-    // Тёплый песок: чуть менее агрессивный контур, но заметный.
-    strokeOpacity = 0.25;
-    strokeWidth = 1.0;
+    // Тёплый песок: контур выключаем полностью.
+    strokeOpacity = 0;
+    strokeWidth = 0;
   }
   const pad = fontSize * 1.1;
   const offsetX = randomBetween(-tileW * 0.5, tileW * 0.5);
