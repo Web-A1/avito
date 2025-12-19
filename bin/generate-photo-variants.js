@@ -637,7 +637,7 @@ async function generateVariants({
         const { minOpacity, maxOpacity } = calculateAdaptiveOpacity(stats);
         const baseValue = randomBetween(minOpacity, maxOpacity);
         const textOpacity = hasForcedOpacity
-          ? clampOpacity(forcedTextOpacity, 0.05, 0.6)
+          ? clampOpacity(forcedTextOpacity, minOpacity, maxOpacity)
           : clampOpacity(baseValue, minOpacity, maxOpacity) || minOpacity;
 
         // Для текста всегда используем точные размеры (он легковесный)

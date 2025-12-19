@@ -182,24 +182,24 @@ export function calculateAdaptiveOpacity(stats) {
     Math.abs(meanG - meanB) < 25;
 
   if (isWarmSandLike && inSandBrightnessRange && inSandDetailRange) {
-    // Песок: заметный, но мягкий (~45–55%)
-    const base = Math.max(adjustedOpacity, 0.46);
-    minOpacity = Math.max(0.44, base * 0.96);
-    maxOpacity = Math.min(0.55, base * 1.08);
+    // Песок: заметный, но мягкий (~52–62%)
+    const base = Math.max(adjustedOpacity, 0.54);
+    minOpacity = Math.max(0.52, base * 0.96);
+    maxOpacity = Math.min(0.62, base * 1.06);
   } else if (isRubbleLike) {
-    // Щебень/серый камень: заметный, но ещё более деликатный ВЗ (~40–58%).
-    const base = Math.max(adjustedOpacity, 0.44);
-    minOpacity = Math.max(0.40, base * 0.95);
-    maxOpacity = Math.min(0.58, base * 1.12);
+    // Щебень/серый камень: заметный, но ещё более деликатный ВЗ (~46–60%).
+    const base = Math.max(adjustedOpacity, 0.48);
+    minOpacity = Math.max(0.46, base * 0.95);
+    maxOpacity = Math.min(0.60, base * 1.10);
   } else if (avgBrightness > 195 && avgStdev < 45) {
     // Очень светлые нейтральные фото (снег, светлый бетон и т.п.)
-    const base = Math.max(adjustedOpacity, 0.38);
-    minOpacity = Math.max(0.34, base * 0.95);
-    maxOpacity = Math.min(0.46, base * 1.05);
+    const base = Math.max(adjustedOpacity, 0.44);
+    minOpacity = Math.max(0.40, base * 0.95);
+    maxOpacity = Math.min(0.52, base * 1.05);
   } else {
     // Стандартный режим для всех остальных
-    minOpacity = Math.max(0.08, adjustedOpacity * 0.92);
-    maxOpacity = Math.min(0.8, adjustedOpacity * 1.08);
+    minOpacity = Math.max(0.12, adjustedOpacity * 0.92);
+    maxOpacity = Math.min(0.7, adjustedOpacity * 1.08);
   }
   
   return { minOpacity, maxOpacity, visualContrast, avgBrightness, avgStdev, detailFactor };
