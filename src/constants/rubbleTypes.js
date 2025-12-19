@@ -32,7 +32,7 @@ export const RUBBLE_TYPES = {
     basePricePerTonne: 1200, // ₽/т (согласовано, кратно 10)
     bulkDensityTPerM3: 1.25, // т/м³ (для пересчёта в ₽/м³ при необходимости)
     compactionCoefficient: 1.25, // Коэффициент уплотнения (совпадает с насыпной плотностью)
-    defaultConcreteGrade: 600,
+    defaultConcreteGrade: 800,
     defaultFrostResistance: 150,
     defaultFlakinessIndex: 3
   }
