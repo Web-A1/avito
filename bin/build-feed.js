@@ -24,11 +24,13 @@ import dotenv from 'dotenv';
 import { generateAds } from '../src/generators/adGenerator.js';
 import { generateXml } from '../src/xml/xmlGenerator.js';
 import { generateDescription } from '../src/generators/materials/sand/descriptionGenerator.js';
+import { generateRubbleDescription } from '../src/generators/materials/rubble/descriptionGenerator.js';
 import { TOP_5_TITLES, EXACT_TITLES } from '../src/constants/titles.js';
 import { readCurrentAdsFromXlsx } from '../src/utils/currentAdsReader.js';
 import { loadPhotosMapping } from '../src/utils/photosLinksReader.js';
 import { generateAdId, getCityAlias, getMaterialAlias, CITY_ALIASES, MATERIAL_ALIASES, parseAdId, parseDateLabel } from '../src/constants/materialAliases.js';
 import { getSandType } from '../src/constants/sandTypes.js';
+import { getRubbleType } from '../src/constants/rubbleTypes.js';
 import { syncHistoryWithActiveAds, loadHistory, saveHistory, updateHistoryWithAvitoId, commitHistoryFromTmp, discardHistoryTmp } from './lib/photo-variants/history.js';
 import { collectSourcesFromPlan } from './lib/photo-variants/plan.js';
 import { spawn } from 'child_process';
@@ -1391,27 +1393,36 @@ async function main() {
                 console.warn(`      ⚠️  Не удалось определить materialId для объявления ${ad.Id}. Описание оставлено без изменений.`);
                 continue;
               }
-              const sandType = getSandType(materialId);
-              
-              const descResult = generateDescription(materialId, sandType?.displayName || 'Песок карьерный');
-              ad.description = descResult.description;
-              ad.latinReplacements = descResult.latinReplacements;
-              ad.block1Variant = descResult.block1Variant;
-              ad.block7 = descResult.block7Params;
-              
-              // Для флагманского объявления обновляем точные значения priceFor, color, price
-              const { parseAdId } = await import('../src/constants/materialAliases.js');
-              const parsed = parseAdId(ad.Id);
-              const isFlagship = parsed && parsed.counter === 1;
-              
-              if (isFlagship) {
-                console.log(`      Флагманское объявление`);
-                console.log(`      Используются точные параметры: priceFor, color, price`);
-                const { FLAGSHIP_PARAMETERS } = await import('../src/constants/parameters.js');
-                ad.priceFor = FLAGSHIP_PARAMETERS.PRICE_FOR;
-                ad.color = FLAGSHIP_PARAMETERS.COLOR;
-                if (sandType) {
-                  ad.price = sandType.basePrice; // Точная базовая цена
+              const rubbleType = getRubbleType(materialId);
+              if (rubbleType) {
+                const descResult = generateRubbleDescription(materialId);
+                ad.description = descResult.description;
+                ad.latinReplacements = descResult.latinReplacements;
+                ad.block1Variant = descResult.block1Variant;
+                ad.block7 = descResult.block7Params;
+              } else {
+                const sandType = getSandType(materialId);
+                
+                const descResult = generateDescription(materialId, sandType?.displayName || 'Песок карьерный');
+                ad.description = descResult.description;
+                ad.latinReplacements = descResult.latinReplacements;
+                ad.block1Variant = descResult.block1Variant;
+                ad.block7 = descResult.block7Params;
+                
+                // Для флагманского объявления обновляем точные значения priceFor, color, price
+                const { parseAdId } = await import('../src/constants/materialAliases.js');
+                const parsed = parseAdId(ad.Id);
+                const isFlagship = parsed && parsed.counter === 1;
+                
+                if (isFlagship) {
+                  console.log(`      Флагманское объявление`);
+                  console.log(`      Используются точные параметры: priceFor, color, price`);
+                  const { FLAGSHIP_PARAMETERS } = await import('../src/constants/parameters.js');
+                  ad.priceFor = FLAGSHIP_PARAMETERS.PRICE_FOR;
+                  ad.color = FLAGSHIP_PARAMETERS.COLOR;
+                  if (sandType) {
+                    ad.price = sandType.basePrice; // Точная базовая цена
+                  }
                 }
               }
               

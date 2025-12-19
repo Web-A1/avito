@@ -11,7 +11,7 @@ import {
   BLOCK_3_CALL_TO_ACTION_HTML,
   BLOCK_4_ADVANTAGES_HTML,
   BLOCK_5_WORK_HOURS_HTML,
-  BLOCK_6_ASSORTMENT_HTML,
+  BLOCK_6_ASSORTMENT_RUBBLE_HTML,
   RUBBLE_BLOCK_7_TEMPLATE_HTML
 } from '../../../constants/blocks.js';
 import {
@@ -80,7 +80,7 @@ export function generateRubbleDescription(rubbleTypeId, options = {}) {
   const block3 = BLOCK_3_CALL_TO_ACTION_HTML;
   const block4 = `<p>${BLOCK_4_ADVANTAGES_HTML}</p>`;
   const block5 = BLOCK_5_WORK_HOURS_HTML;
-  const block6 = BLOCK_6_ASSORTMENT_HTML;
+  const block6 = BLOCK_6_ASSORTMENT_RUBBLE_HTML;
   const block7 = RUBBLE_BLOCK_7_TEMPLATE_HTML(block7Params);
 
   const blocks = {
@@ -116,5 +116,4 @@ export function generateRubbleDescription(rubbleTypeId, options = {}) {
     block1Variant: block1
   };
 }
-
 

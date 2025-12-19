@@ -15,7 +15,7 @@ import {
   BLOCK_3_CALL_TO_ACTION_HTML,
   BLOCK_4_ADVANTAGES_HTML,
   BLOCK_5_WORK_HOURS_HTML,
-  BLOCK_6_ASSORTMENT_HTML,
+  BLOCK_6_ASSORTMENT_SAND_HTML,
   BLOCK_7_TEMPLATE_HTML
 } from '../../../constants/blocks.js';
 import {
@@ -85,7 +85,7 @@ export function generateDescription(sandTypeId, sandTypeDisplayName) {
   const block3 = BLOCK_3_CALL_TO_ACTION_HTML;
   const block4 = `<p>${BLOCK_4_ADVANTAGES_HTML}</p>`;
   const block5 = BLOCK_5_WORK_HOURS_HTML;
-  const block6 = BLOCK_6_ASSORTMENT_HTML;
+  const block6 = BLOCK_6_ASSORTMENT_SAND_HTML;
 
   const block7 = BLOCK_7_TEMPLATE_HTML(block7Params);
 
@@ -122,7 +122,6 @@ export function generateDescription(sandTypeId, sandTypeDisplayName) {
     block1Variant: block1
   };
 }
-
 
 
 
