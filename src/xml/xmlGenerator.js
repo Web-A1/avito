@@ -61,12 +61,9 @@ function formatAd(ad, idx, dateLabel = '') {
       fractionXml = `<Fraction>${escapeXml(fraction)}</Fraction>`;
     }
     
-    // FlakinessIndex: из объявления или извлекаем из description
+    // FlakinessIndex: только из явного поля объявления (не извлекаем из описания)
     // Значение может быть в формате "3 группа" или просто число
     let flakinessIndex = ad.flakinessIndex || ad.flakinessindex;
-    if (!flakinessIndex) {
-      flakinessIndex = extractFlakinessIndexFromText(ad.description || '');
-    }
     if (flakinessIndex) {
       // Если значение уже содержит "группа", используем как есть, иначе форматируем
       const flakinessValue = String(flakinessIndex).includes('группа') 
@@ -75,14 +72,14 @@ function formatAd(ad, idx, dateLabel = '') {
       flakinessIndexXml = `<FlakinessIndex>${escapeXml(flakinessValue)}</FlakinessIndex>`;
     }
     
-    // ConcreteGrade: из объявления или извлекаем из description
-    const concreteGrade = ad.concreteGrade || ad.concretegrade || extractConcreteGradeFromText(ad.description || '');
+    // ConcreteGrade: только из явного поля объявления (не извлекаем из описания)
+    const concreteGrade = ad.concreteGrade || ad.concretegrade;
     if (concreteGrade) {
       concreteGradeXml = `<ConcreteGrade>${escapeXml(String(concreteGrade))}</ConcreteGrade>`;
     }
     
-    // FrostResistance: из объявления или извлекаем из description
-    const frostResistance = ad.frostResistance || ad.frostresistance || extractFrostResistanceFromText(ad.description || '');
+    // FrostResistance: только из явного поля объявления (не извлекаем из описания)
+    const frostResistance = ad.frostResistance || ad.frostresistance;
     if (frostResistance) {
       frostResistanceXml = `<FrostResistance>${escapeXml(String(frostResistance))}</FrostResistance>`;
     }

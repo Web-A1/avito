@@ -95,13 +95,13 @@ export function buildRubbleAd({
   } = generateRubbleDescription(rubbleTypeId, { isFlagship });
 
   // Пробрасываем техпараметры в объявление, чтобы не зависеть от парсинга описания
-  const concreteGrade = block7Params?.concreteGrade
-    ? `M${block7Params.concreteGrade}`
+  const concreteGrade = rubbleType?.defaultConcreteGrade
+    ? `M${rubbleType.defaultConcreteGrade}`
     : '';
-  const frostResistance = block7Params?.frostResistance
-    ? `F${block7Params.frostResistance}`
+  const frostResistance = rubbleType?.defaultFrostResistance
+    ? `F${rubbleType.defaultFrostResistance}`
     : '';
-  const flakinessIndex = block7Params?.flakinessIndex ?? '';
+  const flakinessIndex = rubbleType?.defaultFlakinessIndex ?? '';
 
   return {
     title,
