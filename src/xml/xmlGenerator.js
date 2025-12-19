@@ -205,16 +205,22 @@ function extractFlakinessIndexFromText(description) {
 function extractConcreteGradeFromText(description) {
   // Паттерны для поиска: "М300"/"M300", "М-300"/"M-300", "марка М300", "ConcreteGrade: M300"
   const patterns = [
-    /(?:марка|concretegrade|grade)[\s:]*[МM][\s-]*(\d+)/i,
-    /[МM][\s-]*(\d+)/i
+    // "марка" с учётом возможных латинских замен букв, например мaркa
+    /(?:м[\u0430a][рp]к[\u0430a]|concretegrade|grade)[\s:]*[МM][\s-]*(\d{2,3})/iu,
+    // Свободное вхождение, но только если перед "M" нет букв/цифр (чтобы не ловить "объем 20")
+    /(?<![a-zA-Z\u0400-\u04FF0-9])[МM][\s-]*(\d{2,3})(?![a-zA-Z\u0400-\u04FF0-9])/iu
   ];
   
   for (const pattern of patterns) {
     const match = description.match(pattern);
     if (match) {
+      const numericValue = Number(match[1]);
+      if (Number.isNaN(numericValue) || numericValue < 100) {
+        continue;
+      }
       // Для совместимости с Авито используем латинскую букву "M" (а не кириллическую "М")
       // в значении ConcreteGrade, например "M300".
-      return `M${match[1]}`;
+      return `M${numericValue}`;
     }
   }
   

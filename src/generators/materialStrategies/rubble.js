@@ -94,6 +94,15 @@ export function buildRubbleAd({
     block1Variant
   } = generateRubbleDescription(rubbleTypeId, { isFlagship });
 
+  // Пробрасываем техпараметры в объявление, чтобы не зависеть от парсинга описания
+  const concreteGrade = block7Params?.concreteGrade
+    ? `M${block7Params.concreteGrade}`
+    : '';
+  const frostResistance = block7Params?.frostResistance
+    ? `F${block7Params.frostResistance}`
+    : '';
+  const flakinessIndex = block7Params?.flakinessIndex ?? '';
+
   return {
     title,
     description,
@@ -102,6 +111,9 @@ export function buildRubbleAd({
     bulkMaterialSubType: 'Щебень',
     rubbleType: 'Вторичный',
     fraction,
+    concreteGrade,
+    frostResistance,
+    flakinessIndex,
     color,
     priceFor,
     price,
@@ -129,4 +141,3 @@ export const rubbleStrategy = {
   duplicateConfig: RUBBLE_DUPLICATE_CONFIG,
   buildAd: buildRubbleAd
 };
-

@@ -7,21 +7,24 @@
     body { font-family: Arial, sans-serif; margin: 12px; }
     .task-card { border: 1px solid #8fa3ff; background: #e4e9ff; border-radius: 8px; padding: 12px; margin-bottom: 14px; }
     h4 { margin-top: 16px; margin-bottom: 8px; }
-    .location { border: 1px solid #c1caf5; background: #f6f8ff; border-radius: 4px; padding: 8px; margin-bottom: 8px; }
     .row { margin-bottom: 6px; }
     label { display: inline-block; min-width: 120px; }
     input, select, button { padding: 4px 6px; }
     pre { background: #f8f8f8; padding: 8px; border: 1px solid #eee; }
+    .hint { font-size: 12px; color: #555; margin: 4px 0 10px 0; }
   </style>
 </head>
 <body>
   <h3>План публикаций</h3>
   <div class="row" style="margin-bottom: 16px;">
     <label>Дата/время начала (DateBegin):</label>
-    <input type="datetime-local" id="dateBegin" step="60" />
+    <span id="dateBeginDisplay"></span>
   </div>
   
   <h4>Товары</h4>
+  <div class="hint">
+    Локации распределяются автоматически: песок — по всем 5 точкам в системе; щебень — только по Подольску и Домодедово.
+  </div>
   <div id="tasks"></div>
   <button id="addTask">+ Товар</button>
 
@@ -29,6 +32,14 @@
     <div id="warn" style="color:#c00; margin-top:6px;"></div>
     <pre id="output"></pre>
     <button id="download" style="margin-top:8px;">Скачать plan.json</button>
+  </div>
+  <div style="margin-top:16px;">
+    <h4>Тестовый сценарий</h4>
+    <ol>
+      <li>Добавьте 3–5 товаров с разными materialId и категориями (песок/щебень).</li>
+      <li>Проверьте, что в <code>publicationQueue</code> порядок чередует категории, затем товары, затем локации (для песка 5 точек, для щебня Подольск/Домодедово).</li>
+      <li>Убедитесь, что <code>DateBegin</code> и времена в <code>publicationQueue</code> попадают в окна 07:00–10:00 или 19:00–23:59.</li>
+    </ol>
   </div>
 
   <script>
@@ -51,71 +62,94 @@
       { name: 'Москва, Троицк, Индустриальная ул., 1' },
       { name: 'Московская обл., Домодедово, Станционная ул., 26к3' }
     ];
+    const allLocationNames = locations.map((l) => l.name);
+    const rubbleLocationNames = locations
+      .filter((l) => l.name.includes('Подольск') || l.name.includes('Домодедово'))
+      .map((l) => l.name);
 
-    const dateBeginInput = document.getElementById('dateBegin');
+    const dateBeginDisplay = document.getElementById('dateBeginDisplay');
     const tasksDiv = document.getElementById('tasks');
     const addTaskBtn = document.getElementById('addTask');
     const outputPre = document.getElementById('output');
     const downloadBtn = document.getElementById('download');
     const warnDiv = document.getElementById('warn');
 
-    function formatDate(val) {
-      if (!val) return '';
-      const [datePart, timePart] = val.split('T');
-      if (!datePart || !timePart) return val;
-      const [y, m, d] = datePart.split('-').map(Number);
-      if (!y || !m || !d) return val;
-      const [hh = '00', mm = '00'] = timePart.split(':');
-      const pad = (n) => String(n).padStart(2, '0');
-      return `${pad(d)}.${pad(m)}.${y} ${pad(hh)}:${pad(mm)}`;
+    function pad2(n) {
+      return String(n).padStart(2, '0');
     }
 
-    function distributeCounts(taskDiv) {
-      const total = parseInt(taskDiv.querySelector('.task-count').value, 10) || 0;
-      if (!total) return;
-      const locs = Array.from(taskDiv.querySelectorAll('.location'));
-      const eligible = locs;
-      if (!eligible.length) return;
-      const autoTargets = eligible.filter((loc) => !loc.querySelector('.loc-value').dataset.user);
-      if (!autoTargets.length) return;
-      const base = Math.floor(total / eligible.length);
-      let rem = total - base * eligible.length;
-      eligible.forEach((loc) => {
-        const valInput = loc.querySelector('.loc-value');
-        if (!valInput.dataset.user) {
-          const val = base + (rem > 0 ? 1 : 0);
-          valInput.value = val;
-          if (rem > 0) rem -= 1;
-        }
-      });
+    function formatDateFromDate(date) {
+      if (!date) return '';
+      return `${pad2(date.getDate())}.${pad2(date.getMonth() + 1)}.${date.getFullYear()} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
     }
 
-    function createLocationRow(taskDiv) {
-      const div = document.createElement('div');
-      div.className = 'location';
-      div.innerHTML = `
-        <div class="row">
-          <label>Адрес:</label>
-          <select class="loc-address">
-            ${locations.map(l => `<option value="${l.name}">${l.name}</option>`).join('')}
-          </select>
-        </div>
-        <div class="row">
-          <label>Значение:</label>
-          <input type="number" class="loc-value" min="0" value="0" />
-        </div>
-        <button class="removeLoc">Удалить</button>
-      `;
-      const valueInput = div.querySelector('.loc-value');
-      valueInput.addEventListener('input', () => {
-        if (valueInput.value) valueInput.dataset.user = '1';
-      });
-      div.querySelector('.removeLoc').onclick = () => {
-        div.remove();
-        distributeCounts(taskDiv);
-        updateOutput();
-      };
-      return div;
+    function isWithinAllowedWindow(date) {
+      const minutes = date.getHours() * 60 + date.getMinutes();
+      const morningStart = 7 * 60;
+      const morningEnd = 10 * 60;
+      const eveningStart = 19 * 60;
+      const eveningEnd = 23 * 60 + 59;
+      return (minutes >= morningStart && minutes <= morningEnd) || (minutes >= eveningStart && minutes <= eveningEnd);
+    }
+
+    function alignToAllowedWindow(date) {
+      if (isWithinAllowedWindow(date)) {
+        return date;
+      }
+      const minutes = date.getHours() * 60 + date.getMinutes();
+      const morningStart = 7 * 60;
+      const morningEnd = 10 * 60;
+      const eveningStart = 19 * 60;
+      if (minutes < morningStart) {
+        date.setHours(7, 0, 0, 0);
+        return date;
+      }
+      if (minutes > morningEnd && minutes < eveningStart) {
+        date.setHours(19, 0, 0, 0);
+        return date;
+      }
+      if (minutes >= eveningStart) {
+        return date;
+      }
+      date.setDate(date.getDate() + 1);
+      date.setHours(7, 0, 0, 0);
+      return date;
+    }
+
+    const baseDateBegin = alignToAllowedWindow(new Date(Date.now() + 30 * 60 * 1000));
+
+    function getDateBegin() {
+      return new Date(baseDateBegin.getTime());
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function getLocationsByMaterial(material) {
+      if (material === 'rubble') return rubbleLocationNames;
+      return allLocationNames;
+    }
+
+    function getCityFromAddress(address) {
+      const parts = (address || '').split(',').map(p => p.trim()).filter(Boolean);
+      return parts[1] || address;
+    }
+
+    function getDisplayNames(addresses) {
+      return addresses.map(getCityFromAddress);
+    }
+
+    function distributeEvenly(total, addresses) {
+      if (!total || !addresses.length) return [];
+      const base = Math.floor(total / addresses.length);
+      let remainder = total % addresses.length;
+      return addresses.map((address) => {
+        const extra = remainder > 0 ? 1 : 0;
+        if (remainder > 0) remainder -= 1;
+        const count = base + extra;
+        return { address, count };
+      }).filter((item) => item.count > 0);
     }
 
 
@@ -133,30 +167,29 @@
           <label>Count:</label>
           <input type="number" class="task-count" min="1" value="10" />
         </div>
-        <div class="loc-container"></div>
-        <button class="addLoc">+ Локация</button>
+        <div class="row loc-summary"></div>
         <button class="removeTask">Удалить товар</button>
       `;
-      const locContainer = div.querySelector('.loc-container');
-      const addLocBtn = div.querySelector('.addLoc');
-      addLocBtn.onclick = () => {
-        const row = createLocationRow(div);
-        locContainer.appendChild(row);
-        distributeCounts(div);
-        updateOutput();
-      };
       div.querySelector('.removeTask').onclick = () => {
         div.remove();
         updateOutput();
       };
-      // автораспределение при изменении total count
-      div.querySelector('.task-count').addEventListener('input', () => {
-        distributeCounts(div);
+      const locSummary = div.querySelector('.loc-summary');
+      const materialSelect = div.querySelector('.task-material');
+      const updateLocSummary = () => {
+        const materialId = materialSelect.value;
+        const materialCfg = materials.find(m => m.id === materialId);
+        const material = materialCfg && materialCfg.material ? materialCfg.material : 'sand';
+        const addresses = getLocationsByMaterial(material);
+        const cities = getDisplayNames(addresses);
+        locSummary.textContent = `Локации: ${cities.join(', ')}`;
+      };
+      materialSelect.addEventListener('change', () => {
+        updateLocSummary();
         updateOutput();
       });
-      // по умолчанию одна локация
-      locContainer.appendChild(createLocationRow(div));
-      distributeCounts(div);
+      div.querySelector('.task-count').addEventListener('input', updateOutput);
+      updateLocSummary();
       return div;
     }
 
@@ -167,26 +200,119 @@
     // начальный товар
     tasksDiv.appendChild(createTask());
 
+    function buildPriorityQueue(groups) {
+      const remaining = groups.map((group, idx) => ({
+        ...group,
+        remaining: group.count,
+        order: idx
+      }));
+      const queue = [];
+      let last = null;
+
+      const scoreCandidate = (candidate) => {
+        if (!last) return 3;
+        if (candidate.material !== last.material) return 3;
+        if (candidate.materialId !== last.materialId) return 2;
+        if (candidate.location !== last.location) return 1;
+        return 0;
+      };
+
+      while (remaining.some(group => group.remaining > 0)) {
+        const available = remaining.filter(group => group.remaining > 0);
+        available.sort((a, b) => {
+          const scoreDiff = scoreCandidate(b) - scoreCandidate(a);
+          if (scoreDiff !== 0) return scoreDiff;
+          if (b.remaining !== a.remaining) return b.remaining - a.remaining;
+          return a.order - b.order;
+        });
+        const next = available[0];
+        next.remaining -= 1;
+        queue.push({
+          material: next.material,
+          materialId: next.materialId,
+          location: next.location
+        });
+        last = next;
+      }
+      return queue;
+    }
+
+    function buildSchedule(queue, baseDate) {
+      const schedule = [];
+      let current = new Date(baseDate.getTime());
+      queue.forEach((item, idx) => {
+        if (idx > 0) {
+          const stepMinutes = randomInt(5, 30);
+          current = new Date(current.getTime() + stepMinutes * 60 * 1000);
+        }
+        current = alignToAllowedWindow(current);
+        schedule.push({
+          ...item,
+          DateBegin: formatDateFromDate(current)
+        });
+      });
+      return schedule;
+    }
+
     function buildPlan() {
-      const dateRaw = dateBeginInput.value || '';
-      const dateBegin = formatDate(dateRaw);
+      const dateBeginDt = getDateBegin();
+      const dateBegin = formatDateFromDate(dateBeginDt);
       const taskNodes = tasksDiv.querySelectorAll('.task-card');
-      const plan = { DateBegin: dateBegin, tasks: [] };
+      const rawTasks = [];
       taskNodes.forEach(task => {
         const materialId = task.querySelector('.task-material').value;
         const count = parseInt(task.querySelector('.task-count').value, 10) || 0;
-        const locs = [];
-        task.querySelectorAll('.location').forEach(loc => {
-          const addr = loc.querySelector('.loc-address').value;
-          const val = parseInt(loc.querySelector('.loc-value').value, 10) || 0;
-          if (val > 0) {
-            locs.push({ address: addr, count: val });
-          }
-        });
         const materialCfg = materials.find(m => m.id === materialId);
         const material = materialCfg && materialCfg.material ? materialCfg.material : 'sand';
-        plan.tasks.push({ material, materialId, count, locations: locs });
+        const addresses = getLocationsByMaterial(material);
+        const locs = distributeEvenly(count, addresses);
+        rawTasks.push({ material, materialId, count, locations: locs });
       });
+
+      const groups = [];
+      rawTasks.forEach((task) => {
+        task.locations.forEach((loc) => {
+          if (loc.count > 0) {
+            groups.push({
+              material: task.material,
+              materialId: task.materialId,
+              location: loc.address,
+              count: loc.count
+            });
+          }
+        });
+      });
+
+      const publicationQueue = buildSchedule(buildPriorityQueue(groups), dateBeginDt);
+      const orderedGroups = [];
+      const seen = new Set();
+      publicationQueue.forEach((item) => {
+        const key = `${item.materialId}::${item.location}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          orderedGroups.push(item);
+        }
+      });
+
+      const groupCountMap = new Map(
+        groups.map(group => [`${group.materialId}::${group.location}`, group.count])
+      );
+      const tasks = orderedGroups.map((group) => {
+        const key = `${group.materialId}::${group.location}`;
+        const groupCount = groupCountMap.get(key) || 0;
+        return {
+          material: group.material,
+          materialId: group.materialId,
+          count: groupCount,
+          locations: [{ address: group.location, count: groupCount }]
+        };
+      });
+
+      const plan = {
+        DateBegin: dateBegin,
+        tasks,
+        publicationQueue
+      };
       return plan;
     }
 
@@ -195,7 +321,7 @@
         return { valid: false, message: 'План пустой' };
       }
       if (!plan.DateBegin) {
-        return { valid: false, message: 'Не указана дата/время начала (DateBegin)' };
+        return { valid: false, message: 'Не удалось вычислить дату/время начала (DateBegin)' };
       }
       for (const task of plan.tasks) {
         const total = Number(task.count) || 0;
@@ -221,11 +347,11 @@
       const validation = validatePlan(plan);
       warnDiv.textContent = validation.message;
       downloadBtn.disabled = !validation.valid;
+      dateBeginDisplay.textContent = plan.DateBegin || '';
       outputPre.textContent = JSON.stringify(plan, null, 2);
       return plan;
     }
 
-    dateBeginInput.addEventListener('input', updateOutput);
     tasksDiv.addEventListener('input', updateOutput);
     updateOutput();
 

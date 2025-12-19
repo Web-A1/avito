@@ -18,7 +18,10 @@ export const RUBBLE_TYPES = {
     displayName: 'Щебень вторичный фракция 5–20 мм',
     basePricePerTonne: 1110, // ₽/т (согласовано, кратно 10)
     bulkDensityTPerM3: 1.35, // т/м³ (для пересчёта в ₽/м³ при необходимости)
-    compactionCoefficient: 1.35 // Коэффициент уплотнения (совпадает с насыпной плотностью)
+    compactionCoefficient: 1.35, // Коэффициент уплотнения (совпадает с насыпной плотностью)
+    defaultConcreteGrade: 400, // Базовая марка по прочности для вторичного щебня (используем для обязательного поля)
+    defaultFrostResistance: 150, // Базовая морозостойкость (из допустимых значений Авито)
+    defaultFlakinessIndex: 2 // Базовая группа лещадности
   },
 
   // Щебень вторичный 40–70 мм
@@ -28,7 +31,10 @@ export const RUBBLE_TYPES = {
     displayName: 'Щебень вторичный фракция 40–70 мм',
     basePricePerTonne: 1200, // ₽/т (согласовано, кратно 10)
     bulkDensityTPerM3: 1.25, // т/м³ (для пересчёта в ₽/м³ при необходимости)
-    compactionCoefficient: 1.25 // Коэффициент уплотнения (совпадает с насыпной плотностью)
+    compactionCoefficient: 1.25, // Коэффициент уплотнения (совпадает с насыпной плотностью)
+    defaultConcreteGrade: 400,
+    defaultFrostResistance: 150,
+    defaultFlakinessIndex: 3
   }
 };
 
@@ -48,5 +54,4 @@ export function getRubbleType(id) {
 export function getAllRubbleTypes() {
   return RUBBLE_TYPES;
 }
-
 
