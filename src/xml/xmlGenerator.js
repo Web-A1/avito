@@ -90,6 +90,10 @@ function formatAd(ad, idx, dateLabel = '') {
   const avitoDateEnd = ad.avitoDateEnd || ad.avitodateend || ad.dateEnd;
   // ListingFee: из объявления или значение по умолчанию "Package"
   const listingFee = ad.listingFee || ad.listingfee || CONTACT_PARAMETERS.LISTING_FEE;
+  // AdStatus: из объявления или значение по умолчанию "Free"
+  const adStatus = ad.adStatus || ad.adstatus || CONTACT_PARAMETERS.AD_STATUS;
+  // InternetCalls: из объявления или значение по умолчанию "Да"
+  const internetCalls = ad.internetCalls || ad.internetcalls || CONTACT_PARAMETERS.INTERNET_CALLS;
   // ManagerName: из объявления или значение по умолчанию "Владимир"
   const managerName = ad.managerName || ad.managername || CONTACT_PARAMETERS.MANAGER_NAME;
 
@@ -100,6 +104,7 @@ function formatAd(ad, idx, dateLabel = '') {
       ${dateBegin ? `<DateBegin>${escapeXml(dateBegin)}</DateBegin>` : ''}
       ${avitoDateEnd ? `<DateEnd>${escapeXml(String(avitoDateEnd))}</DateEnd>` : ''}
       <ListingFee>${escapeXml(String(listingFee))}</ListingFee>
+      <AdStatus>${escapeXml(String(adStatus))}</AdStatus>
       <ManagerName>${escapeXml(managerName)}</ManagerName>
       <ContactPhone>${escapeXml(CONTACT_PARAMETERS.CONTACT_PHONE)}</ContactPhone>
       <Category>Ремонт и строительство</Category>
@@ -109,6 +114,7 @@ function formatAd(ad, idx, dateLabel = '') {
       ${ad.price ? `<Price>${ad.price}</Price>` : ''}
       ${formatImages(images)}
       <ContactMethod>${escapeXml(CONTACT_PARAMETERS.CONTACT_METHOD)}</ContactMethod>
+      <InternetCalls>${escapeXml(String(internetCalls))}</InternetCalls>
       <EMail>${escapeXml(CONTACT_PARAMETERS.EMAIL)}</EMail>
       <CompanyName>${escapeXml(CONTACT_PARAMETERS.COMPANY_NAME)}</CompanyName>
       <PackagingType>${escapeXml(packagingType)}</PackagingType>

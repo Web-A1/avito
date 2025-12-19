@@ -86,6 +86,12 @@ export const CONTACT_PARAMETERS = {
   
   // Плата за размещение
   LISTING_FEE: 'Package',
+
+  // Интернет-звонки
+  INTERNET_CALLS: 'Да',
+
+  // Статус объявления
+  AD_STATUS: 'Free',
   
   // Имя менеджера
   MANAGER_NAME: 'Владимир'

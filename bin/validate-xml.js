@@ -44,6 +44,22 @@ const ALLOWED_PACKAGING_TYPES = ['Россыпью'];
 const ALLOWED_COLORS = ['Белый', 'Серый', 'Жёлтый', 'Чёрный', 'Коричневый'];
 const ALLOWED_PRICE_FOR = ['м³', 'тонну'];
 const ALLOWED_AVAILABILITY = ['В наличии'];
+const ALLOWED_INTERNET_CALLS = ['Да', 'Нет'];
+const ALLOWED_AD_STATUS = [
+  'Free',
+  'Highlight',
+  'XL',
+  'x2_1',
+  'x2_7',
+  'x5_1',
+  'x5_7',
+  'x10_1',
+  'x10_7',
+  'x15_1',
+  'x15_7',
+  'x20_1',
+  'x20_7'
+];
 
 // Простой XML парсер для извлечения данных из <Ad> элементов
 function parseXML(xmlString) {
@@ -76,8 +92,10 @@ function parseXML(xmlString) {
       CompactionCoefficient: /<CompactionCoefficient>(.*?)<\/CompactionCoefficient>/,
       MinSaleQuantity: /<MinSaleQuantity>(.*?)<\/MinSaleQuantity>/,
       PriceFor: /<PriceFor>(.*?)<\/PriceFor>/,
+      InternetCalls: /<InternetCalls>(.*?)<\/InternetCalls>/,
       Color: /<Color>(.*?)<\/Color>/,
       Availability: /<Availability>(.*?)<\/Availability>/,
+      AdStatus: /<AdStatus>(.*?)<\/AdStatus>/,
       DateBegin: /<DateBegin>(.*?)<\/DateBegin>/,
       RubbleType: /<RubbleType>(.*?)<\/RubbleType>/,
       Fraction: /<Fraction>(.*?)<\/Fraction>/
@@ -273,9 +291,11 @@ function checkRequiredFields(ads) {
     'BulkMaterialType',
     'BulkMaterialSubType',
     'PackagingType',
+    'AdStatus',
     'CompactionCoefficient',
     'MinSaleQuantity',
-    'PriceFor'
+    'PriceFor',
+    'InternetCalls'
     // DateBegin - опциональное поле (не проверяем обязательность, только формат если присутствует)
   ];
   
@@ -598,6 +618,26 @@ function checkFieldValues(ads) {
         message: `Недопустимое значение наличия: "${ad.Availability}". Допустимые: ${ALLOWED_AVAILABILITY.join(', ')}`
       });
     }
+
+    // Проверка InternetCalls
+    if (ad.InternetCalls && !ALLOWED_INTERNET_CALLS.includes(ad.InternetCalls)) {
+      errors.push({
+        adIndex: i + 1,
+        adId: ad.Id,
+        type: 'invalid_internet_calls',
+        message: `Недопустимое значение InternetCalls: "${ad.InternetCalls}". Допустимые: ${ALLOWED_INTERNET_CALLS.join(', ')}`
+      });
+    }
+
+    // Проверка AdStatus
+    if (ad.AdStatus && !ALLOWED_AD_STATUS.includes(ad.AdStatus)) {
+      errors.push({
+        adIndex: i + 1,
+        adId: ad.Id,
+        type: 'invalid_ad_status',
+        message: `Недопустимое значение AdStatus: "${ad.AdStatus}". Допустимые: ${ALLOWED_AD_STATUS.join(', ')}`
+      });
+    }
     
     // Проверка CompactionCoefficient - должно быть числом
     if (ad.CompactionCoefficient) {
@@ -856,4 +896,3 @@ if (!xmlFilePath) {
 }
 
 validateXML(xmlFilePath);
-
