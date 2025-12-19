@@ -4,55 +4,121 @@
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
-      "count": 15,
+      "count": 20,
       "locations": [
         {
           "address": "Московская обл., Подольск, ул. Лапшенкова, 3",
-          "count": 15
+          "count": 20
         }
       ]
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "count": 6,
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "count": 8,
       "locations": [
         {
           "address": "Московская обл., Бронницы, Магистральная ул., 3",
-          "count": 6
+          "count": 8
+        }
+      ]
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "count": 20,
+      "locations": [
+        {
+          "address": "Московская обл., Подольск, ул. Лапшенкова, 3",
+          "count": 20
+        }
+      ]
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "count": 7,
+      "locations": [
+        {
+          "address": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+          "count": 7
         }
       ]
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
-      "count": 15,
+      "count": 19,
       "locations": [
         {
           "address": "Московская обл., Домодедово, Станционная ул., 26к3",
-          "count": 15
+          "count": 19
         }
       ]
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "count": 6,
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "count": 7,
       "locations": [
         {
-          "address": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-          "count": 6
+          "address": "Московская обл., Подольск, ул. Лапшенкова, 3",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "count": 7,
+      "locations": [
+        {
+          "address": "Москва, Троицк, Индустриальная ул., 1",
+          "count": 7
         }
       ]
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_40_70",
-      "count": 15,
+      "count": 19,
       "locations": [
         {
-          "address": "Московская обл., Подольск, ул. Лапшенкова, 3",
-          "count": 15
+          "address": "Московская обл., Домодедово, Станционная ул., 26к3",
+          "count": 19
+        }
+      ]
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "count": 7,
+      "locations": [
+        {
+          "address": "Московская обл., Домодедово, Станционная ул., 26к3",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "count": 6,
+      "locations": [
+        {
+          "address": "Московская обл., Бронницы, Магистральная ул., 3",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "count": 6,
+      "locations": [
+        {
+          "address": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+          "count": 6
         }
       ]
     },
@@ -68,17 +134,6 @@
       ]
     },
     {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "count": 15,
-      "locations": [
-        {
-          "address": "Московская обл., Домодедово, Станционная ул., 26к3",
-          "count": 15
-        }
-      ]
-    },
-    {
       "material": "sand",
       "materialId": "karier_seyan_nemyt_pesok",
       "count": 6,
@@ -212,100 +267,45 @@
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "count": 6,
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "count": 3,
       "locations": [
         {
           "address": "Московская обл., Бронницы, Магистральная ул., 3",
-          "count": 6
+          "count": 3
         }
       ]
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "count": 6,
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "count": 3,
       "locations": [
         {
           "address": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-          "count": 6
+          "count": 3
         }
       ]
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "count": 6,
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "count": 3,
       "locations": [
         {
           "address": "Московская обл., Подольск, ул. Лапшенкова, 3",
-          "count": 6
+          "count": 3
         }
       ]
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "count": 6,
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "count": 3,
       "locations": [
         {
           "address": "Москва, Троицк, Индустриальная ул., 1",
-          "count": 6
-        }
-      ]
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "count": 6,
-      "locations": [
-        {
-          "address": "Московская обл., Домодедово, Станционная ул., 26к3",
-          "count": 6
-        }
-      ]
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "count": 2,
-      "locations": [
-        {
-          "address": "Московская обл., Бронницы, Магистральная ул., 3",
-          "count": 2
-        }
-      ]
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "count": 2,
-      "locations": [
-        {
-          "address": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-          "count": 2
-        }
-      ]
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "count": 2,
-      "locations": [
-        {
-          "address": "Московская обл., Подольск, ул. Лапшенкова, 3",
-          "count": 2
-        }
-      ]
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "count": 2,
-      "locations": [
-        {
-          "address": "Москва, Троицк, Индустриальная ул., 1",
-          "count": 2
+          "count": 3
         }
       ]
     },
@@ -330,1137 +330,1305 @@
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
+      "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "19.12.2025 19:21"
+      "DateBegin": "19.12.2025 19:07"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "19.12.2025 19:34"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "19.12.2025 20:04"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "19.12.2025 20:33"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "19.12.2025 21:01"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "19.12.2025 19:38"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "19.12.2025 19:57"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "19.12.2025 20:26"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "19.12.2025 20:40"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "19.12.2025 21:07"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
       "DateBegin": "19.12.2025 21:16"
     },
     {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "19.12.2025 21:26"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "19.12.2025 21:31"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "19.12.2025 21:58"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "19.12.2025 22:06"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "19.12.2025 22:27"
+    },
+    {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "19.12.2025 21:29"
+      "DateBegin": "19.12.2025 22:51"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "19.12.2025 23:03"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "19.12.2025 23:14"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "19.12.2025 23:22"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "19.12.2025 23:36"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "19.12.2025 23:47"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "20.12.2025 07:00"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "20.12.2025 07:09"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "20.12.2025 07:38"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_nemyt_pesok",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "19.12.2025 21:49"
+      "DateBegin": "20.12.2025 08:00"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "19.12.2025 22:04"
+      "DateBegin": "20.12.2025 08:25"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_1.5",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "19.12.2025 22:34"
+      "DateBegin": "20.12.2025 08:48"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_40_70",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "19.12.2025 22:55"
+      "DateBegin": "20.12.2025 09:15"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_1.5",
       "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "19.12.2025 23:08"
+      "DateBegin": "20.12.2025 09:38"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_40_70",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "19.12.2025 23:22"
+      "DateBegin": "20.12.2025 10:00"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_1.5",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "19.12.2025 23:33"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "19.12.2025 23:46"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "20.12.2025 07:00"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "20.12.2025 07:17"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "20.12.2025 07:41"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "20.12.2025 07:53"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "20.12.2025 08:20"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "20.12.2025 08:37"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "20.12.2025 09:02"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "20.12.2025 09:16"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "20.12.2025 09:29"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "20.12.2025 09:42"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
       "DateBegin": "20.12.2025 19:00"
     },
     {
       "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "20.12.2025 19:26"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "20.12.2025 19:35"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "20.12.2025 19:59"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "20.12.2025 20:14"
+    },
+    {
+      "material": "rubble",
       "materialId": "scheben_vtorichnyi_40_70",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "20.12.2025 19:19"
+      "DateBegin": "20.12.2025 20:19"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "20.12.2025 19:40"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "20.12.2025 20:04"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "20.12.2025 20:27"
+      "DateBegin": "20.12.2025 20:48"
     },
     {
       "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "20.12.2025 20:41"
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "20.12.2025 21:07"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
+      "materialId": "karier_seyan_myt_pesok_2",
       "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "20.12.2025 20:56"
+      "DateBegin": "20.12.2025 21:35"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "20.12.2025 22:04"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "20.12.2025 22:18"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "20.12.2025 21:19"
+      "DateBegin": "20.12.2025 22:43"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "20.12.2025 21:47"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "20.12.2025 22:11"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
+      "materialId": "karier_seyan_myt_pesok_2",
       "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "20.12.2025 22:35"
+      "DateBegin": "20.12.2025 22:59"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "20.12.2025 22:51"
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "20.12.2025 23:05"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
+      "materialId": "karier_seyan_myt_pesok_2",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
       "DateBegin": "20.12.2025 23:21"
     },
     {
       "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "20.12.2025 23:39"
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "20.12.2025 23:43"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
+      "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "20.12.2025 23:57"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
       "DateBegin": "21.12.2025 07:00"
     },
     {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 07:24"
-    },
-    {
       "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
+      "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "21.12.2025 07:37"
+      "DateBegin": "21.12.2025 07:26"
     },
     {
       "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 07:44"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 08:03"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
+      "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 08:10"
+      "DateBegin": "21.12.2025 07:33"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "21.12.2025 07:42"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "21.12.2025 08:04"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "21.12.2025 08:16"
+      "DateBegin": "21.12.2025 08:15"
     },
     {
       "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 08:24"
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "21.12.2025 08:33"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 08:53"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
+      "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
       "DateBegin": "21.12.2025 09:03"
     },
     {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "21.12.2025 09:08"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 09:28"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "21.12.2025 09:44"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 10:00"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 19:00"
-    },
-    {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 19:07"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "21.12.2025 19:33"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 19:50"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 20:12"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 20:39"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "21.12.2025 21:07"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 21:32"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "21.12.2025 21:51"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 22:19"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 22:30"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 22:38"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "21.12.2025 22:53"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "21.12.2025 23:14"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 23:33"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "21.12.2025 23:57"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "22.12.2025 07:00"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 07:12"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "22.12.2025 07:23"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "22.12.2025 07:39"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 08:08"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 08:28"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "22.12.2025 08:42"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "22.12.2025 08:50"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "22.12.2025 09:06"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 09:19"
+      "DateBegin": "21.12.2025 09:32"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_nemyt_pesok",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "22.12.2025 09:32"
+      "DateBegin": "21.12.2025 09:56"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "21.12.2025 19:00"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "21.12.2025 19:26"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "21.12.2025 19:51"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "21.12.2025 20:09"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "21.12.2025 20:14"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "21.12.2025 20:22"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "21.12.2025 20:50"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "21.12.2025 20:58"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "21.12.2025 21:10"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "21.12.2025 21:21"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "21.12.2025 21:48"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "21.12.2025 22:05"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "21.12.2025 22:13"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "21.12.2025 22:25"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "21.12.2025 22:44"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "21.12.2025 23:06"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "21.12.2025 23:29"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "21.12.2025 23:56"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "22.12.2025 07:00"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "22.12.2025 07:10"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "22.12.2025 07:23"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "22.12.2025 07:38"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "22.12.2025 08:06"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "22.12.2025 08:16"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "22.12.2025 08:43"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "22.12.2025 08:53"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "22.12.2025 09:21"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "22.12.2025 09:39"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
       "DateBegin": "22.12.2025 19:00"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "22.12.2025 19:22"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 19:40"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 20:10"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "22.12.2025 20:36"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "22.12.2025 21:03"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 21:25"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "22.12.2025 21:54"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_5_20",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "22.12.2025 22:12"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
+      "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "22.12.2025 22:29"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 22:36"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "22.12.2025 23:03"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "22.12.2025 23:09"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 23:33"
+      "DateBegin": "22.12.2025 19:15"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "22.12.2025 23:41"
+      "DateBegin": "22.12.2025 19:43"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "22.12.2025 19:54"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "22.12.2025 20:07"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "22.12.2025 20:20"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "22.12.2025 20:44"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "22.12.2025 20:53"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "22.12.2025 21:11"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "22.12.2025 21:27"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "22.12.2025 21:37"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "22.12.2025 22:04"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "22.12.2025 22:33"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "22.12.2025 22:43"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "22.12.2025 23:04"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "22.12.2025 23:34"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "22.12.2025 23:58"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
       "location": "Москва, Троицк, Индустриальная ул., 1",
       "DateBegin": "23.12.2025 07:00"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "23.12.2025 07:21"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "23.12.2025 07:07"
+      "DateBegin": "23.12.2025 07:44"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "23.12.2025 08:07"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "23.12.2025 07:35"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "23.12.2025 07:51"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "23.12.2025 08:21"
+      "DateBegin": "23.12.2025 08:12"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "23.12.2025 08:37"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "23.12.2025 08:42"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_40_70",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "23.12.2025 08:35"
+      "DateBegin": "23.12.2025 08:59"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "23.12.2025 09:02"
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "23.12.2025 09:07"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "23.12.2025 09:28"
+      "DateBegin": "23.12.2025 09:16"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "23.12.2025 09:38"
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "23.12.2025 09:32"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "23.12.2025 09:55"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
       "DateBegin": "23.12.2025 19:00"
     },
     {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "23.12.2025 19:28"
-    },
-    {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_40_70",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "23.12.2025 19:54"
+      "DateBegin": "23.12.2025 19:18"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "23.12.2025 20:14"
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "23.12.2025 19:23"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_40_70",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "23.12.2025 20:35"
+      "DateBegin": "23.12.2025 19:43"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "23.12.2025 20:45"
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "23.12.2025 20:02"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "23.12.2025 21:03"
+      "DateBegin": "23.12.2025 20:26"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "23.12.2025 21:30"
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "23.12.2025 20:37"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "23.12.2025 21:39"
+      "DateBegin": "23.12.2025 21:00"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "23.12.2025 21:57"
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "23.12.2025 21:12"
     },
     {
       "material": "rubble",
       "materialId": "scheben_vtorichnyi_40_70",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "23.12.2025 22:15"
+      "DateBegin": "23.12.2025 21:28"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "23.12.2025 21:47"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "23.12.2025 22:12"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "23.12.2025 22:28"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "23.12.2025 22:53"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "23.12.2025 23:13"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "23.12.2025 23:19"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "23.12.2025 23:40"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "23.12.2025 23:45"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "23.12.2025 22:20"
-    },
-    {
-      "material": "rubble",
-      "materialId": "scheben_vtorichnyi_40_70",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "23.12.2025 22:27"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "23.12.2025 22:43"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "23.12.2025 22:49"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "23.12.2025 23:04"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "23.12.2025 23:33"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "23.12.2025 23:49"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
       "DateBegin": "24.12.2025 07:00"
     },
     {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "24.12.2025 07:05"
+    },
+    {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "24.12.2025 07:32"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "24.12.2025 07:10"
+      "DateBegin": "24.12.2025 07:39"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "24.12.2025 07:51"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "24.12.2025 08:20"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "24.12.2025 08:25"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "24.12.2025 08:42"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "24.12.2025 08:51"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "24.12.2025 08:57"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "24.12.2025 09:20"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "24.12.2025 09:45"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "24.12.2025 07:27"
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "24.12.2025 09:51"
     },
     {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "24.12.2025 07:48"
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "24.12.2025 10:00"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "24.12.2025 08:03"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "24.12.2025 08:33"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "24.12.2025 09:02"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "24.12.2025 09:13"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
       "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "24.12.2025 09:21"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "24.12.2025 09:27"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "24.12.2025 09:40"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
       "DateBegin": "24.12.2025 19:00"
     },
     {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "24.12.2025 19:09"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "24.12.2025 19:34"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "24.12.2025 19:57"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "24.12.2025 20:14"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "24.12.2025 20:34"
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "24.12.2025 19:16"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "24.12.2025 21:03"
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "24.12.2025 19:21"
     },
     {
-      "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "24.12.2025 21:28"
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "24.12.2025 19:26"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "24.12.2025 19:56"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "24.12.2025 20:18"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "24.12.2025 20:45"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_5_20",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "24.12.2025 21:04"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "24.12.2025 21:20"
+    },
+    {
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
       "DateBegin": "24.12.2025 21:41"
     },
     {
       "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "24.12.2025 21:55"
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "24.12.2025 22:01"
     },
     {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "24.12.2025 22:14"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "24.12.2025 22:20"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "24.12.2025 22:50"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
+      "material": "rubble",
+      "materialId": "scheben_vtorichnyi_40_70",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "24.12.2025 23:14"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "24.12.2025 23:38"
+      "DateBegin": "24.12.2025 22:08"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "24.12.2025 23:59"
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "24.12.2025 22:26"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "24.12.2025 22:33"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "24.12.2025 22:39"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "24.12.2025 23:05"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "24.12.2025 23:35"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "24.12.2025 23:54"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
       "DateBegin": "25.12.2025 07:00"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "25.12.2025 07:09"
-    },
-    {
-      "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "25.12.2025 07:19"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
       "DateBegin": "25.12.2025 07:25"
     },
     {
       "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "25.12.2025 07:41"
+    },
+    {
+      "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "25.12.2025 07:54"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "25.12.2025 07:34"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "25.12.2025 07:59"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "25.12.2025 08:15"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "25.12.2025 08:38"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "25.12.2025 08:54"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "25.12.2025 09:13"
+      "DateBegin": "25.12.2025 08:16"
     },
     {
       "material": "sand",
       "materialId": "karier_neseyan_nemyt_pesok",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "25.12.2025 09:21"
+      "DateBegin": "25.12.2025 08:41"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "25.12.2025 09:46"
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "25.12.2025 08:53"
     },
     {
       "material": "sand",
       "materialId": "karier_neseyan_nemyt_pesok",
       "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "25.12.2025 09:19"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "25.12.2025 09:44"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
       "DateBegin": "25.12.2025 09:51"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "25.12.2025 09:59"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
       "DateBegin": "25.12.2025 19:00"
     },
     {
       "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
       "DateBegin": "25.12.2025 19:19"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "25.12.2025 19:33"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_neseyan_nemyt_pesok",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "25.12.2025 19:49"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "25.12.2025 20:11"
-    },
-    {
-      "material": "sand",
       "materialId": "karier_neseyan_nemyt_pesok",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "25.12.2025 20:34"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "25.12.2025 20:52"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "25.12.2025 21:03"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "25.12.2025 21:09"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "25.12.2025 21:28"
+      "DateBegin": "25.12.2025 19:24"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_nemyt_pesok",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "25.12.2025 21:41"
+      "DateBegin": "25.12.2025 19:47"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "25.12.2025 19:56"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "25.12.2025 20:17"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "25.12.2025 20:45"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "25.12.2025 21:04"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_1.5",
       "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "25.12.2025 21:13"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "25.12.2025 21:27"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "25.12.2025 21:43"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
       "DateBegin": "25.12.2025 21:51"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "25.12.2025 22:06"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_1.5",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "25.12.2025 22:20"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_nemyt_pesok",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "25.12.2025 22:38"
-    },
-    {
-      "material": "sand",
       "materialId": "karier_seyan_myt_pesok_1.5",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "25.12.2025 23:02"
+      "DateBegin": "25.12.2025 22:15"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "25.12.2025 23:17"
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "25.12.2025 22:28"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Бронницы, Магистральная ул., 3",
-      "DateBegin": "25.12.2025 23:30"
+      "DateBegin": "25.12.2025 22:53"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
-      "DateBegin": "25.12.2025 23:57"
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "25.12.2025 23:15"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "25.12.2025 23:34"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "25.12.2025 23:52"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
       "DateBegin": "26.12.2025 07:00"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "26.12.2025 07:20"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2.5",
-      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
-      "DateBegin": "26.12.2025 07:47"
-    },
-    {
-      "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "26.12.2025 07:55"
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "26.12.2025 07:27"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Москва, Троицк, Индустриальная ул., 1",
-      "DateBegin": "26.12.2025 08:02"
+      "DateBegin": "26.12.2025 07:34"
     },
     {
       "material": "sand",
-      "materialId": "karier_seyan_myt_pesok_2",
-      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "26.12.2025 08:28"
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "26.12.2025 07:57"
     },
     {
       "material": "sand",
       "materialId": "karier_seyan_myt_pesok_2.5",
       "location": "Московская обл., Домодедово, Станционная ул., 26к3",
-      "DateBegin": "26.12.2025 08:47"
+      "DateBegin": "26.12.2025 08:19"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "26.12.2025 08:24"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "26.12.2025 08:54"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "26.12.2025 08:59"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "26.12.2025 09:13"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_neseyan_nemyt_pesok",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "26.12.2025 09:35"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "26.12.2025 09:54"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "26.12.2025 19:00"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "26.12.2025 19:28"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "26.12.2025 19:34"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_nemyt_pesok",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "26.12.2025 19:45"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "26.12.2025 19:51"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "26.12.2025 20:11"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "26.12.2025 20:37"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "26.12.2025 20:58"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_1.5",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "26.12.2025 21:03"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "26.12.2025 21:15"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Бронницы, Магистральная ул., 3",
+      "DateBegin": "26.12.2025 21:34"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "26.12.2025 21:41"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Чехов, ул. Чехова, 20Бк5",
+      "DateBegin": "26.12.2025 22:11"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "26.12.2025 22:32"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Подольск, ул. Лапшенкова, 3",
+      "DateBegin": "26.12.2025 22:37"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Москва, Троицк, Индустриальная ул., 1",
+      "DateBegin": "26.12.2025 22:43"
+    },
+    {
+      "material": "sand",
+      "materialId": "karier_seyan_myt_pesok_2.5",
+      "location": "Московская обл., Домодедово, Станционная ул., 26к3",
+      "DateBegin": "26.12.2025 23:00"
     }
   ]
 }
