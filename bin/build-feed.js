@@ -1386,7 +1386,15 @@ async function main() {
               console.log(`\n   Описание:`);
               console.log(`      Режим: автогенерация`);
               // Автогенерация описания
+<<<<<<< ours
               const materialId = rules.materialId || resolveMaterialIdFromAdId(ad.Id) || 'karier_neseyan_nemyt_pesok';
+=======
+              const materialId = rules.materialId || resolveMaterialIdFromAdId(ad.Id);
+              if (!materialId) {
+                console.warn(`      ⚠️  Не удалось определить materialId для объявления ${ad.Id}. Описание оставлено без изменений.`);
+                continue;
+              }
+>>>>>>> theirs
               const sandType = getSandType(materialId);
               
               const descResult = generateDescription(materialId, sandType?.displayName || 'Песок карьерный');
