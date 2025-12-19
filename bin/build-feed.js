@@ -444,6 +444,16 @@ function parseDateTime(str) {
   return new Date(`${yyyy}-${MM}-${dd}T${hh}:${mm}:00`);
 }
 
+function isWithinAllowedWindow(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return false;
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  const morningStart = 7 * 60;
+  const morningEnd = 10 * 60;
+  const eveningStart = 19 * 60;
+  const eveningEnd = 23 * 60 + 59;
+  return (minutes >= morningStart && minutes <= morningEnd) || (minutes >= eveningStart && minutes <= eveningEnd);
+}
+
 function formatDateTime(date) {
   if (!date) return '';
   const pad = (n) => String(n).padStart(2, '0');
@@ -459,6 +469,132 @@ function formatDateLabelForFile(date = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}`;
 }
+
+function validatePlanCounts(plan, aliases = {}) {
+  if (!plan || !Array.isArray(plan.tasks) || !Array.isArray(plan.publicationQueue)) return;
+  const materialResolver = (id) => resolveMaterialId(id, aliases);
+  const addressResolver = (addr) => resolveAddresses([addr], aliases)[0];
+
+  const taskCounts = new Map();
+  plan.tasks.forEach((task) => {
+    const materialId = materialResolver(task.materialId || task.material);
+    const locations = task.locations || [];
+    locations.forEach((loc) => {
+      const count = Number(loc.count || task.count || 0);
+      if (!count) return;
+      const address = addressResolver(loc.address);
+      const key = `${materialId}::${address}`;
+      taskCounts.set(key, (taskCounts.get(key) || 0) + count);
+    });
+  });
+
+  const queueCounts = new Map();
+  plan.publicationQueue.forEach((item) => {
+    const materialId = materialResolver(item.materialId || item.material);
+    const address = addressResolver(item.location);
+    const key = `${materialId}::${address}`;
+    queueCounts.set(key, (queueCounts.get(key) || 0) + 1);
+  });
+
+  const diff = [];
+  const keys = new Set([...taskCounts.keys(), ...queueCounts.keys()]);
+  keys.forEach((key) => {
+    const taskCnt = taskCounts.get(key) || 0;
+    const queueCnt = queueCounts.get(key) || 0;
+    if (taskCnt !== queueCnt) {
+      diff.push({ key, taskCnt, queueCnt });
+    }
+  });
+
+  if (diff.length > 0) {
+    const lines = diff
+      .slice(0, 10)
+      .map((d) => `  ${d.key}: tasks=${d.taskCnt}, queue=${d.queueCnt}`)
+      .join('\n');
+    const tail = diff.length > 10 ? '\n  ...' : '';
+    throw new Error(
+      `План не совпадает с publicationQueue по количеству объявлений. Исправьте план и повторите.\n${lines}${tail}`
+    );
+  }
+}
+
+function validatePlanWindows(queue = []) {
+  const bad = [];
+  queue.forEach((item, idx) => {
+    const dt = parseDateTime(item.DateBegin);
+    if (!dt || !isWithinAllowedWindow(dt)) {
+      bad.push({
+        index: idx + 1,
+        materialId: item.materialId || item.material || 'unknown',
+        location: item.location,
+        dateBegin: item.DateBegin || 'нет'
+      });
+    }
+  });
+  if (bad.length > 0) {
+    const lines = bad
+      .slice(0, 10)
+      .map((b) => `  #${b.index}: ${b.materialId} @ ${b.location} -> ${b.dateBegin}`)
+      .join('\n');
+    const tail = bad.length > 10 ? '\n  ...' : '';
+    throw new Error(
+      `DateBegin вне допустимых окон (07:00–10:00 или 19:00–23:59) или не распарсены. Исправьте publicationQueue.\n${lines}${tail}`
+    );
+  }
+}
+
+function validatePlanStepIntervals(queue = [], minMinutes = 5, maxMinutes = 30) {
+  if (!Array.isArray(queue) || queue.length < 2) return;
+  const bad = [];
+  const getWindowName = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+    const minutes = date.getHours() * 60 + date.getMinutes();
+    const morningStart = 7 * 60;
+    const morningEnd = 10 * 60;
+    const eveningStart = 19 * 60;
+    const eveningEnd = 23 * 60 + 59;
+    if (minutes >= morningStart && minutes <= morningEnd) return 'morning';
+    if (minutes >= eveningStart && minutes <= eveningEnd) return 'evening';
+    return null;
+  };
+
+  for (let i = 1; i < queue.length; i++) {
+    const prev = parseDateTime(queue[i - 1].DateBegin);
+    const curr = parseDateTime(queue[i].DateBegin);
+    if (!prev || !curr) {
+      bad.push({ index: i + 1, prev: queue[i - 1].DateBegin, curr: queue[i].DateBegin, diff: 'n/a' });
+      continue;
+    }
+    const diffMin = (curr.getTime() - prev.getTime()) / (60 * 1000);
+    const prevWindow = getWindowName(prev);
+    const currWindow = getWindowName(curr);
+    const windowsDiffer = prevWindow && currWindow && prevWindow !== currWindow;
+
+    if (windowsDiffer) {
+      // Переход между окнами допускает большой разрыв, но не допускает слишком маленький шаг
+      if (diffMin < minMinutes) {
+        bad.push({ index: i + 1, prev: queue[i - 1].DateBegin, curr: queue[i].DateBegin, diff: diffMin.toFixed(1) });
+      }
+      continue;
+    }
+
+    if (diffMin < minMinutes || diffMin > maxMinutes) {
+      bad.push({ index: i + 1, prev: queue[i - 1].DateBegin, curr: queue[i].DateBegin, diff: diffMin.toFixed(1) });
+    }
+  }
+  if (bad.length > 0) {
+    const lines = bad
+      .slice(0, 10)
+      .map((b) => `  #${b.index}: ${b.prev} -> ${b.curr} (Δ=${b.diff} мин)`)
+      .join('\n');
+    const tail = bad.length > 10 ? '\n  ...' : '';
+    throw new Error(
+      `Шаг между публикациями вне допустимых границ (${minMinutes}–${maxMinutes} минут). Исправьте publicationQueue.\n${lines}${tail}`
+    );
+  }
+}
+
+export { validatePlanCounts, validatePlanWindows, validatePlanStepIntervals, parseDateTime, isWithinAllowedWindow };
 
 async function httpRequest(url, options = {}, body) {
   return new Promise((resolve, reject) => {
@@ -935,9 +1071,10 @@ async function main() {
   let currentStep = 0;
   let currentStepName = '';
   const startTime = Date.now(); // Объявляем до блока try, чтобы была доступна в catch
+  let opts;
   
   try {
-    const opts = parseArgs();
+    opts = parseArgs();
     console.log('НАЧАЛО ГЕНЕРАЦИИ ФИДА АВИТО');
     console.log('═══════════════════════════════════════════════════════════════');
     console.log(`Время запуска: ${formatMoscowTime(new Date(startTime))}`);
@@ -986,6 +1123,12 @@ async function main() {
     if (aliases.addresses && Object.keys(aliases.addresses).length > 0) {
       console.log(`   Алиасы адресов: ${Object.keys(aliases.addresses).length}`);
     }
+    // Жёсткая проверка соответствия задач и очереди, чтобы не получить смещение дат
+    validatePlanCounts(plan, aliases);
+    // Проверка попадания времен публикации в разрешённые окна
+    validatePlanWindows(publicationQueue);
+    // Проверка шагов между публикациями
+    validatePlanStepIntervals(publicationQueue, 5, 30);
     
     // 2. Читаем Excel с текущими объявлениями
     currentStep = 2;
@@ -1205,7 +1348,8 @@ async function main() {
             }
             console.log(`   ⚠️  Фото останется из Excel: ${ad.photoLink || 'не указано'}`);
             skippedCount++;
-            // Продолжаем обработку остальных объявлений (не бросаем ошибку)
+            // Останавливаем процесс: нельзя продолжать с неполным набором фото
+            throw new Error(`Обновление фото для старого объявления ${ad.Id} не удалось: ${err.message}`);
           }
         }
         console.log(`\n${'═'.repeat(60)}`);
@@ -1740,13 +1884,42 @@ async function main() {
         const adIdsFromXml = allAds
           .map(ad => ad.adId || ad.Id || ad.id)
           .filter(Boolean);
-        const xmlManifestPath = path.join(opts.outDir, `ads_${dateLabelForFile}_manifest.json`);
-        fs.writeFileSync(xmlManifestPath, JSON.stringify({
-          date: dateLabelForFile,
-          timestamp: new Date().toISOString(),
-          adIds: adIdsFromXml,
-          count: adIdsFromXml.length
-        }, null, 2), 'utf8');
+      const xmlManifestPath = path.join(opts.outDir, `ads_${dateLabelForFile}_manifest.json`);
+      fs.writeFileSync(xmlManifestPath, JSON.stringify({
+        date: dateLabelForFile,
+        timestamp: new Date().toISOString(),
+        adIds: adIdsFromXml,
+        count: adIdsFromXml.length
+      }, null, 2), 'utf8');
+
+      // Сохраняем build-log для быстрой диагностики
+      try {
+        const buildLogPath = path.join(opts.outDir, `build-log_${dateLabelForFile}.json`);
+        const buildLog = {
+          status: 'success',
+          startTime: new Date(startTime).toISOString(),
+          endTime: new Date().toISOString(),
+          durationSeconds: Math.floor((Date.now() - startTime) / 1000),
+          plan: {
+            tasks: plan.tasks?.length || 0,
+            publicationQueue: publicationQueue.length
+          },
+          ads: {
+            old: oldAdsCount,
+            generated: newAdsCount,
+            total: totalAdsCount
+          },
+          files: {
+            xml: path.basename(xmlFilePath),
+            manifest: path.basename(xmlManifestPath),
+            photosMapping: finalPhotosPath ? path.basename(finalPhotosPath) : null
+          }
+        };
+        fs.writeFileSync(buildLogPath, JSON.stringify(buildLog, null, 2), 'utf8');
+        console.log(`   build-log: ${path.basename(buildLogPath)}`);
+      } catch (e) {
+        console.log(`   ⚠️  Не удалось записать build-log: ${e.message}`);
+      }
         
         console.log(`\n${'═'.repeat(60)}`);
         console.log(`   ФИНАЛЬНЫЙ XML СОЗДАН`);
@@ -1944,6 +2117,30 @@ async function main() {
     const minutes = Math.floor(durationSeconds / 60);
     const seconds = durationSeconds % 60;
     const durationFormatted = minutes > 0 ? `${minutes} мин ${seconds} сек` : `${seconds} сек`;
+    // Пишем build-log в случае ошибки
+    try {
+      const outDir = (opts && opts.outDir) || DEFAULT_OUTPUT_DIR;
+      if (!fs.existsSync(outDir)) {
+        fs.mkdirSync(outDir, { recursive: true });
+      }
+      const errLogPath = path.join(outDir, `build-log_error_${formatDateLabelForFile(new Date())}.json`);
+      const errLog = {
+        status: 'error',
+        message: err.message,
+        stack: err.stack ? err.stack.split('\n').slice(0, 5).join('\n') : '',
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date().toISOString(),
+        durationSeconds,
+        plan: {
+          tasks: plan?.tasks?.length || 0,
+          publicationQueue: plan?.publicationQueue?.length || 0
+        }
+      };
+      fs.writeFileSync(errLogPath, JSON.stringify(errLog, null, 2), 'utf8');
+      console.log(`\n   ⚠️  build-log (ошибка): ${path.basename(errLogPath)}`);
+    } catch (logErr) {
+      console.log(`\n   ⚠️  Не удалось записать build-log об ошибке: ${logErr.message}`);
+    }
     
     // Очищаем временную историю при ошибке
     try {

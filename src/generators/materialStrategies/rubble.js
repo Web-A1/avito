@@ -30,11 +30,13 @@ export const RUBBLE_DUPLICATE_CONFIG = {
   block7Fields: [
     'volume',
     'truck',
-    'concreteGrade',
-    'frostResistance',
-    'flakinessIndex',
+    'xpc',
+    'gp',
     'density',
-    'compactionCoefficient'
+    'module',
+    'fraction',
+    'pnr',
+    'psi'
   ],
   minMainDifferences: 3,
   minBlock7Differences: 5

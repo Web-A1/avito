@@ -25,13 +25,17 @@
   <div class="hint">
     Локации распределяются автоматически: песок — по всем 5 точкам в системе; щебень — только по Подольску и Домодедово.
   </div>
+  <div style="margin:6px 0;">Seed генерации: <span id="seedDisplay"></span></div>
   <div id="tasks"></div>
   <button id="addTask">+ Товар</button>
 
   <div style="margin-top:12px;">
     <div id="warn" style="color:#c00; margin-top:6px;"></div>
     <pre id="output"></pre>
-    <button id="download" style="margin-top:8px;">Скачать plan.json</button>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button id="reshuffle">Перегенерировать расписание</button>
+      <button id="download">Скачать plan.json</button>
+    </div>
   </div>
   <div style="margin-top:16px;">
     <h4>Тестовый сценарий</h4>
@@ -72,7 +76,29 @@
     const addTaskBtn = document.getElementById('addTask');
     const outputPre = document.getElementById('output');
     const downloadBtn = document.getElementById('download');
+    const reshuffleBtn = document.getElementById('reshuffle');
     const warnDiv = document.getElementById('warn');
+    const seedDisplay = document.getElementById('seedDisplay');
+    const MIN_STEP_MIN = 5;
+    const MAX_STEP_MIN = 30;
+    const ALLOWED_WINDOWS = [
+      { startMin: 7 * 60, endMin: 10 * 60 },          // 07:00–10:00
+      { startMin: 19 * 60, endMin: 23 * 60 + 59 }     // 19:00–23:59
+    ];
+    let currentSeed = Math.floor(Date.now()) >>> 0;
+    let randomState = currentSeed;
+
+    function reseed(seed) {
+      currentSeed = (seed >>> 0) || 1;
+      randomState = currentSeed;
+      seedDisplay.textContent = currentSeed;
+    }
+
+    function seededRandom() {
+      // LCG: повторяемый и быстрый
+      randomState = (1664525 * randomState + 1013904223) % 4294967296;
+      return randomState / 4294967296;
+    }
 
     function pad2(n) {
       return String(n).padStart(2, '0');
@@ -85,11 +111,7 @@
 
     function isWithinAllowedWindow(date) {
       const minutes = date.getHours() * 60 + date.getMinutes();
-      const morningStart = 7 * 60;
-      const morningEnd = 10 * 60;
-      const eveningStart = 19 * 60;
-      const eveningEnd = 23 * 60 + 59;
-      return (minutes >= morningStart && minutes <= morningEnd) || (minutes >= eveningStart && minutes <= eveningEnd);
+      return ALLOWED_WINDOWS.some(window => minutes >= window.startMin && minutes <= window.endMin);
     }
 
     function alignToAllowedWindow(date) {
@@ -97,9 +119,9 @@
         return date;
       }
       const minutes = date.getHours() * 60 + date.getMinutes();
-      const morningStart = 7 * 60;
-      const morningEnd = 10 * 60;
-      const eveningStart = 19 * 60;
+      const morningStart = ALLOWED_WINDOWS[0].startMin;
+      const morningEnd = ALLOWED_WINDOWS[0].endMin;
+      const eveningStart = ALLOWED_WINDOWS[1].startMin;
       if (minutes < morningStart) {
         date.setHours(7, 0, 0, 0);
         return date;
@@ -123,7 +145,7 @@
     }
 
     function randomInt(min, max) {
-      return Math.floor(Math.random() * (max - min + 1)) + min;
+      return Math.floor(seededRandom() * (max - min + 1)) + min;
     }
 
     function getLocationsByMaterial(material) {
@@ -197,6 +219,11 @@
       tasksDiv.appendChild(createTask());
       updateOutput();
     };
+    // Явная кнопка для перегенерации расписания без изменения товаров
+    reshuffleBtn.onclick = () => {
+      reseed(Date.now());
+      updateOutput();
+    };
     // начальный товар
     tasksDiv.appendChild(createTask());
 
@@ -242,7 +269,7 @@
       let current = new Date(baseDate.getTime());
       queue.forEach((item, idx) => {
         if (idx > 0) {
-          const stepMinutes = randomInt(5, 30);
+          const stepMinutes = randomInt(MIN_STEP_MIN, MAX_STEP_MIN);
           current = new Date(current.getTime() + stepMinutes * 60 * 1000);
         }
         current = alignToAllowedWindow(current);
@@ -255,6 +282,8 @@
     }
 
     function buildPlan() {
+      // Сбрасываем RNG для детерминизма на текущем seed
+      randomState = currentSeed;
       const dateBeginDt = getDateBegin();
       const dateBegin = formatDateFromDate(dateBeginDt);
       const taskNodes = tasksDiv.querySelectorAll('.task-card');
@@ -342,10 +371,26 @@
       return { valid: true, message: '' };
     }
 
+    function calcCapacityPerDay(stepMinutes) {
+      const totalMinutes = ALLOWED_WINDOWS.reduce((acc, w) => acc + (w.endMin - w.startMin), 0);
+      return Math.max(1, Math.floor(totalMinutes / stepMinutes) + 1); // +1, т.к. первое объявление в начале окна
+    }
+
+    function buildCapacityHint(total) {
+      const maxPerDay = calcCapacityPerDay(MIN_STEP_MIN); // плотный режим (5 минут)
+      const minPerDay = calcCapacityPerDay(MAX_STEP_MIN); // редкий режим (30 минут)
+      const avgPerDay = calcCapacityPerDay(Math.round((MIN_STEP_MIN + MAX_STEP_MIN) / 2));
+      const minDays = Math.ceil(total / maxPerDay);       // минимум дней, если ставить каждые 5 минут
+      const maxDays = Math.ceil(total / minPerDay);       // максимум дней, если ставить каждые 30 минут
+      const approxDays = Math.ceil(total / avgPerDay);    // грубая оценка по среднему шагу
+      return `Публикаций: ${total}. В день влезает: ~${avgPerDay} (мин ${minPerDay}, макс ${maxPerDay}). Оценка дней: ~${approxDays} (минимум ${minDays}, максимум ${maxDays}).`;
+    }
+
     function updateOutput() {
       const plan = buildPlan();
       const validation = validatePlan(plan);
-      warnDiv.textContent = validation.message;
+      const capacityHint = buildCapacityHint(plan.publicationQueue.length || 0);
+      warnDiv.textContent = [validation.message, capacityHint].filter(Boolean).join(' ');
       downloadBtn.disabled = !validation.valid;
       dateBeginDisplay.textContent = plan.DateBegin || '';
       outputPre.textContent = JSON.stringify(plan, null, 2);
@@ -353,6 +398,7 @@
     }
 
     tasksDiv.addEventListener('input', updateOutput);
+    reseed(currentSeed);
     updateOutput();
 
     downloadBtn.onclick = () => {

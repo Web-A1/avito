@@ -123,18 +123,20 @@ export const BLOCK_7_TEMPLATE_HTML = (params) => {
 // HTML формат: простой текст с <br> для переносов строк
 export const RUBBLE_BLOCK_7_TEMPLATE_HTML = (params) => {
   const {
-    fraction, // Фракция (например, "5–20" или "40–70")
+    materialLabel, // Название материала для заголовка блока
     volume, // Объём партии в м³
     truckBrand, // Марка самосвала
     truckNumber, // Номер машины
-    concreteGrade, // Марка по прочности (число, без "М")
-    frostResistance, // Морозостойкость (число, без "F")
-    flakinessIndex, // Индекс лещадности (группа)
-    density, // Насыпная плотность (т/м³)
-    compactionCoefficient // Коэффициент уплотнения
+    xpc, // Содержание ХПЧ (%)
+    gp, // Содержание ГП (%)
+    density, // Насыпная плотность (кг/м³)
+    module, // Модуль крупности (рандомный)
+    fraction, // Фракция А (рандомная)
+    pnr, // Коэф ПНР
+    psi // Коэф 𝜓
   } = params;
 
-  return `<p>Щебень вторичный ${fraction}:<br> - фракция: ${fraction}<br> - объём партии: ${volume} м³<br> - самосвал: ${truckBrand} гос. номер: ${truckNumber}<br> - марка по прочности: М${concreteGrade}<br> - морозостойкость: F${frostResistance}<br> - индекс лещадности: ${flakinessIndex} группа<br> - насыпная плотность: ${density} т/м³<br> - коэффициент уплотнения: ${compactionCoefficient}</p>`;
+  return `<p>${materialLabel}:<br> - объем: ${volume} м³<br> - самосвал: ${truckBrand} гос. номер: ${truckNumber}<br> - содержание ХПЧ: ${xpc} %<br> - содержание ГП: ${gp} %<br> - насыпная плотность D: ${density} кг/м³<br> - модуль А: ${module}<br> - фракция А: ${fraction}<br> - коэф ПНР: ${pnr} кг/см²<br> - коэф 𝜓: ${psi}</p>`;
 };
 
 // Пример использования шаблона Блока 7:
