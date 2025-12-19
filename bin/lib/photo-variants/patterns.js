@@ -182,10 +182,10 @@ export function calculateAdaptiveOpacity(stats) {
     Math.abs(meanG - meanB) < 25;
 
   if (isWarmSandLike && inSandBrightnessRange && inSandDetailRange) {
-    // Песок: заметный, но мягкий (~52–62%)
-    const base = Math.max(adjustedOpacity, 0.54);
-    minOpacity = Math.max(0.52, base * 0.96);
-    maxOpacity = Math.min(0.62, base * 1.06);
+    // Песок: делаем ВЗ заметнее, чтобы он не терялся на светлом тёплом фоне (~60–72%).
+    const base = Math.max(adjustedOpacity, 0.62);
+    minOpacity = Math.max(0.60, base * 0.96);
+    maxOpacity = Math.min(0.72, base * 1.06);
   } else if (isRubbleLike) {
     // Щебень/серый камень: заметный, но ещё более деликатный ВЗ (~46–60%).
     const base = Math.max(adjustedOpacity, 0.48);
@@ -224,10 +224,16 @@ export function pickTextPalette(stats, forcedColor) {
     avg <= 170 &&
     Math.abs(meanR - meanG) < 20 &&
     Math.abs(meanG - meanB) < 20;
+  const isWarmSandLike = meanR > meanG && meanG > meanB && (meanR - meanB) > 45;
 
   if (isRubbleLike) {
     // Для щебня используем полупрозрачные белые буквы БЕЗ тёмного контура.
     return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'rubble' };
+  }
+
+  if (isWarmSandLike) {
+    // Для тёплого песка добавляем деликатный тёмный контур для читаемости.
+    return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,1)', mode: 'sand' };
   }
 
   if (avg >= 170) {
@@ -255,6 +261,11 @@ export function buildTextPatternSvg(width, height, text, opacity, fillColor, str
     // На светлых фонах умеренный контур.
     strokeOpacity = 0.35;
     strokeWidth = 1.1;
+  }
+  if (mode === 'sand') {
+    // Тёплый песок: чуть менее агрессивный контур, но заметный.
+    strokeOpacity = 0.25;
+    strokeWidth = 1.0;
   }
   const pad = fontSize * 1.1;
   const offsetX = randomBetween(-tileW * 0.5, tileW * 0.5);
