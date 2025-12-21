@@ -83,7 +83,7 @@ export function generateDescription(sandTypeId, sandTypeDisplayName) {
   const block1 = `<p>${getBlock1(sandTypeId, module)}</p>`;
   const block2 = getBlock2(sandTypeId);
   const block3 = BLOCK_3_CALL_TO_ACTION_HTML;
-  const block4 = `<p>${BLOCK_4_ADVANTAGES_HTML}</p>`;
+  const block4 = BLOCK_4_ADVANTAGES_HTML;
   const block5 = BLOCK_5_WORK_HOURS_HTML;
   const block6 = BLOCK_6_ASSORTMENT_SAND_HTML;
 
@@ -122,7 +122,6 @@ export function generateDescription(sandTypeId, sandTypeDisplayName) {
     block1Variant: block1
   };
 }
-
 
 
 

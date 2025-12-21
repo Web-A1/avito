@@ -16,16 +16,13 @@ const LENGTH_MAX = 30;
 const DEFAULT_LINE_CHAR = '_';
 const BLOCK2_LINE_CHAR = '=';
 
-// Варианты пробелов
+// Варианты пробелов вокруг линии (для лёгкой вариативности без лишних <br>)
 const SPACE_VARIANTS = {
   NONE: '',
   START: ' ',
   END: ' ',
   BOTH: ' '
 };
-
-// HTML-обертка: фиксированный формат <br> линия <br> <br>
-const HTML_WRAPPER = { before: '<br>', after: '<br> <br>' };
 
 /**
  * Генерирует строку подчеркивания заданной длины
@@ -46,26 +43,24 @@ function generateLine(length, lineChar) {
  */
 export function generateSeparator(length, lineChar) {
   const line = generateLine(length, lineChar);
-  
-  // 2. Выбираем вариант пробелов (с вероятностью 30%)
+
+  // Лёгкая вариативность пробелов вокруг линии
   let spaceBefore = '';
   let spaceAfter = '';
   if (Math.random() < 0.3) {
-    const spaceVariant = Math.random();
-    if (spaceVariant < 0.33) {
+    const variant = Math.random();
+    if (variant < 0.33) {
       spaceBefore = SPACE_VARIANTS.START;
-    } else if (spaceVariant < 0.66) {
+    } else if (variant < 0.66) {
       spaceAfter = SPACE_VARIANTS.END;
     } else {
       spaceBefore = SPACE_VARIANTS.START;
       spaceAfter = SPACE_VARIANTS.END;
     }
   }
-  
-  // 3. Фиксированная HTML-обертка
-  const separator = HTML_WRAPPER.before + spaceBefore + line + spaceAfter + HTML_WRAPPER.after;
-  
-  return separator;
+
+  // Оборачиваем линию в <p> — единый отступ без двойных <br>
+  return `<p>${spaceBefore}${line}${spaceAfter}</p>`;
 }
 
 /**
@@ -79,10 +74,8 @@ export function generateSeparators() {
   const length = Math.floor(Math.random() * (LENGTH_MAX - LENGTH_MIN + 1)) + LENGTH_MIN;
 
   for (let i = 0; i < 6; i++) {
-    // Разделитель после блока 2 (индекс 1) — может использовать '='
     const isAfterBlock2 = i === 1;
     const lineChar = isAfterBlock2 && Math.random() < 0.5 ? BLOCK2_LINE_CHAR : DEFAULT_LINE_CHAR;
-
     separators.push(generateSeparator(length, lineChar));
   }
 

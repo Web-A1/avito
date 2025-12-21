@@ -20,7 +20,8 @@ import {
   BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML,
   BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS,
   BLOCK_2_SHEBEN_VTORICHNYI_40_70_HTML,
-  BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS
+  BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS,
+  getBlock2Intro
 } from '../../../constants/block1And2.js';
 
 function getRubbleBlock1(rubbleTypeId) {
@@ -43,7 +44,8 @@ function getRubbleBlock2(rubbleTypeId) {
       BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS[
         Math.floor(Math.random() * BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS.length)
       ];
-    return `<p><strong>${heading}</strong></p>${BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML}`;
+    const intro = getBlock2Intro(rubbleTypeId);
+    return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML}<p>Минимальный объём поставки — 20 м³ (1 самосвал)</p>`;
   }
 
   if (rubbleTypeId === 'scheben_vtorichnyi_40_70') {
@@ -51,14 +53,16 @@ function getRubbleBlock2(rubbleTypeId) {
       BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS[
         Math.floor(Math.random() * BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS.length)
       ];
-    return `<p><strong>${heading}</strong></p>${BLOCK_2_SHEBEN_VTORICHNYI_40_70_HTML}`;
+    const intro = getBlock2Intro(rubbleTypeId);
+    return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SHEBEN_VTORICHNYI_40_70_HTML}<p>Минимальный объём поставки — 20 м³ (1 самосвал)</p>`;
   }
 
   const heading =
     BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS[
       Math.floor(Math.random() * BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS.length)
     ];
-  return `<p><strong>${heading}</strong></p>${BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML}`;
+  const intro = getBlock2Intro('scheben_vtorichnyi_5_20');
+  return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML}<p>Минимальный объём поставки — 20 м³ (1 самосвал)</p>`;
 }
 
 function assembleBlocks(blocks, blockOrder) {
@@ -78,7 +82,7 @@ export function generateRubbleDescription(rubbleTypeId, options = {}) {
   const block1 = `<p>${block1Text}</p>`;
   const block2 = getRubbleBlock2(typeId);
   const block3 = BLOCK_3_CALL_TO_ACTION_HTML;
-  const block4 = `<p>${BLOCK_4_ADVANTAGES_HTML}</p>`;
+  const block4 = BLOCK_4_ADVANTAGES_HTML;
   const block5 = BLOCK_5_WORK_HOURS_HTML;
   const block6 = BLOCK_6_ASSORTMENT_RUBBLE_HTML;
   const block7 = RUBBLE_BLOCK_7_TEMPLATE_HTML(block7Params);
@@ -116,4 +120,3 @@ export function generateRubbleDescription(rubbleTypeId, options = {}) {
     block1Variant: block1
   };
 }
-
