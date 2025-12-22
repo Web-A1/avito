@@ -46,6 +46,7 @@ import { applyTransformations } from './lib/photo-variants/transformations.js';
 import { collectSourcesFromPlan } from './lib/photo-variants/plan.js';
 import { generateAdId, getMaterialAlias, getCityAlias, parseAdId } from '../src/constants/materialAliases.js';
 import { readCurrentAdsFromXlsx } from '../src/utils/currentAdsReader.js';
+import { loadWatermarkOverrides, findWatermarkOverride } from './lib/photo-variants/watermark-overrides.js';
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -57,11 +58,13 @@ function parseArgs() {
     textWatermark: 'NERUDA', // Дефолтный водяной знак
     textOpacity: '',
     textColor: '',
+    watermarkOverrides: '',
     ignoreHistory: false,
     overshoot: 0,
     plan: '',
     runLabel: '',
-    parallel: 0 // 0 = auto (6-10 в зависимости от размера изображения)
+    parallel: 0, // 0 = auto (6-10 в зависимости от размера изображения)
+    flatOut: false // Сохранять все сгенерированные фото в одну общую папку out
   };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -79,6 +82,8 @@ function parseArgs() {
       opts.textOpacity = parseFloat(args[++i]);
     } else if (arg === '--text-color' && args[i + 1]) {
       opts.textColor = args[++i];
+    } else if ((arg === '--wm-overrides' || arg === '--watermark-overrides') && args[i + 1]) {
+      opts.watermarkOverrides = args[++i];
     } else if (arg === '--ignore-history') {
       opts.ignoreHistory = true;
     } else if (arg === '--overshoot' && args[i + 1]) {
@@ -89,6 +94,8 @@ function parseArgs() {
       opts.runLabel = args[++i];
     } else if (arg === '--parallel' && args[i + 1]) {
       opts.parallel = parseInt(args[++i], 10);
+    } else if (arg === '--flat-out') {
+      opts.flatOut = true;
     }
   }
   return opts;
@@ -115,7 +122,9 @@ async function generateVariants({
   counterOffset = 0,  // Смещение счётчика для батчевой обработки источников
   totalPhotosInLocation = 0,  // Общее количество фото для этой локации
   globalPhotoIndex = 0,  // Глобальный индекс фото (для нумерации 1/10, 2/10 и т.д.)
-  totalPhotosGlobal = 0  // Общее количество фото по всем локациям (для сквозной нумерации)
+  totalPhotosGlobal = 0,  // Общее количество фото по всем локациям (для сквозной нумерации)
+  flatOut = false,
+  watermarkOverrides = {}
 }) {
   if (!input) throw new Error('Укажите --input путь к исходному фото');
 
@@ -126,7 +135,6 @@ async function generateVariants({
     throw new Error('Не удалось прочитать размер исходного изображения');
   }
   const stats = await sharp(baseBuffer).stats();
-  const palette = pickTextPalette(stats, textColor);
   // safeAddress теперь приходит из параметров (уже нормализованный в plan.js)
   const safeAddr = safeAddress || sanitizeName(address || 'default');
   const baseDir = materialId ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddr) : out;
@@ -390,7 +398,9 @@ async function generateVariants({
     // Объявляем variantDir ДО блока if/else, чтобы он был доступен везде
     const variantDir = materialId
       ? path.join(DEFAULT_PHOTOS_ROOT, materialId, safeAddr, 'variants')
-      : path.join(out, baseName, safeAddr, 'variants');
+      : flatOut
+        ? out
+        : path.join(out, baseName, safeAddr, 'variants');
     
     if (baseOnly) {
       if (!fs.existsSync(variantDir)) {
@@ -467,8 +477,8 @@ async function generateVariants({
       // Создаём флагманский файл: используем файл с "fs" в имени если есть и это первое фото первого исходника без флагманского, иначе baseBuffer
       let sourceBuffer = baseBuffer;
       let sourceMeta = meta;
-      let sourcePalette = palette;
-      let sourceStats = stats;
+  let sourcePalette = null;
+  let sourceStats = stats;
       
           // Используем файл с "fs" в имени ТОЛЬКО для первого фото первого исходника (counterOffset === 0), если флагманское объявление еще не было
       if (idx === 0 && counterOffset === 0 && !hasFlagshipAd && flagshipSource && fs.existsSync(flagshipSource)) {
@@ -480,7 +490,7 @@ async function generateVariants({
         const sourceImage = sharp(sourceBuffer);
         sourceMeta = await sourceImage.metadata();
         sourceStats = await sharp(sourceBuffer).stats();
-        sourcePalette = pickTextPalette(sourceStats, textColor);
+        // Палитру рассчитываем позже с учётом возможных оверрайдов
       } else {
         // Для всех остальных случаев используем текущий исходник (input)
         if (idx === 0 && hasFlagshipAd) {
@@ -496,27 +506,43 @@ async function generateVariants({
       if (textWatermark) {
         // АДАПТИВНЫЙ OPACITY на основе визуального контраста и детализированности
         const { minOpacity, maxOpacity } = calculateAdaptiveOpacity(sourceStats);
+        const wmOverride = findWatermarkOverride(watermarkOverrides, actualSourceFileName || input);
+        const effectiveTextWatermark = wmOverride?.textWatermark || textWatermark;
+        const effectiveTextColor = wmOverride?.textColor || textColor;
+        const overridePatternOpacity = wmOverride && typeof wmOverride.patternOpacity === 'number'
+          ? wmOverride.patternOpacity
+          : undefined;
+        const overrideTextOpacity = wmOverride && typeof wmOverride.textOpacity === 'number'
+          ? wmOverride.textOpacity
+          : undefined;
+        sourcePalette = pickTextPalette(sourceStats, effectiveTextColor);
         
         const basePatternOpacity =
-          typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
+          typeof overridePatternOpacity === 'number' && !Number.isNaN(overridePatternOpacity) && overridePatternOpacity > 0
+            ? overridePatternOpacity
+            : typeof forcedPatternOpacity === 'number' && !Number.isNaN(forcedPatternOpacity) && forcedPatternOpacity > 0
             ? forcedPatternOpacity
             : 0.05;
         
         // Используем адаптивный диапазон для всех режимов
         // Фиксированный opacity: берём середину диапазона, без рандома
         const baseValue = (minOpacity + maxOpacity) / 2;
-        const textOpacity =
-          clampOpacity(
-            typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
-              ? forcedTextOpacity
-              : baseValue,
-            minOpacity,
-            maxOpacity
-          ) || minOpacity;
+        const hasOverrideOpacity =
+          typeof overrideTextOpacity === 'number' && !Number.isNaN(overrideTextOpacity) && overrideTextOpacity > 0;
+        const textOpacity = hasOverrideOpacity
+          // Для точечного оверрайда не ограничиваем адаптивным диапазоном, чтобы значение применялось буквально
+          ? clampOpacity(overrideTextOpacity, 0.02, 1)
+          : clampOpacity(
+              typeof forcedTextOpacity === 'number' && !Number.isNaN(forcedTextOpacity) && forcedTextOpacity > 0
+                ? forcedTextOpacity
+                : baseValue,
+              minOpacity,
+              maxOpacity
+            ) || minOpacity;
         const textSvg = buildTextPatternSvg(
           sourceMeta.width,
           sourceMeta.height,
-          textWatermark,
+          effectiveTextWatermark,
           textOpacity,
           sourcePalette.fill,
           sourcePalette.stroke || sourcePalette.fill,
@@ -956,6 +982,10 @@ async function main() {
   try {
     const opts = parseArgs();
     const planPath = opts.plan || (fs.existsSync(DEFAULT_PLAN_PATH) ? DEFAULT_PLAN_PATH : '');
+    const overridesPath = opts.watermarkOverrides
+      ? path.resolve(opts.watermarkOverrides)
+      : path.join(process.cwd(), 'data', 'watermark-overrides.json');
+    const watermarkOverrides = loadWatermarkOverrides(overridesPath);
     let plan = null;
     let aliases = { materials: {}, photos: {} };
     if (planPath) {
@@ -1064,7 +1094,8 @@ async function main() {
           counterOffset,  // Передаём смещение для продолжения счётчика
           totalPhotosInLocation,  // Общее количество фото для этой локации
           globalPhotoIndex,  // Глобальный индекс для нумерации
-          totalPhotosGlobal  // Общее количество фото по всем локациям
+          totalPhotosGlobal,  // Общее количество фото по всем локациям
+          watermarkOverrides
         });
         counterOffset += perFile;  // Увеличиваем смещение на кол-во созданных фото
         globalPhotoIndex += perFile;  // Увеличиваем глобальный индекс

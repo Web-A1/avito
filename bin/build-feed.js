@@ -920,8 +920,8 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
     
     // Вычисляем адаптивный opacity для водяного знака
     const { minOpacity, maxOpacity } = calculateAdaptiveOpacity(finalStats);
-    // Используем адаптивный диапазон (как в основном скрипте)
-    const baseValue = minOpacity + Math.random() * (maxOpacity - minOpacity);
+    // Единый подход: детерминированный базовый opacity = середина диапазона
+    const baseValue = (minOpacity + maxOpacity) / 2;
     const textOpacityValue = clampOpacity(
       (typeof textOpacity === 'number' && !Number.isNaN(textOpacity) && textOpacity > 0)
         ? textOpacity

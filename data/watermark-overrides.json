@@ -1,0 +1,43 @@
+{
+  "files": {
+    "s00_2": {
+      "textOpacity": 0.3
+    },
+    "s00_3": {
+      "textOpacity": 0.28
+    },
+    "s00_4": {
+      "textOpacity": 0.2
+    },
+    "s00_5": {
+      "textOpacity": 0.17
+    },
+    "s00_6": {
+      "textOpacity": 0.28
+    },
+    "s00_7": {
+      "textOpacity": 0.38
+    },
+    "s00_8": {
+      "textOpacity": 0.25
+    },
+    "s00_9": {
+      "textOpacity": 0.33
+    },
+    "s00_10": {
+      "textOpacity": 0.25
+    },
+    "s00_11": {
+      "textOpacity": 0.22
+    },
+    "s00_12": {
+      "textOpacity": 0.13
+    },
+    "s00_13": {
+      "textOpacity": 0.13
+    },
+    "s00_fs": {
+      "textOpacity": 0.13
+    }
+  }
+}

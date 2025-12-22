@@ -92,7 +92,8 @@ pub fn run() {
     }
 
     // Чтение правил обновления (для будущих шагов)
-    let update_rules = feed_core::read_update_rules(&args.update_rules).ok();
+    let update_rules_path = resolve_optional_parent(&args.update_rules);
+    let update_rules = feed_core::read_update_rules(&update_rules_path).ok();
 
     // Фото-этапы через JS (опционально) или чтение готового маппинга
     let mut photo_map: Option<HashMap<String, String>> = None;
@@ -302,6 +303,20 @@ fn fail(err: PlanValidationError) -> ! {
     std::process::exit(1);
 }
 
+/// Если файл по относительному пути не найден, пробуем подняться на уровень выше (удобно при запуске из rust/).
+fn resolve_optional_parent(path: &PathBuf) -> PathBuf {
+    if path.exists() {
+        return path.clone();
+    }
+    if !path.is_absolute() {
+        let mut alt = PathBuf::from("..");
+        alt.push(path);
+        if alt.exists() {
+            return alt;
+        }
+    }
+    path.clone()
+}
 fn mapping_key(item: &feed_core::PhotoMappingItem) -> Option<String> {
     if let Some(id) = &item.avito_id {
         return Some(id.clone());

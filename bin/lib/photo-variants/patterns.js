@@ -213,6 +213,25 @@ export function calculateAdaptiveOpacity(stats) {
       minOpacity = Math.max(0.38, base * 0.96);
       maxOpacity = Math.min(0.50, base * 1.08);
     }
+  } else if (isRubbleLike) {
+    // Щебень/серый камень: делим на три подрежима.
+    const highDetailMidBright = avgBrightness >= 118 && avgBrightness <= 130 && avgStdev >= 78;
+    const softenedMidBright = !highDetailMidBright && avgBrightness >= 125 && avgBrightness <= 142 && avgStdev >= 60;
+    if (highDetailMidBright) {
+      // Очень детализированный средне-яркий щебень: делаем заметнее.
+      const base = Math.max(adjustedOpacity, 0.58);
+      minOpacity = Math.max(0.55, base * 0.96);
+      maxOpacity = Math.min(0.75, base * 1.05);
+    } else if (softenedMidBright) {
+      // Проблемные кадры, где ВЗ "горит" — ослабляем.
+      const base = Math.max(adjustedOpacity, 0.34);
+      minOpacity = Math.max(0.30, base * 0.95);
+      maxOpacity = Math.min(0.48, base * 1.06);
+    } else {
+      // Остальное: оставляем плотный ВЗ, чтобы его было видно на грубой фактуре.
+      minOpacity = 1.0;
+      maxOpacity = 1.0;
+    }
   } else if (isLowDetailMidtone) {
     // Средняя яркость и низкая детализация (немытый песок) → уверенный ВЗ.
     const base = Math.max(adjustedOpacity, 0.38);
@@ -223,11 +242,6 @@ export function calculateAdaptiveOpacity(stats) {
     const base = Math.max(adjustedOpacity, 0.34 + Math.max(0, (avgStdev - 55) * 0.0025));
     minOpacity = Math.max(0.32, base * 0.95);
     maxOpacity = Math.min(0.50, base * 1.10);
-  } else if (isRubbleLike) {
-    // Щебень/серый камень: заметный, без излишней агрессии.
-    const base = Math.max(adjustedOpacity, avgBrightness < 130 ? 0.56 : 0.60);
-    minOpacity = Math.max(0.56, base * 0.97);
-    maxOpacity = Math.min(0.72, base * 1.12);
   } else if (avgBrightness > 195 && avgStdev < 45) {
     // Очень светлые нейтральные фото (снег, светлый бетон и т.п.)
     const base = Math.max(adjustedOpacity, 0.44);
@@ -274,7 +288,7 @@ export function pickTextPalette(stats, forcedColor) {
   const isWarmSandLike = meanR > meanG && meanG > meanB && (meanR - meanB) > 45;
 
   if (isRubbleLike) {
-    // Для щебня используем полупрозрачные белые буквы БЕЗ тёмного контура.
+    // Щебень: только белый текст без контура, чтобы не было чёрных точек.
     return { fill: 'rgba(255,255,255,1)', stroke: 'rgba(0,0,0,0)', mode: 'rubble' };
   }
 
@@ -292,40 +306,42 @@ export function pickTextPalette(stats, forcedColor) {
 }
 
 export function buildTextPatternSvg(width, height, text, opacity, fillColor, strokeColor, mode = 'mid') {
-  // Минимальный размер шрифта 40px для читаемости на маленьких изображениях
-  const fontSize = Math.max(40, Math.round(width * randomBetween(0.022, 0.032)));
-  const wordWidthFactor = 4.8;
-  const cellSize = Math.round(fontSize * wordWidthFactor * randomBetween(0.94, 1.02));
-  const tileW = cellSize * 2.7;
-  const tileH = cellSize * 1.65;
+  // Стабилизируем размер шрифта по отношению к фото: 1200px → 40px (как на эталонном кадре)
+  const referenceDimension = 1200;
+  const referenceFontSize = 40;
+  const baseDimension = Math.min(width, height);
+  const fontSize = Math.max(28, Math.round((baseDimension / referenceDimension) * referenceFontSize));
+  const wordWidthFactor = mode === 'rubble' ? 3.2 : 4.8;
+  const textWidth = fontSize * wordWidthFactor;
+  // Крупная плитка: три ширины слова и щедрый запас по высоте — текст не режется даже после поворота
+  const tileW = Math.round(textWidth * 3.0);
+  const tileH = Math.round(fontSize * 8.4); // в 2 раза больше вертикальный шаг между строками
   const rotation = Math.random() < 0.5 ? randomBetween(-22, -18) : randomBetween(18, 22);
   // Используем переданный opacity напрямую в SVG.
   const fillOpacity = opacity;
   let strokeOpacity = 0;
   let strokeWidth = 0;
-  if (mode === 'bright') {
-    // На светлых фонах мягкий контур, чтобы не давал точек.
-    strokeOpacity = 0.18;
-    strokeWidth = 0.9;
-  }
-  if (mode === 'sand') {
-    // Тёплый песок: контур выключаем полностью.
-    strokeOpacity = 0;
-    strokeWidth = 0;
-  }
-  const pad = fontSize * 1.1;
-  const offsetX = randomBetween(-tileW * 0.5, tileW * 0.5);
-  const offsetY = randomBetween(-tileH * 0.5, tileH * 0.5);
-  const x1 = pad + tileW * 0.3;
-  const y1 = pad + fontSize * 0.95;
-  const x2 = pad + tileW * 0.7;
+  const useShadow = false; // Убираем тени, чтобы не давали чёрных точек
+  const shadowId = 'ts';
+  const shadowFilter = '';
+  const filterAttr = '';
+  // Отключаем тёмный контур для всех режимов, чтобы исключить чёрные точки
+  strokeOpacity = 0;
+  strokeWidth = 0;
+  const offsetX = 0;
+  const offsetY = 0;
+  // Расставляем строки в шахматном порядке: вторая строка смещена на полплитки
+  const x1 = tileW * 0.25;
+  const y1 = tileH * 0.35;
+  const x2 = tileW * 0.75;
   const y2 = y1 + tileH / 2;
   return Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <defs>
-        <pattern id="tp" width="${tileW}" height="${tileH}" x="${offsetX}" y="${offsetY}" patternUnits="userSpaceOnUse" patternTransform="rotate(${rotation})">
-          <text x="${x1}" y="${y1}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor || fillColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="600">${text}</text>
-          <text x="${x2}" y="${y2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor || fillColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="600">${text}</text>
+        ${shadowFilter}
+        <pattern id="tp" width="${tileW}" height="${tileH}" x="${offsetX}" y="${offsetY}" patternUnits="userSpaceOnUse" patternTransform="rotate(${rotation} ${tileW / 2} ${tileH / 2})">
+          <text x="${x1}" y="${y1}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor || fillColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="700" ${filterAttr}>${text}</text>
+          <text x="${x2}" y="${y2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${fontSize}" fill="${fillColor}" fill-opacity="${fillOpacity}" stroke="${strokeColor || fillColor}" stroke-opacity="${strokeOpacity}" stroke-width="${strokeWidth}" paint-order="stroke fill" font-weight="700" ${filterAttr}>${text}</text>
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#tp)" />
