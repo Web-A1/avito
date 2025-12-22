@@ -38,6 +38,48 @@
     },
     "s00_fs": {
       "textOpacity": 0.13
+    },
+    "s01_fs": {
+      "textOpacity": 0.28
+    },
+    "s15_fs": {
+      "textOpacity": 0.2
+    },
+    "s15_2": {
+      "textOpacity": 0.28
+    },
+    "s20_fs": {
+      "textOpacity": 0.4
+    },
+    "s25_2": {
+      "textOpacity": 0.5
+    },
+    "s25_3": {
+      "textOpacity": 0.5
+    },
+    "s25_fs": {
+      "textOpacity": 0.45
+    },
+    "r00-0520_fs": {
+      "textOpacity": 0.38
+    },
+    "r00-0520_2": {
+      "textOpacity": 0.43
+    },
+    "r00-0520_3": {
+      "textOpacity": 0.35
+    },
+    "r00-4070_fs": {
+      "textOpacity": 1
+    },
+    "r00-4070_2": {
+      "textOpacity": 0.6
+    },
+    "r00-4070_3": {
+      "textOpacity": 0.7
+    },
+    "r00-4070_4": {
+      "textOpacity": 0.6
     }
   }
 }
