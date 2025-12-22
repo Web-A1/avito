@@ -1,5 +1,7 @@
+use once_cell::sync::Lazy;
 use quick_xml::events::{BytesCData, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
+use regex::Regex;
 use std::io::Cursor;
 
 use crate::{
@@ -108,6 +110,10 @@ fn write_ad(writer: &mut Writer<Cursor<Vec<u8>>>, ad: &Ad) -> Result<(), String>
         })
         .unwrap_or_else(|| "Песок".to_string());
     text_elem(writer, "BulkMaterialType", &bulk_material_type)?;
+    let bulk_material_sub_type = ad
+        .bulk_material_sub_type
+        .as_deref()
+        .unwrap_or(DEFAULT_BULK_MATERIAL_SUBTYPE);
 
     // Цены / упаковка / минимальный заказ
     if let Some(price) = ad.price {
@@ -137,20 +143,38 @@ fn write_ad(writer: &mut Writer<Cursor<Vec<u8>>>, ad: &Ad) -> Result<(), String>
     if let Some(comp) = ad.compaction_coefficient {
         text_elem(writer, "CompactionCoefficient", &comp.to_string())?;
     }
-    if let Some(rubble_type) = ad.rubble_type.as_ref() {
-        text_elem(writer, "RubbleType", rubble_type)?;
-    }
-    if let Some(fraction) = ad.fraction.as_ref() {
-        text_elem(writer, "Fraction", fraction)?;
-    }
-    if let Some(flakiness) = ad.flakiness_index.as_ref() {
-        text_elem(writer, "FlakinessIndex", flakiness)?;
-    }
-    if let Some(concrete_grade) = ad.concrete_grade.as_ref() {
-        text_elem(writer, "ConcreteGrade", concrete_grade)?;
-    }
-    if let Some(frost) = ad.frost_resistance.as_ref() {
-        text_elem(writer, "FrostResistance", frost)?;
+
+    if bulk_material_type == "Щебень, гравий" && bulk_material_sub_type == "Щебень" {
+        let rubble_type = ad
+            .rubble_type
+            .clone()
+            .or_else(|| extract_rubble_type_from_text(ad.title.as_deref(), ad.description.as_deref()));
+        if let Some(rubble_type) = rubble_type {
+            text_elem(writer, "RubbleType", &rubble_type)?;
+        }
+
+        let fraction = ad
+            .fraction
+            .clone()
+            .or_else(|| extract_fraction_from_text(ad.description.as_deref()));
+        if let Some(fraction) = fraction {
+            text_elem(writer, "Fraction", &fraction)?;
+        }
+
+        if let Some(flakiness) = ad
+            .flakiness_index
+            .as_deref()
+            .map(format_flakiness_index)
+            .filter(|value| !value.is_empty())
+        {
+            text_elem(writer, "FlakinessIndex", &flakiness)?;
+        }
+        if let Some(concrete_grade) = ad.concrete_grade.as_ref() {
+            text_elem(writer, "ConcreteGrade", concrete_grade)?;
+        }
+        if let Some(frost) = ad.frost_resistance.as_ref() {
+            text_elem(writer, "FrostResistance", frost)?;
+        }
     }
 
     end_elem(writer, "Ad")?;
@@ -201,4 +225,61 @@ fn collect_images(primary: Option<&String>, fallback: Option<&str>) -> Vec<Strin
         }
     }
     res
+}
+
+fn extract_rubble_type_from_text(title: Option<&str>, description: Option<&str>) -> Option<String> {
+    let mut text = String::new();
+    if let Some(t) = title {
+        text.push_str(t);
+        text.push(' ');
+    }
+    if let Some(d) = description {
+        text.push_str(d);
+    }
+    let text = text.to_lowercase();
+    let mappings = [
+        ("вторичный", "Вторичный"),
+        ("гравийный", "Гравийный"),
+        ("гранитный", "Гранитный"),
+        ("известняковый", "Известняковый"),
+        ("известковый", "Известняковый"),
+        ("бутовый", "Бутовый"),
+        ("мраморный", "Мраморный"),
+    ];
+    for (keyword, value) in mappings {
+        if text.contains(keyword) {
+            return Some(value.to_string());
+        }
+    }
+    None
+}
+
+fn extract_fraction_from_text(description: Option<&str>) -> Option<String> {
+    static FRACTION_MM_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"(?i)(\d+)[–-](\d+)\s*мм").expect("fraction mm regex"));
+    static FRACTION_RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"(?i)(\d+)[–-](\d+)").expect("fraction regex"));
+    let description = description?;
+    if let Some(caps) = FRACTION_MM_RE.captures(description) {
+        let min = caps.get(1)?.as_str();
+        let max = caps.get(2)?.as_str();
+        return Some(format!("{}–{} мм", min, max));
+    }
+    if let Some(caps) = FRACTION_RE.captures(description) {
+        let min = caps.get(1)?.as_str();
+        let max = caps.get(2)?.as_str();
+        return Some(format!("{}–{} мм", min, max));
+    }
+    None
+}
+
+fn format_flakiness_index(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.to_lowercase().contains("группа") {
+        trimmed.to_string()
+    } else if trimmed.is_empty() {
+        String::new()
+    } else {
+        format!("{} группа", trimmed)
+    }
 }

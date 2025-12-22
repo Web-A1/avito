@@ -13,3 +13,4 @@ uuid = { version = "1", features = ["v4"] }
 rand = "0.8"
 calamine = "0.32.0"
 quick-xml = "0.38.4"
+regex = "1"
