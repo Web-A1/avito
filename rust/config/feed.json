@@ -1,0 +1,5 @@
+{
+  "time_windows": ["07:00-10:00", "19:00-23:59"],
+  "min_step_minutes": 5,
+  "max_step_minutes": 30
+}

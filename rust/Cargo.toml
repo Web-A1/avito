@@ -1,0 +1,6 @@
+[workspace]
+members = [
+  "crates/feed-core",
+  "crates/feed-cli",
+]
+resolver = "2"
