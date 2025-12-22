@@ -1,4 +1,8 @@
-pub fn generate_description(title: Option<&str>, material_id: Option<&str>, address: Option<&str>) -> String {
+pub fn generate_description(
+    title: Option<&str>,
+    material_id: Option<&str>,
+    address: Option<&str>,
+) -> String {
     let label = title
         .filter(|t| !t.trim().is_empty())
         .map(|t| t.trim().to_string())

@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{generate_description, Ad, CustomTitle, UpdateByLists, UpdateDescription, UpdateRule, UpdateRules};
+use crate::{
+    generate_description, Ad, CustomTitle, UpdateByLists, UpdateDescription, UpdateRule,
+    UpdateRules,
+};
 
 #[derive(Debug, Default)]
 pub struct UpdateResult {
@@ -8,7 +11,8 @@ pub struct UpdateResult {
 }
 
 fn rule_for_id<'a>(map: &'a mut HashMap<String, UpdateRule>, id: &'a str) -> &'a mut UpdateRule {
-    map.entry(id.to_string()).or_insert_with(UpdateRule::default)
+    map.entry(id.to_string())
+        .or_insert_with(UpdateRule::default)
 }
 
 fn apply_by_lists(
@@ -64,7 +68,10 @@ fn apply_by_lists(
 }
 
 /// Построить карту правил обновления по Id/AvitoId, учитывая byId и byLists.
-pub fn build_update_map(update_rules: &UpdateRules, current_ads: &[Ad]) -> HashMap<String, UpdateRule> {
+pub fn build_update_map(
+    update_rules: &UpdateRules,
+    current_ads: &[Ad],
+) -> HashMap<String, UpdateRule> {
     let mut map = HashMap::new();
     if let Some(by_id) = &update_rules.by_id {
         for (k, v) in by_id {
@@ -84,8 +91,7 @@ pub fn apply_updates(
     updates: &HashMap<String, UpdateRule>,
     photo_mapping: Option<&HashMap<String, String>>,
 ) -> Vec<Ad> {
-    ads
-        .into_iter()
+    ads.into_iter()
         .map(|mut ad| {
             let key = ad.id.clone().or(ad.avito_id.clone()).unwrap_or_default();
             if let Some(rule) = updates.get(&key) {

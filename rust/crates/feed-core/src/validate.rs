@@ -30,7 +30,9 @@ pub fn validate_plan_counts(plan: &Plan) -> Result<(), PlanValidationError> {
                 continue;
             }
             let address = resolve_address_alias(loc.address, aliases);
-            *task_counts.entry((material_id.clone(), address)).or_default() += count;
+            *task_counts
+                .entry((material_id.clone(), address))
+                .or_default() += count;
         }
     }
 
@@ -92,14 +94,24 @@ pub fn validate_plan_windows(plan: &Plan, cfg: &FeedConfig) -> Result<(), PlanVa
     for (idx, item) in plan.publication_queue.iter().enumerate() {
         let dt = parse_date_time(&item.date_begin);
         if dt.is_none() {
-            bad.push((idx + 1, item.material_id.clone(), item.location.clone(), item.date_begin.clone()));
+            bad.push((
+                idx + 1,
+                item.material_id.clone(),
+                item.location.clone(),
+                item.date_begin.clone(),
+            ));
             continue;
         }
         let dt = dt.unwrap();
         let t = dt.time();
         let in_window = windows.iter().any(|(s, e)| t >= *s && t <= *e);
         if !in_window {
-            bad.push((idx + 1, item.material_id.clone(), item.location.clone(), item.date_begin.clone()));
+            bad.push((
+                idx + 1,
+                item.material_id.clone(),
+                item.location.clone(),
+                item.date_begin.clone(),
+            ));
         }
     }
     if !bad.is_empty() {
@@ -119,7 +131,10 @@ pub fn validate_plan_windows(plan: &Plan, cfg: &FeedConfig) -> Result<(), PlanVa
 }
 
 /// Проверка шага между публикациями в рамках окна (мин/макс), учитывает переход между окнами.
-pub fn validate_plan_step_intervals(plan: &Plan, cfg: &FeedConfig) -> Result<(), PlanValidationError> {
+pub fn validate_plan_step_intervals(
+    plan: &Plan,
+    cfg: &FeedConfig,
+) -> Result<(), PlanValidationError> {
     if plan.publication_queue.len() < 2 {
         return Ok(());
     }
@@ -152,7 +167,12 @@ pub fn validate_plan_step_intervals(plan: &Plan, cfg: &FeedConfig) -> Result<(),
         let prev_dt = parse_date_time(&slots[i - 1].date_begin);
         let curr_dt = parse_date_time(&slots[i].date_begin);
         if prev_dt.is_none() || curr_dt.is_none() {
-            bad.push((i + 1, slots[i - 1].date_begin.clone(), slots[i].date_begin.clone(), "n/a".to_string()));
+            bad.push((
+                i + 1,
+                slots[i - 1].date_begin.clone(),
+                slots[i].date_begin.clone(),
+                "n/a".to_string(),
+            ));
             continue;
         }
         let prev_dt = prev_dt.unwrap();
@@ -164,12 +184,22 @@ pub fn validate_plan_step_intervals(plan: &Plan, cfg: &FeedConfig) -> Result<(),
 
         if windows_differ {
             if diff_min < min_minutes as i64 {
-                bad.push((i + 1, slots[i - 1].date_begin.clone(), slots[i].date_begin.clone(), diff_min.to_string()));
+                bad.push((
+                    i + 1,
+                    slots[i - 1].date_begin.clone(),
+                    slots[i].date_begin.clone(),
+                    diff_min.to_string(),
+                ));
             }
             continue;
         }
         if diff_min < min_minutes as i64 || diff_min > max_minutes as i64 {
-            bad.push((i + 1, slots[i - 1].date_begin.clone(), slots[i].date_begin.clone(), diff_min.to_string()));
+            bad.push((
+                i + 1,
+                slots[i - 1].date_begin.clone(),
+                slots[i].date_begin.clone(),
+                diff_min.to_string(),
+            ));
         }
     }
 

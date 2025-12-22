@@ -43,7 +43,8 @@ pub fn cleanup_output(out_dir: &PathBuf, keep_files: &[&str]) {
     if !out_dir.exists() {
         return;
     }
-    let keep: std::collections::HashSet<String> = keep_files.iter().map(|s| s.to_string()).collect();
+    let keep: std::collections::HashSet<String> =
+        keep_files.iter().map(|s| s.to_string()).collect();
     let entries = match fs::read_dir(out_dir) {
         Ok(e) => e,
         Err(_) => return,
@@ -57,7 +58,8 @@ pub fn cleanup_output(out_dir: &PathBuf, keep_files: &[&str]) {
             Some(n) => n,
             None => continue,
         };
-        let is_candidate = (name.starts_with("ads_") && (name.ends_with(".xml") || name.contains("_manifest.json")))
+        let is_candidate = (name.starts_with("ads_")
+            && (name.ends_with(".xml") || name.contains("_manifest.json")))
             || (name.starts_with("photos_links_") && name.ends_with(".json"));
         if is_candidate && !keep.contains(name) {
             let _ = fs::remove_file(&path);

@@ -1,8 +1,8 @@
 use clap::Parser;
 use dotenvy::dotenv;
 use feed_core::{
-    read_ads_from_excel, read_plan, validate_plan_counts, validate_plan_step_intervals, validate_plan_windows, FeedConfig,
-    PlanValidationError,
+    read_ads_from_excel, read_plan, validate_plan_counts, validate_plan_step_intervals,
+    validate_plan_windows, FeedConfig, PlanValidationError,
 };
 
 use crate::photo::{generate_photos, read_photo_mapping, upload_photos};
@@ -84,14 +84,17 @@ pub fn run() {
     if let Some(path) = find_single_xlsx(&args.current_dir) {
         match read_ads_from_excel(&path) {
             Ok(ads) => current_ads = ads,
-            Err(e) => eprintln!("Excel прочитан с ошибкой (не критично для валидаций): {}", e),
+            Err(e) => eprintln!(
+                "Excel прочитан с ошибкой (не критично для валидаций): {}",
+                e
+            ),
         }
     }
 
     // Чтение правил обновления (для будущих шагов)
     let update_rules = feed_core::read_update_rules(&args.update_rules).ok();
 
-    // Фото-этапы через JS (опционально)
+    // Фото-этапы через JS (опционально) или чтение готового маппинга
     let mut photo_map: Option<HashMap<String, String>> = None;
     if args.photos {
         let date_label = if args.date_label.is_empty() {
@@ -102,12 +105,18 @@ pub fn run() {
 
         println!("→ Генерация фото через JS...");
         if let Err(e) = generate_photos(&args.plan) {
-            fail(PlanValidationError::CountsMismatch(format!("Генерация фото: {}", e)));
+            fail(PlanValidationError::CountsMismatch(format!(
+                "Генерация фото: {}",
+                e
+            )));
         }
 
         println!("→ Загрузка фото через JS...");
         if let Err(e) = upload_photos(&args.plan, &args.disk_root, &date_label, &args.out_dir) {
-            fail(PlanValidationError::CountsMismatch(format!("Загрузка фото: {}", e)));
+            fail(PlanValidationError::CountsMismatch(format!(
+                "Загрузка фото: {}",
+                e
+            )));
         }
 
         let mapping_path = if let Some(p) = &args.photos_mapping {
@@ -121,11 +130,38 @@ pub fn run() {
         match read_photo_mapping(&mapping_path) {
             Ok(mapping) => {
                 let count = mapping.items.len();
-                println!("Маппинг фото загружен ({} записей) из {}", count, mapping_path.display());
+                println!(
+                    "Маппинг фото загружен ({} записей) из {}",
+                    count,
+                    mapping_path.display()
+                );
                 let mut map = HashMap::new();
                 for item in mapping.items {
-                    if let (Some(id), Some(url)) = (item.avito_id, item.public_url) {
-                        map.insert(id, url);
+                    if let Some(url) = item.public_url.clone() {
+                        if let Some(id) = mapping_key(&item) {
+                            map.insert(id, url);
+                        }
+                    }
+                }
+                photo_map = Some(map);
+            }
+            Err(e) => eprintln!("Не удалось прочитать маппинг фото: {}", e),
+        }
+    } else if let Some(mapping_path) = &args.photos_mapping {
+        match read_photo_mapping(mapping_path) {
+            Ok(mapping) => {
+                let count = mapping.items.len();
+                println!(
+                    "Маппинг фото загружен ({} записей) из {}",
+                    count,
+                    mapping_path.display()
+                );
+                let mut map = HashMap::new();
+                for item in mapping.items {
+                    if let Some(url) = item.public_url.clone() {
+                        if let Some(id) = mapping_key(&item) {
+                            map.insert(id, url);
+                        }
                     }
                 }
                 photo_map = Some(map);
@@ -138,7 +174,10 @@ pub fn run() {
     let updated_current = if let Some(rules) = update_rules {
         let rules_map = feed_core::build_update_map(&rules, &current_ads);
         let updated = feed_core::apply_updates(current_ads, &rules_map, photo_map.as_ref());
-        println!("Старые объявления после применения правил: {}", updated.len());
+        println!(
+            "Старые объявления после применения правил: {}",
+            updated.len()
+        );
         updated
     } else {
         current_ads
@@ -168,7 +207,10 @@ pub fn run() {
     let old_count = updated_current.len();
     let new_count = new_ads.len();
     let total_ads = old_count + new_count;
-    let all_ads: Vec<feed_core::Ad> = updated_current.into_iter().chain(new_ads.into_iter()).collect();
+    let all_ads: Vec<feed_core::Ad> = updated_current
+        .into_iter()
+        .chain(new_ads.into_iter())
+        .collect();
 
     println!(
         "Итоговые объявления для XML: всего {}, старых {}, новых {}",
@@ -182,7 +224,7 @@ pub fn run() {
         default_date_label()
     };
     let file_label = sanitize_label_for_file(&xml_label);
-    let xml = match feed_core::generate_xml(&all_ads) {
+    let xml = match feed_core::generate_xml(&all_ads, Some(&xml_label)) {
         Ok(x) => x,
         Err(e) => {
             eprintln!("Ошибка генерации XML: {}", e);
@@ -209,8 +251,13 @@ pub fn run() {
         "count": ad_ids.len(),
         "adIds": ad_ids,
     });
-    let manifest_path = args.out_dir.join(format!("ads_{}_manifest.json", file_label));
-    if let Err(e) = std::fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap_or_default()) {
+    let manifest_path = args
+        .out_dir
+        .join(format!("ads_{}_manifest.json", file_label));
+    if let Err(e) = std::fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap_or_default(),
+    ) {
         eprintln!("Ошибка записи манифеста: {}", e);
     }
 
@@ -222,7 +269,10 @@ pub fn run() {
         "files": { "xml": xml_path.file_name().unwrap_or_default(), "manifest": manifest_path.file_name().unwrap_or_default() },
     });
     let build_log_path = args.out_dir.join(format!("build-log_{}.json", file_label));
-    let _ = std::fs::write(&build_log_path, serde_json::to_string_pretty(&build_log).unwrap_or_default());
+    let _ = std::fs::write(
+        &build_log_path,
+        serde_json::to_string_pretty(&build_log).unwrap_or_default(),
+    );
 
     // Очистка output от старых файлов
     if args.cleanup {
@@ -230,7 +280,10 @@ pub fn run() {
             &args.out_dir,
             &[
                 xml_path.file_name().and_then(|s| s.to_str()).unwrap_or(""),
-                manifest_path.file_name().and_then(|s| s.to_str()).unwrap_or(""),
+                manifest_path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(""),
             ],
         );
     }
@@ -238,10 +291,29 @@ pub fn run() {
     println!("XML записан: {}", xml_path.display());
     println!("Манифест записан: {}", manifest_path.display());
     println!("build-log записан: {}", build_log_path.display());
-    println!("OK: план валиден (counts/windows/steps). Объявлений собрано: {}.", all_ads.len());
+    println!(
+        "OK: план валиден (counts/windows/steps). Объявлений собрано: {}.",
+        all_ads.len()
+    );
 }
 
 fn fail(err: PlanValidationError) -> ! {
     eprintln!("Ошибка валидации: {:?}", err);
     std::process::exit(1);
+}
+
+fn mapping_key(item: &feed_core::PhotoMappingItem) -> Option<String> {
+    if let Some(id) = &item.avito_id {
+        return Some(id.clone());
+    }
+    if let Some(file) = &item.file_name {
+        let trimmed = file
+            .trim_end_matches(".jpg")
+            .trim_end_matches(".jpeg")
+            .trim_end_matches(".png");
+        if !trimmed.is_empty() {
+            return Some(trimmed.to_string());
+        }
+    }
+    None
 }

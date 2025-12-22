@@ -37,8 +37,14 @@ impl Default for FeedConfig {
     fn default() -> Self {
         Self {
             time_windows: vec![
-                TimeWindow { start: "07:00".into(), end: "10:00".into() },
-                TimeWindow { start: "19:00".into(), end: "23:59".into() },
+                TimeWindow {
+                    start: "07:00".into(),
+                    end: "10:00".into(),
+                },
+                TimeWindow {
+                    start: "19:00".into(),
+                    end: "23:59".into(),
+                },
             ],
             min_step_minutes: 5,
             max_step_minutes: 30,

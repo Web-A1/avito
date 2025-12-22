@@ -231,7 +231,7 @@ pub struct PhotoMapping {
 pub struct PhotoMappingItem {
     #[serde(rename = "avitoId", default)]
     pub avito_id: Option<String>,
-    #[serde(rename = "fileName", default)]
+    #[serde(rename = "fileName", default, alias = "file")]
     pub file_name: Option<String>,
     #[serde(rename = "public_url", default)]
     pub public_url: Option<String>,
@@ -239,8 +239,8 @@ pub struct PhotoMappingItem {
 
 /// Общие временные окна публикации (перечень минут от начала суток).
 pub const ALLOWED_WINDOWS: &[(u16, u16)] = &[
-    (7 * 60, 10 * 60),           // 07:00–10:00
-    (19 * 60, 23 * 60 + 59),     // 19:00–23:59
+    (7 * 60, 10 * 60),       // 07:00–10:00
+    (19 * 60, 23 * 60 + 59), // 19:00–23:59
 ];
 
 /// Минимальный и максимальный шаг между публикациями (минуты).

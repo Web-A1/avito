@@ -44,7 +44,10 @@ pub fn generate_ad_id(
     let city_alias = get_city_alias(address)?;
     let date_label = format_date_label(date_begin);
     let counter_str = format!("{:02}", counter);
-    Ok(format!("{}_{}_{}_{}", mat_alias, city_alias, date_label, counter_str))
+    Ok(format!(
+        "{}_{}_{}_{}",
+        mat_alias, city_alias, date_label, counter_str
+    ))
 }
 
 /// Парсинг dateBegin (DD.MM.YYYY HH:MM или DD.MM.YYYY).
