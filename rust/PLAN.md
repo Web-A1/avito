@@ -37,7 +37,8 @@
    - Формирование объединённого `photos_links_*.json`.
 
 8. Формирование XML и манифестов
-   - Черновик: генератор XML на `quick-xml` (`crates/feed-core/src/xml.rs`), выводит поля из Excel + дефолты (Id/AvitoId/DateBegin/DateEnd/ListingFee/AdStatus/контакты/цена/упаковка/минимальный заказ/материал/характеристики/Images).
+   - Генератор XML на `quick-xml` (`crates/feed-core/src/xml.rs`), выводит поля из Excel + дефолты (Id/AvitoId/DateBegin/DateEnd/ListingFee/AdStatus/контакты/цена/упаковка/минимальный заказ/материал/характеристики/Images).
+   - RubbleType/Fraction/FlakinessIndex/ConcreteGrade/FrostResistance выводятся только для `BulkMaterialType="Щебень, гравий"` и `BulkMaterialSubType="Щебень"`, RubbleType/Fraction поддерживают извлечение из title/description как в JS.
    - Delivery: выводится, если задано (пока пустой дефолт).
    - `ImageUrls` используется как fallback для фото.
    - XML/манифест/build-log сохраняются (`feed-cli`): `ads_<label>.xml`, `ads_<label>_manifest.json`, `build-log_<label>.json`.
