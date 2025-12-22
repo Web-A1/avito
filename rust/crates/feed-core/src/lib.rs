@@ -8,6 +8,7 @@ pub mod update;
 pub mod ad_id;
 pub mod generate;
 pub mod xml;
+pub mod description;
 
 pub use plan::*;
 pub use read::*;
@@ -19,3 +20,4 @@ pub use update::*;
 pub use ad_id::*;
 pub use generate::*;
 pub use xml::*;
+pub use description::*;

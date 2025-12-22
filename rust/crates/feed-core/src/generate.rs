@@ -7,6 +7,7 @@ use crate::{
     ad_id::{generate_ad_id, parse_date_begin},
     constants::{EXACT_TITLES, TOP_5_TITLES},
     parse_date_time, Ad, Plan,
+    generate_description,
 };
 
 /// Генерация новых объявлений строго по publicationQueue.
@@ -48,11 +49,17 @@ pub fn generate_new_ads(
 
         let title = pick_title(&material_id, &mut rng);
 
+        let description = Some(generate_description(
+            Some(&title),
+            Some(&material_id),
+            Some(&address),
+        ));
+
         let ad = Ad {
             ad_id: Some(ad_id.clone()),
             avito_id: Some(ad_id.clone()),
             title: Some(title),
-            description: None, // TODO: генерация описания (антидубль-логика)
+            description,
             date_begin: Some(slot.date_begin.clone()),
             address: Some(address.clone()),
             photo_link: Some(photo),

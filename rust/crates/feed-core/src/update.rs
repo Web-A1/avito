@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Ad, CustomTitle, UpdateDescription, UpdateByLists, UpdateRule, UpdateRules};
+use crate::{generate_description, Ad, CustomTitle, UpdateByLists, UpdateDescription, UpdateRule, UpdateRules};
 
 #[derive(Debug, Default)]
 pub struct UpdateResult {
@@ -99,7 +99,10 @@ pub fn apply_updates(
                     ad.description = Some(desc.clone());
                 }
                 if let Some(UpdateDescription::Auto(_)) = &rule.update_description {
-                    // Заглушка: автогенерация позже
+                    let title = ad.title.as_deref();
+                    let material_id = ad.material_id.as_deref();
+                    let address = ad.address.as_deref();
+                    ad.description = Some(generate_description(title, material_id, address));
                 }
                 if let Some(title) = &rule.custom_title {
                     match title {
