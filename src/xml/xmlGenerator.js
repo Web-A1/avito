@@ -4,6 +4,7 @@
  */
 
 import { FIXED_PARAMETERS, CONTACT_PARAMETERS } from '../constants/parameters.js';
+import { getSellerAddressId } from '../constants/materialAliases.js';
 
 function escapeXml(str = '') {
   return str
@@ -41,6 +42,7 @@ function formatAd(ad, idx, dateLabel = '') {
     ad.compactionCoefficient ?? fixed.compactionCoefficient ?? '';
   const minSaleQuantity = ad.minSaleQuantity ?? FIXED_PARAMETERS.MIN_SALE_QUANTITY;
   const dateBegin = ad.dateBegin;
+  const sellerAddressId = getSellerAddressId(ad.address || ad.location || '');
 
   // Для щебня определяем RubbleType, Fraction, FlakinessIndex, ConcreteGrade, FrostResistance
   let rubbleTypeXml = '';
@@ -108,7 +110,7 @@ function formatAd(ad, idx, dateLabel = '') {
       <ManagerName>${escapeXml(managerName)}</ManagerName>
       <ContactPhone>${escapeXml(CONTACT_PARAMETERS.CONTACT_PHONE)}</ContactPhone>
       <Category>Ремонт и строительство</Category>
-      <Address>${escapeXml(ad.address || '')}</Address>
+      <SellerAddressID>${escapeXml(sellerAddressId)}</SellerAddressID>
       <Title>${escapeXml(ad.title || '')}</Title>
       <Description>${description}</Description>
       ${ad.price ? `<Price>${ad.price}</Price>` : ''}

@@ -10,6 +10,7 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import { getSellerAddressId } from '../src/constants/materialAliases.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -80,7 +81,7 @@ function parseXML(xmlString) {
       Category: /<Category>(.*?)<\/Category>/,
       Title: /<Title>(.*?)<\/Title>/,
       Description: /<Description><!\[CDATA\[([\s\S]*?)\]\]><\/Description>/,
-      Address: /<Address>(.*?)<\/Address>/,
+      SellerAddressID: /<SellerAddressID>(.*?)<\/SellerAddressID>/,
       Price: /<Price>(.*?)<\/Price>/,
       GoodsType: /<GoodsType>(.*?)<\/GoodsType>/,
       AdType: /<AdType>(.*?)<\/AdType>/,
@@ -283,8 +284,15 @@ function checkDateBeginAgainstPlan(ads, planPath) {
     if (planItem.DateBegin !== ad.DateBegin) {
       issues.push(`DateBegin план: ${planItem.DateBegin}, xml: ${ad.DateBegin}`);
     }
-    if (planItem.location && ad.Address && planItem.location !== ad.Address) {
-      issues.push(`Адрес план: "${planItem.location}", xml: "${ad.Address}"`);
+    if (planItem.location && ad.SellerAddressID) {
+      try {
+        const expectedSellerAddressId = getSellerAddressId(planItem.location);
+        if (expectedSellerAddressId !== ad.SellerAddressID) {
+          issues.push(`Адрес план: "${planItem.location}", SellerAddressID xml: "${ad.SellerAddressID}"`);
+        }
+      } catch (err) {
+        issues.push(`Ошибка проверки адреса для "${planItem.location}": ${err.message}`);
+      }
     }
     const expectedType = expectedMaterial[planItem.material];
     if (expectedType && ad.BulkMaterialType && !ad.BulkMaterialType.includes(expectedType)) {
@@ -391,7 +399,7 @@ function checkRequiredFields(ads) {
     'Category',
     'Title',
     'Description',
-    'Address',
+    'SellerAddressID',
     'Price',
     'Images',
     'GoodsType',

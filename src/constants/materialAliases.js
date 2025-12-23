@@ -31,6 +31,26 @@ export const CITY_ALIASES = {
   'Московская обл., Домодедово, Станционная ул., 26к3': 'dmd'
 };
 
+// SellerAddressID из кабинета Авито для каждой локации
+export const SELLER_ADDRESS_IDS = {
+  'Московская обл., Бронницы, Магистральная ул., 3': '101431441',
+  'Московская обл., Чехов, ул. Чехова, 20Бк5': '101431415',
+  'Московская обл., Подольск, ул. Лапшенкова, 3': '101431383',
+  'Москва, Троицк, Индустриальная ул., 1': '101431339',
+  'Московская обл., Домодедово, Станционная ул., 26к3': '101392452'
+};
+
+// Дополнительные варианты написания адресов → каноническая форма
+const SELLER_ADDRESS_ALIASES = {
+  'Бронницы, Магистральная ул., 3': 'Московская обл., Бронницы, Магистральная ул., 3',
+  'Чехов, ул. Чехова, 20Бк5': 'Московская обл., Чехов, ул. Чехова, 20Бк5',
+  'Подольск, Лапшенкова, 3': 'Московская обл., Подольск, ул. Лапшенкова, 3',
+  'Троицк,Индустриальная улица, 1': 'Москва, Троицк, Индустриальная ул., 1',
+  'Троицк, Индустриальная улица, 1': 'Москва, Троицк, Индустриальная ул., 1',
+  'Домодедово, ул. Станционная': 'Московская обл., Домодедово, Станционная ул., 26к3',
+  'Московская обл., Домодедово, Станционная ул.': 'Московская обл., Домодедово, Станционная ул., 26к3'
+};
+
 /**
  * Получить алиас материала
  * @param {string} materialId - ID материала (например, 'karier_neseyan_nemyt_pesok')
@@ -67,6 +87,32 @@ export function getCityAlias(address) {
   }
   
   return alias;
+}
+
+/**
+ * Получить SellerAddressID для указанного адреса (с поддержкой алиасов)
+ * @param {string} address - полный адрес или алиас
+ * @returns {string} - SellerAddressID из кабинета Авито
+ */
+export function getSellerAddressId(address) {
+  if (!address) {
+    throw new Error('❌ Адрес не указан для SellerAddressID');
+  }
+
+  const cleaned = String(address).trim();
+  const canonical = SELLER_ADDRESS_ALIASES[cleaned] || cleaned;
+  const sellerAddressId = SELLER_ADDRESS_IDS[canonical];
+
+  if (!sellerAddressId) {
+    const availableAddresses = Object.keys(SELLER_ADDRESS_IDS);
+    throw new Error(
+      `❌ SellerAddressID не найден для адреса "${address}".\n\n` +
+      `Доступные адреса (${availableAddresses.length}):\n` +
+      availableAddresses.map((a, i) => `  ${i + 1}. ${a}`).join('\n')
+    );
+  }
+
+  return sellerAddressId;
 }
 
 

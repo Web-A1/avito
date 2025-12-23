@@ -10,7 +10,7 @@ use crate::{
         DEFAULT_COMPANY_NAME, DEFAULT_CONDITION, DEFAULT_CONTACT_METHOD, DEFAULT_CONTACT_PHONE,
         DEFAULT_DELIVERY, DEFAULT_EMAIL, DEFAULT_INTERNET_CALLS, DEFAULT_LISTING_FEE,
         DEFAULT_MANAGER_NAME, DEFAULT_MIN_SALE_QUANTITY, DEFAULT_PACKAGING_TYPE,
-        DEFAULT_TARGET_AUDIENCE,
+        DEFAULT_TARGET_AUDIENCE, SELLER_ADDRESS_ALIASES, SELLER_ADDRESS_IDS,
     },
     Ad,
 };
@@ -88,7 +88,8 @@ fn write_ad(
         "Category",
         ad.category.as_deref().unwrap_or("Ремонт и строительство"),
     )?;
-    text_elem(writer, "Address", ad.address.as_deref().unwrap_or(""))?;
+    let seller_address_id = resolve_seller_address_id(ad.address.as_deref())?;
+    text_elem(writer, "SellerAddressID", &seller_address_id)?;
     text_elem(writer, "Title", ad.title.as_deref().unwrap_or(""))?;
     cdata_elem(
         writer,
@@ -241,6 +242,24 @@ fn write_ad(
 
     end_elem(writer, "Ad")?;
     Ok(())
+}
+
+fn resolve_seller_address_id(address: Option<&str>) -> Result<String, String> {
+    let addr = address
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "SellerAddressID: адрес не указан".to_string())?;
+    let canonical = SELLER_ADDRESS_ALIASES.get(addr).copied().unwrap_or(addr);
+    if let Some(id) = SELLER_ADDRESS_IDS.get(canonical) {
+        return Ok(id.to_string());
+    }
+    let available: Vec<&str> = SELLER_ADDRESS_IDS.keys().copied().collect();
+    Err(format!(
+        "SellerAddressID не найден для адреса \"{}\". Доступные адреса ({}): {}",
+        addr,
+        available.len(),
+        available.join("; ")
+    ))
 }
 
 fn start_elem(
