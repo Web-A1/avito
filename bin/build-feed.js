@@ -28,13 +28,13 @@ import { generateRubbleDescription } from '../src/generators/materials/rubble/de
 import { TOP_5_TITLES, EXACT_TITLES } from '../src/constants/titles.js';
 import { readCurrentAdsFromXlsx } from '../src/utils/currentAdsReader.js';
 import { loadPhotosMapping } from '../src/utils/photosLinksReader.js';
-import { generateAdId, getCityAlias, getMaterialAlias, CITY_ALIASES, MATERIAL_ALIASES, parseAdId, parseDateLabel } from '../src/constants/materialAliases.js';
+import { generateAdId, getCityAlias, getMaterialAlias, CITY_ALIASES, MATERIAL_ALIASES, parseAdId } from '../src/constants/materialAliases.js';
 import { getSandType } from '../src/constants/sandTypes.js';
 import { getRubbleType } from '../src/constants/rubbleTypes.js';
 import { syncHistoryWithActiveAds, loadHistory, saveHistory, updateHistoryWithAvitoId, commitHistoryFromTmp, discardHistoryTmp } from './lib/photo-variants/history.js';
-import { collectSourcesFromPlan } from './lib/photo-variants/plan.js';
 import { spawn } from 'child_process';
 import https from 'https';
+import { loadWatermarkOverrides, findWatermarkOverride } from './lib/photo-variants/watermark-overrides.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +48,7 @@ const DEFAULT_UPDATE_RULES_PATH = path.resolve(__dirname, '..', 'update_old_ads.
 const DEFAULT_PHOTOS_ROOT = path.resolve(__dirname, '..', 'data', 'photos');
 const DEFAULT_OUTPUT_DIR = path.resolve(__dirname, '..', 'output');
 const DEFAULT_DISK_ROOT = 'Cursor_for_Avito';
+const DEFAULT_WATERMARK_OVERRIDES_PATH = path.resolve(__dirname, '..', 'data', 'watermark-overrides.json');
 const MATERIAL_ALIAS_TO_ID = Object.fromEntries(
   Object.entries(MATERIAL_ALIASES).map(([materialId, alias]) => [alias, materialId])
 );
@@ -95,7 +96,8 @@ function parseArgs() {
     skipUpdates: false,
     skipGeneration: false,
     dryRun: false,
-    testOutputDir: null
+    testOutputDir: null,
+    watermarkOverrides: ''
   };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -111,6 +113,8 @@ function parseArgs() {
       opts.diskRoot = args[++i];
     } else if (arg === '--out' && args[i + 1]) {
       opts.outDir = args[++i];
+    } else if ((arg === '--wm-overrides' || arg === '--watermark-overrides') && args[i + 1]) {
+      opts.watermarkOverrides = args[++i];
     } else if (arg === '--test-step' && args[i + 1]) {
       const stepArg = args[++i];
       if (stepArg.includes('-')) {
@@ -761,7 +765,7 @@ function runScript(scriptPath, args = [], options = {}) {
   });
 }
 
-export async function generatePhotoForOldAd(avitoId, materialId, address, photosRoot, textWatermark, textOpacity, patternOpacity) {
+export async function generatePhotoForOldAd(avitoId, materialId, address, photosRoot, textWatermark, textOpacity, patternOpacity, watermarkOverrides = { files: {} }) {
   // Определяем, является ли это флагманским объявлением (counter = 1)
   const { parseAdId } = await import('../src/constants/materialAliases.js');
   const parsed = parseAdId(avitoId);
@@ -811,6 +815,7 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
     let sourceMeta = null;
     let sourceStats = null;
     let sourcePalette = null;
+    let sourcePath = originals[0] || null; // дефолт для fallback
     
     if (isFlagship) {
       // Для флагманского фото ищем файлы с "flagship" или "fs" в имени (любое расширение)
@@ -849,6 +854,7 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
         sourceMeta = await sourceImage.metadata();
         sourceStats = await sharp.default(sourceBuffer).stats();
         sourcePalette = pickTextPalette(sourceStats, null);
+        sourcePath = flagshipPath;
       }
     }
     
@@ -862,32 +868,35 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
         });
         
         if (flagshipInOriginals) {
-          const sourcePath = flagshipInOriginals;
-          sourceBuffer = await loadImageBuffer(sourcePath);
+          const sourcePathLocal = flagshipInOriginals;
+          sourceBuffer = await loadImageBuffer(sourcePathLocal);
           const baseImage = sharp.default(sourceBuffer);
           sourceMeta = await baseImage.metadata();
           sourceStats = await sharp.default(sourceBuffer).stats();
           sourcePalette = pickTextPalette(sourceStats, null);
-          console.log(`   Создаём флагманское фото из ${path.basename(sourcePath)} (без искажений)`);
+          sourcePath = sourcePathLocal;
+          console.log(`   Создаём флагманское фото из ${path.basename(sourcePathLocal)} (без искажений)`);
         } else {
           // Если не нашли файлы с "flagship" или "fs" - берем первый исходник
-          const sourcePath = originals[0];
-          sourceBuffer = await loadImageBuffer(sourcePath);
+          const sourcePathLocal = originals[0];
+          sourceBuffer = await loadImageBuffer(sourcePathLocal);
           const baseImage = sharp.default(sourceBuffer);
           sourceMeta = await baseImage.metadata();
           sourceStats = await sharp.default(sourceBuffer).stats();
           sourcePalette = pickTextPalette(sourceStats, null);
-          console.log(`   ⚠️  Флагманское фото из ${path.basename(sourcePath)} (файлы с "flagship" или "fs" не найдены)`);
+          sourcePath = sourcePathLocal;
+          console.log(`   ⚠️  Флагманское фото из ${path.basename(sourcePathLocal)} (файлы с "flagship" или "fs" не найдены)`);
         }
       } else {
         // Для не-флагманских фото берем первый исходник
-        const sourcePath = originals[0];
-        sourceBuffer = await loadImageBuffer(sourcePath);
+        const sourcePathLocal = originals[0];
+        sourceBuffer = await loadImageBuffer(sourcePathLocal);
         const baseImage = sharp.default(sourceBuffer);
         sourceMeta = await baseImage.metadata();
         sourceStats = await sharp.default(sourceBuffer).stats();
         sourcePalette = pickTextPalette(sourceStats, null);
-        console.log(`   Создаём фото с трансформациями из ${path.basename(sourcePath)}`);
+        sourcePath = sourcePathLocal;
+        console.log(`   Создаём фото с трансформациями из ${path.basename(sourcePathLocal)}`);
       }
     }
     
@@ -915,27 +924,43 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
     
     // Пересчитываем stats для финального буфера
     const finalStats = await sharp.default(finalBuffer).stats();
-    const finalPalette = pickTextPalette(finalStats, null);
     const finalMeta = await sharp.default(finalBuffer).metadata();
+    
+    const wmOverride = findWatermarkOverride(watermarkOverrides, sourcePath || originals[0]);
+    const effectiveTextWatermark = wmOverride?.textWatermark || textWatermark;
+    const effectiveTextColor = wmOverride?.textColor || null;
+    const overridePatternOpacity =
+      wmOverride && typeof wmOverride.patternOpacity === 'number' ? wmOverride.patternOpacity : undefined;
+    const overrideTextOpacity =
+      wmOverride && typeof wmOverride.textOpacity === 'number' ? wmOverride.textOpacity : undefined;
+    
+    const finalPalette = pickTextPalette(finalStats, effectiveTextColor);
     
     // Вычисляем адаптивный opacity для водяного знака
     const { minOpacity, maxOpacity } = calculateAdaptiveOpacity(finalStats);
     // Единый подход: детерминированный базовый opacity = середина диапазона
     const baseValue = (minOpacity + maxOpacity) / 2;
-    const textOpacityValue = clampOpacity(
-      (typeof textOpacity === 'number' && !Number.isNaN(textOpacity) && textOpacity > 0)
-        ? textOpacity
-        : baseValue,
-      minOpacity,
-      maxOpacity
-    ) || minOpacity;
+    const hasOverrideOpacity =
+      typeof overrideTextOpacity === 'number' && !Number.isNaN(overrideTextOpacity) && overrideTextOpacity > 0;
+    const textOpacityValue = hasOverrideOpacity
+      ? clampOpacity(overrideTextOpacity, 0.02, 1)
+      : clampOpacity(
+          (typeof textOpacity === 'number' && !Number.isNaN(textOpacity) && textOpacity > 0)
+            ? textOpacity
+            : baseValue,
+          minOpacity,
+          maxOpacity
+        ) || minOpacity;
     
     // Формируем список слоев для композиции
     const compositeLayers = [];
     
     // Для не-флагманских фото добавляем паттерны для уникализации
     if (!isFlagship) {
-      const patternOpacityValue = patternOpacity || 0.03;
+      const patternOpacityValue =
+        typeof overridePatternOpacity === 'number' && !Number.isNaN(overridePatternOpacity) && overridePatternOpacity > 0
+          ? overridePatternOpacity
+          : patternOpacity || 0.03;
       const noiseBuf = createNoiseBuffer(finalMeta.width, finalMeta.height, Math.min(25, Math.max(6, Math.round(patternOpacityValue * 60))));
       const dotsPng = await sharp.default(buildDotsSvg(finalMeta.width, finalMeta.height)).png().toBuffer();
       const gradPng = await sharp.default(buildGradientSvg(finalMeta.width, finalMeta.height)).png().toBuffer();
@@ -958,7 +983,7 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
       const textSvg = buildTextPatternSvg(
         finalMeta.width,
         finalMeta.height,
-        textWatermark,
+        effectiveTextWatermark,
         textOpacityValue,
         finalPalette.fill,
         finalPalette.stroke || finalPalette.fill,
@@ -1009,8 +1034,11 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
     console.warn(`   ⚠️  Не удалось сгенерировать фото с водяным знаком: ${err.message}`);
     console.warn(`   Используется упрощенный подход (копирование исходника)`);
     
-    fs.copyFileSync(sourcePath, outputPath);
-    return outputPath;
+    if (sourcePath) {
+      fs.copyFileSync(sourcePath, outputPath);
+      return outputPath;
+    }
+    throw err; // если вообще нет исходника, пробрасываем ошибку
   }
 }
 
@@ -1099,6 +1127,11 @@ async function main() {
       if (opts.skipGeneration) console.log(`    - Генерация новых объявлений`);
     }
     console.log('═══════════════════════════════════════════════════════════════\n');
+    
+    const watermarkOverridesPath = opts.watermarkOverrides
+      ? path.resolve(opts.watermarkOverrides)
+      : DEFAULT_WATERMARK_OVERRIDES_PATH;
+    const watermarkOverrides = loadWatermarkOverrides(watermarkOverridesPath);
     
     // 1. Читаем план
     currentStep = 1;
@@ -1295,7 +1328,8 @@ async function main() {
               DEFAULT_PHOTOS_ROOT,
               'NERUDA',
               null, // Используем адаптивный opacity для водяного знака
-              0.03  // patternOpacity
+              0.03,  // patternOpacity
+              watermarkOverrides
             );
             console.log(`   ✅ Фото создано: ${path.basename(photoPath)}`);
             
@@ -1383,7 +1417,8 @@ async function main() {
         '--plan', planPathForPhotos,
         '--text-watermark', 'NERUDA',
         '--text-opacity', '0.03',
-        '--pattern-opacity', '0.03'
+        '--pattern-opacity', '0.03',
+        '--watermark-overrides', watermarkOverridesPath
       ];
       console.log(`   Запуск generate-photo-variants.js...`);
       await runScript(
