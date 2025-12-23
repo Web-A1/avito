@@ -5,12 +5,19 @@
  */
 
 import { getRubbleType } from '../../constants/rubbleTypes.js';
+import { generatePrice } from '../../constants/parameters.js';
 import { generateRubbleDescription } from '../materials/rubble/descriptionGenerator.js';
 
 const DEFAULT_RUBBLE_TYPE_ID = 'scheben_vtorichnyi_40_70';
 
 function randomChoice(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomInt(min, max, step = 1) {
+  const steps = Math.floor((max - min) / step);
+  const idx = Math.floor(Math.random() * (steps + 1));
+  return min + idx * step;
 }
 
 // Конфигурация дубль-чека для щебня (по аналогии с песком).
@@ -50,6 +57,7 @@ export const RUBBLE_DUPLICATE_CONFIG = {
  * @param {string[]} params.addresses
  * @param {string[]} params.photos
  * @param {boolean} [params.isFlagship=false] - флагманское объявление (пока не используем отдельно)
+ * @param {boolean} [params.useBasePrice=false] - использовать базовую цену
  * @returns {Object} объявление
  */
 export function buildRubbleAd({
@@ -57,7 +65,8 @@ export function buildRubbleAd({
   titles = [],
   addresses = [],
   photos = [],
-  isFlagship = false
+  isFlagship = false,
+  useBasePrice = false
 } = {}) {
   const rubbleTypeId = materialId || DEFAULT_RUBBLE_TYPE_ID;
   const rubbleType = getRubbleType(rubbleTypeId);
@@ -81,7 +90,9 @@ export function buildRubbleAd({
 
   // Цена всегда за тонну, базовая — из RUBBLE_TYPES
   const priceFor = 'тонну';
-  const price = rubbleType?.basePricePerTonne ?? 0;
+  const price = rubbleType
+    ? (useBasePrice ? rubbleType.basePricePerTonne : generatePrice(rubbleType.basePricePerTonne))
+    : 0;
 
   // Цвет для щебня: используем базовый нейтральный вариант
   const color = 'Серый';
@@ -97,13 +108,9 @@ export function buildRubbleAd({
   } = generateRubbleDescription(rubbleTypeId, { isFlagship });
 
   // Пробрасываем техпараметры в объявление, чтобы не зависеть от парсинга описания
-  const concreteGrade = rubbleType?.defaultConcreteGrade
-    ? `M${rubbleType.defaultConcreteGrade}`
-    : '';
-  const frostResistance = rubbleType?.defaultFrostResistance
-    ? `F${rubbleType.defaultFrostResistance}`
-    : '';
-  const flakinessIndex = rubbleType?.defaultFlakinessIndex ?? '';
+  const concreteGrade = randomChoice(['M600', 'M800']);
+  const frostResistance = randomChoice(['F100', 'F150', 'F200', 'F300']);
+  const flakinessIndex = randomChoice(['1 группа', '2 группа', '3 группа', '4 группа']);
 
   return {
     title,
@@ -127,7 +134,7 @@ export function buildRubbleAd({
     block7: block7Params,
     block1Variant,
     fixed: {
-      minSaleQuantity: 20,
+      minSaleQuantity: randomInt(10, 20, 2),
       availability: 'В наличии',
       packagingType: 'Россыпью',
       // По договорённости используем коэффициент уплотнения = насыпной плотности (т/м³)

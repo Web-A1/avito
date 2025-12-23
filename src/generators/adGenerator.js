@@ -23,7 +23,8 @@ const STRATEGIES = {
  * @param {string[]} params.photos
  * @param {number} [params.maxAttempts=50]
  * @param {Array<Object>} [params.currentAds=[]] - текущие объявления (например, из выгрузки Авито)
- * @param {boolean|Array<boolean>} [params.isFlagship=false] - флагманское объявление (или массив для каждого объявления)
+ * @param {boolean|Array<boolean>} [params.isFlagship=false] - флагманское объявление (исторический параметр, можно игнорировать)
+ * @param {boolean|Array<boolean>} [params.useBasePrice=false] - использовать базовую цену (или массив по объявлениям)
  * @returns {Object[]} список уникальных объявлений
  */
 export function generateAds({
@@ -35,7 +36,8 @@ export function generateAds({
   photos = [],
   maxAttempts = 50,
   currentAds = [],
-  isFlagship = false
+  isFlagship = false,
+  useBasePrice = false
 }) {
   const strategy = STRATEGIES[material];
   if (!strategy) {
@@ -46,6 +48,9 @@ export function generateAds({
   const flagshipFlags = Array.isArray(isFlagship) 
     ? isFlagship 
     : Array(count).fill(isFlagship);
+  const basePriceFlags = Array.isArray(useBasePrice)
+    ? useBasePrice
+    : Array(count).fill(!!useBasePrice);
 
   const ads = [];
   for (let i = 0; i < count; i++) {
@@ -57,7 +62,8 @@ export function generateAds({
         titles, 
         addresses, 
         photos, 
-        isFlagship: flagshipFlags[i] || false 
+        isFlagship: flagshipFlags[i] || false,
+        useBasePrice: basePriceFlags[i] || false
       });
       attempts += 1;
       if (attempts >= maxAttempts) {

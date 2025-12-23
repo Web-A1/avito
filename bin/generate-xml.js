@@ -172,6 +172,16 @@ async function main() {
     );
 
     for (const loc of locationsPlan) {
+      const baseCount = Math.round(loc.count * 0.5);
+      const basePriceCount = Math.max(0, Math.min(loc.count, baseCount));
+      const useBasePriceFlags = Array.from({ length: loc.count }, (_, idx) => idx < basePriceCount);
+      const baseShare = loc.count > 0 ? basePriceCount / loc.count : 0;
+      if (loc.count > 0 && Math.abs(baseShare - 0.5) > 0.1) {
+        console.log(
+          `      ⚠️ Доля базовой цены отклоняется от 50% (${(baseShare * 100).toFixed(0)}% при ${loc.count} объявл.)`
+        );
+      }
+
       const ads = generateAds({
         material: task.material || 'sand',
         materialId: materialIdResolved,
@@ -179,7 +189,8 @@ async function main() {
         titles: task.titles && task.titles.length ? task.titles : TOP_5_TITLES,
         addresses: [loc.address],
         photos: task.photos || [],
-        currentAds
+        currentAds,
+        useBasePrice: useBasePriceFlags
       });
 
       const matAlias = getMaterialAlias(materialIdResolved);
@@ -195,7 +206,16 @@ async function main() {
         })
         .filter(Boolean)
         .filter((p) => p.hasTime)
-        .sort((a, b) => a.parsed.counter - b.parsed.counter);
+        .sort((a, b) => {
+          if (a.parsed.dateLabel === b.parsed.dateLabel) {
+            if (a.parsed.sourceBase === b.parsed.sourceBase) {
+              return a.parsed.counter - b.parsed.counter;
+            }
+            return a.parsed.sourceBase.localeCompare(b.parsed.sourceBase);
+          }
+          return a.parsed.dateLabel.localeCompare(b.parsed.dateLabel);
+        });
+      const photoQueue = [...locationPhotos];
 
       const key = `${materialIdResolved}::${loc.address}`;
       adsByKey.set(key, {
@@ -204,7 +224,8 @@ async function main() {
         materialIdResolved,
         location: loc.address,
         task,
-        locationPhotos
+        locationPhotos,
+        photoQueue
       });
     }
   }
@@ -220,8 +241,7 @@ async function main() {
     }
 
     const ad = entry.ads[entry.index];
-    const targetCounter = entry.index + 1;
-    const photo = entry.locationPhotos.find((p) => p.parsed.counter === targetCounter);
+    const photo = entry.photoQueue && entry.photoQueue.length > entry.index ? entry.photoQueue[entry.index] : null;
     const queueDate = parseDateTime(item.DateBegin);
 
     if (photo) {
@@ -229,7 +249,13 @@ async function main() {
       ad.photoLink = photo.url;
     } else {
       const baseDate = queueDate || parseDateTime(planDateBegin) || new Date();
-      ad.adId = generateAdId(entry.materialIdResolved, entry.location, baseDate, targetCounter);
+      ad.adId = generateAdId({
+        materialId: entry.materialIdResolved,
+        sourceBase: getMaterialAlias(entry.materialIdResolved),
+        address: entry.location,
+        dateBegin: baseDate,
+        counter: entry.index + 1
+      });
       if (!ad.photoLink && entry.task.photos && entry.task.photos.length) {
         ad.photoLink = entry.task.photos[Math.floor(Math.random() * entry.task.photos.length)];
       }

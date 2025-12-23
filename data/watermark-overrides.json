@@ -1,5 +1,8 @@
 {
   "files": {
+    "s00_1": {
+      "textOpacity": 0.13
+    },
     "s00_2": {
       "textOpacity": 0.3
     },
@@ -36,19 +39,16 @@
     "s00_13": {
       "textOpacity": 0.13
     },
-    "s00_fs": {
-      "textOpacity": 0.13
-    },
-    "s01_fs": {
+    "s01_1": {
       "textOpacity": 0.28
     },
-    "s15_fs": {
+    "s15_1": {
       "textOpacity": 0.2
     },
     "s15_2": {
       "textOpacity": 0.28
     },
-    "s20_fs": {
+    "s20_1": {
       "textOpacity": 0.4
     },
     "s25_2": {
@@ -57,10 +57,10 @@
     "s25_3": {
       "textOpacity": 0.5
     },
-    "s25_fs": {
+    "s25_1": {
       "textOpacity": 0.45
     },
-    "r00-0520_fs": {
+    "r00-0520_1": {
       "textOpacity": 0.38
     },
     "r00-0520_2": {
@@ -69,7 +69,7 @@
     "r00-0520_3": {
       "textOpacity": 0.35
     },
-    "r00-4070_fs": {
+    "r00-4070_1": {
       "textOpacity": 1
     },
     "r00-4070_2": {

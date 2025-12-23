@@ -766,10 +766,11 @@ function runScript(scriptPath, args = [], options = {}) {
 }
 
 export async function generatePhotoForOldAd(avitoId, materialId, address, photosRoot, textWatermark, textOpacity, patternOpacity, watermarkOverrides = { files: {} }) {
-  // Определяем, является ли это флагманским объявлением (counter = 1)
+  // Определяем, является ли это чистым фото (_1)
   const { parseAdId } = await import('../src/constants/materialAliases.js');
   const parsed = parseAdId(avitoId);
-  const isFlagship = parsed && parsed.counter === 1;
+  const isCleanPhoto = parsed && parsed.counter === 1;
+  const sourceBase = parsed?.sourceBase || parsed?.materialAlias || '';
   
   // Находим исходник
   const originalsDir = path.join(photosRoot, materialId, 'originals');
@@ -784,6 +785,17 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
   if (originals.length === 0) {
     throw new Error(`В ${originalsDir} нет исходных файлов`);
   }
+  
+  // Пытаемся найти исходник по basename из adId
+  const pickSource = () => {
+    if (!sourceBase) {
+      throw new Error(`Не удалось определить basename для adId ${avitoId}`);
+    }
+    const exact = originals.find(p => path.basename(p, path.extname(p)) === sourceBase);
+    if (exact) return exact;
+    throw new Error(`Исходник с именем ${sourceBase} не найден в ${originalsDir}`);
+  };
+  const preferredSourcePath = pickSource();
   
   // Папка variants как для новых объявлений: data/photos/<materialId>/<safeAddress>/variants/
   const { formatAddressLabel, sanitizeName } = await import('./lib/photo-variants/utils.js');
@@ -810,105 +822,27 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
     } = await import('./lib/photo-variants/patterns.js');
     const { applyTransformations } = await import('./lib/photo-variants/transformations.js');
     
-    // Для флагманского фото: проверяем наличие готового flagship.jpg или fs.jpeg
     let sourceBuffer = null;
     let sourceMeta = null;
     let sourceStats = null;
     let sourcePalette = null;
-    let sourcePath = originals[0] || null; // дефолт для fallback
+    let sourcePath = preferredSourcePath;
     
-    if (isFlagship) {
-      // Для флагманского фото ищем файлы с "flagship" или "fs" в имени (любое расширение)
-      // Сначала ищем в папке originals
-      const allOriginals = fs.readdirSync(originalsDir)
-        .filter(name => name.match(/\.(jpg|jpeg|png|webp)$/i))
-        .map(name => path.join(originalsDir, name));
-      
-      const flagshipInOriginals = allOriginals.find(p => {
-        const basename = path.basename(p).toLowerCase();
-        return basename.includes('flagship') || basename.includes('fs');
-      });
-      
-      // Также проверяем в корне материала (для обратной совместимости)
-      const baseDir = path.join(photosRoot, materialId);
-      let flagshipInRoot = null;
-      if (fs.existsSync(baseDir)) {
-        const rootFiles = fs.readdirSync(baseDir)
-          .filter(name => name.match(/\.(jpg|jpeg|png|webp)$/i))
-          .map(name => path.join(baseDir, name));
-        flagshipInRoot = rootFiles.find(p => {
-          const basename = path.basename(p).toLowerCase();
-          return basename.includes('flagship') || basename.includes('fs');
-        });
-      }
-      
-      // Приоритет: originals/flagship* > originals/fs* > корень/flagship* > корень/fs*
-      const flagshipPath = flagshipInOriginals || flagshipInRoot;
-      
-      if (flagshipPath) {
-        const isFlagshipName = path.basename(flagshipPath).toLowerCase().includes('flagship');
-        const location = flagshipInOriginals ? 'originals' : 'корня материала';
-        console.log(`   ${isFlagshipName ? 'Используется готовый' : 'Создаём флагманское фото из'} ${path.basename(flagshipPath)} из ${location} (флагманское объявление)`);
-        sourceBuffer = await loadImageBuffer(flagshipPath);
-        const sourceImage = sharp.default(sourceBuffer);
-        sourceMeta = await sourceImage.metadata();
-        sourceStats = await sharp.default(sourceBuffer).stats();
-        sourcePalette = pickTextPalette(sourceStats, null);
-        sourcePath = flagshipPath;
-      }
-    }
+    // Загружаем выбранный исходник
+    sourceBuffer = await loadImageBuffer(sourcePath);
+    const baseImage = sharp.default(sourceBuffer);
+    sourceMeta = await baseImage.metadata();
+    sourceStats = await sharp.default(sourceBuffer).stats();
+    sourcePalette = pickTextPalette(sourceStats, null);
+    console.log(`   Используется исходник ${path.basename(sourcePath)}${isCleanPhoto ? ' (чистое фото _1)' : ''}`);
     
-    // Если не нашли готовый флагманский исходник - используем обычный
-    if (!sourceBuffer) {
-      // Для флагманского фото ищем файлы с "flagship" или "fs" в имени (любое расширение)
-      if (isFlagship) {
-        const flagshipInOriginals = originals.find(p => {
-          const basename = path.basename(p).toLowerCase();
-          return basename.includes('flagship') || basename.includes('fs');
-        });
-        
-        if (flagshipInOriginals) {
-          const sourcePathLocal = flagshipInOriginals;
-          sourceBuffer = await loadImageBuffer(sourcePathLocal);
-          const baseImage = sharp.default(sourceBuffer);
-          sourceMeta = await baseImage.metadata();
-          sourceStats = await sharp.default(sourceBuffer).stats();
-          sourcePalette = pickTextPalette(sourceStats, null);
-          sourcePath = sourcePathLocal;
-          console.log(`   Создаём флагманское фото из ${path.basename(sourcePathLocal)} (без искажений)`);
-        } else {
-          // Если не нашли файлы с "flagship" или "fs" - берем первый исходник
-          const sourcePathLocal = originals[0];
-          sourceBuffer = await loadImageBuffer(sourcePathLocal);
-          const baseImage = sharp.default(sourceBuffer);
-          sourceMeta = await baseImage.metadata();
-          sourceStats = await sharp.default(sourceBuffer).stats();
-          sourcePalette = pickTextPalette(sourceStats, null);
-          sourcePath = sourcePathLocal;
-          console.log(`   ⚠️  Флагманское фото из ${path.basename(sourcePathLocal)} (файлы с "flagship" или "fs" не найдены)`);
-        }
-      } else {
-        // Для не-флагманских фото берем первый исходник
-        const sourcePathLocal = originals[0];
-        sourceBuffer = await loadImageBuffer(sourcePathLocal);
-        const baseImage = sharp.default(sourceBuffer);
-        sourceMeta = await baseImage.metadata();
-        sourceStats = await sharp.default(sourceBuffer).stats();
-        sourcePalette = pickTextPalette(sourceStats, null);
-        sourcePath = sourcePathLocal;
-        console.log(`   Создаём фото с трансформациями из ${path.basename(sourcePathLocal)}`);
-      }
-    }
-    
-    // Для флагманского фото - без трансформаций, только водяной знак
-    // Для остальных - применяем трансформации
+    // Чистое фото (_1) — без трансформаций, только водяной знак
+    // Остальные — с трансформациями
     let finalBuffer;
     
-    if (isFlagship) {
-      // Флагманское: без трансформаций, только водяной знак
+    if (isCleanPhoto) {
       finalBuffer = sourceBuffer;
     } else {
-      // Не флагманское: применяем трансформации
       const smallImage = Math.min(sourceMeta.width, sourceMeta.height) < 1400;
       const transformResult = await applyTransformations(sourceBuffer, {
         width: sourceMeta.width,
@@ -955,8 +889,8 @@ export async function generatePhotoForOldAd(avitoId, materialId, address, photos
     // Формируем список слоев для композиции
     const compositeLayers = [];
     
-    // Для не-флагманских фото добавляем паттерны для уникализации
-    if (!isFlagship) {
+    // Для не-чистых фото добавляем паттерны для уникализации
+    if (!isCleanPhoto) {
       const patternOpacityValue =
         typeof overridePatternOpacity === 'number' && !Number.isNaN(overridePatternOpacity) && overridePatternOpacity > 0
           ? overridePatternOpacity
@@ -1592,22 +1526,6 @@ async function main() {
                 ad.latinReplacements = descResult.latinReplacements;
                 ad.block1Variant = descResult.block1Variant;
                 ad.block7 = descResult.block7Params;
-                
-                // Для флагманского объявления обновляем точные значения priceFor, color, price
-                const { parseAdId } = await import('../src/constants/materialAliases.js');
-                const parsed = parseAdId(ad.Id);
-                const isFlagship = parsed && parsed.counter === 1;
-                
-                if (isFlagship) {
-                  console.log(`      Флагманское объявление`);
-                  console.log(`      Используются точные параметры: priceFor, color, price`);
-                  const { FLAGSHIP_PARAMETERS } = await import('../src/constants/parameters.js');
-                  ad.priceFor = FLAGSHIP_PARAMETERS.PRICE_FOR;
-                  ad.color = FLAGSHIP_PARAMETERS.COLOR;
-                  if (sandType) {
-                    ad.price = sandType.basePrice; // Точная базовая цена
-                  }
-                }
               }
               
               updated = true;
@@ -1741,7 +1659,15 @@ async function main() {
 
         for (const loc of locationsPlan) {
           const adCounterStart = 1;
-          const flagshipFlags = Array(loc.count).fill(false).map((_, idx) => idx === 0);
+          const baseCount = Math.round(loc.count * 0.5);
+          const basePriceCount = Math.max(0, Math.min(loc.count, baseCount));
+          const useBasePriceFlags = Array.from({ length: loc.count }, (_, idx) => idx < basePriceCount);
+          const baseShare = loc.count > 0 ? basePriceCount / loc.count : 0;
+          if (loc.count > 0 && Math.abs(baseShare - 0.5) > 0.1) {
+            console.log(
+              `      ⚠️ Доля базовой цены отклоняется от 50% (${(baseShare * 100).toFixed(0)}% при ${loc.count} объявл.)`
+            );
+          }
 
           const isRubbleTask = (task.material || 'sand') === 'rubble';
           const defaultTitles = task.titles && task.titles.length
@@ -1758,7 +1684,7 @@ async function main() {
             addresses: [loc.address],
             photos: task.photos || [],
             currentAds,
-            isFlagship: flagshipFlags
+            useBasePrice: useBasePriceFlags
           });
 
           let withPhotoCount = 0;
@@ -1777,11 +1703,22 @@ async function main() {
             })
             .filter(Boolean)
             .filter(p => p.hasTime && !existingIdsSet.has(p.adId))
-            .sort((a, b) => a.parsed.counter - b.parsed.counter);
+            .sort((a, b) => {
+              if (a.parsed.dateLabel === b.parsed.dateLabel) {
+                if (a.parsed.sourceBase === b.parsed.sourceBase) {
+                  return a.parsed.counter - b.parsed.counter;
+                }
+                return a.parsed.sourceBase.localeCompare(b.parsed.sourceBase);
+              }
+              return a.parsed.dateLabel.localeCompare(b.parsed.dateLabel);
+            });
+
+          const photoQueue = [...locationPhotos];
+          const photoQueueForSchedule = [...locationPhotos];
 
           ads.forEach((ad, idx) => {
             const targetCounter = adCounterStart + idx;
-            const photo = locationPhotos.find(p => p.parsed.counter === targetCounter);
+            const photo = photoQueue.shift();
             const queueDate = parseDateTime(planDateBegin) || new Date();
 
             if (photo) {
@@ -1789,7 +1726,13 @@ async function main() {
               ad.photoLink = photo.url;
               withPhotoCount++;
             } else {
-              ad.adId = generateAdId(materialIdResolved, loc.address, queueDate, targetCounter);
+              ad.adId = generateAdId({
+                materialId: materialIdResolved,
+                sourceBase: getMaterialAlias(materialIdResolved),
+                address: loc.address,
+                dateBegin: queueDate,
+                counter: targetCounter
+              });
               if (!ad.photoLink && task.photos && task.photos.length) {
                 ad.photoLink = task.photos[Math.floor(Math.random() * task.photos.length)];
                 withPhotoCount++;
@@ -1822,7 +1765,8 @@ async function main() {
             materialIdResolved,
             location: loc.address,
             task,
-            locationPhotos
+            locationPhotos,
+            photoQueue: photoQueueForSchedule
           });
 
           taskAdsCount += ads.length;
@@ -1843,8 +1787,7 @@ async function main() {
         }
 
         const ad = entry.ads[entry.index];
-        const targetCounter = entry.index + 1;
-        const photo = entry.locationPhotos.find((p) => p.parsed.counter === targetCounter);
+        const photo = entry.photoQueue && entry.photoQueue.length > entry.index ? entry.photoQueue[entry.index] : null;
         const queueDate = parseDateTime(item.DateBegin);
 
         if (photo) {
@@ -1852,7 +1795,13 @@ async function main() {
           ad.photoLink = photo.url;
         } else {
           const baseDate = queueDate || parseDateTime(planDateBegin) || new Date();
-          ad.adId = generateAdId(entry.materialIdResolved, entry.location, baseDate, targetCounter);
+          ad.adId = generateAdId({
+            materialId: entry.materialIdResolved,
+            sourceBase: getMaterialAlias(entry.materialIdResolved),
+            address: entry.location,
+            dateBegin: baseDate,
+            counter: entry.index + 1
+          });
           if (!ad.photoLink && entry.task.photos && entry.task.photos.length) {
             ad.photoLink = entry.task.photos[Math.floor(Math.random() * entry.task.photos.length)];
           }

@@ -1,7 +1,7 @@
 /**
  * Алиасы материалов и городов для генерации коротких уникальных ID объявлений.
- * Формат adId: {material}_{city}_{date}-{time}_{counter}
- * Пример: s00_bron_241210-125501_01 (12:55:01)
+ * Формат adId: {sourceBase}_{city}_{date}-{time}_{counter}
+ * Пример: s00_1_dmd_241210-125501_1 (12:55:01)
  */
 
 // Алиасы материалов (короткие коды)
@@ -148,41 +148,78 @@ function formatDateLabel(date) {
   return `${dd}${mm}${yy}-${HH}${MM}${SS}`;
 }
 
+function sanitizeAdIdPart(str = '') {
+  return (
+    String(str || '')
+      .trim()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'photo'
+  );
+}
+
+function resolveSourceBase(sourceBase, materialId) {
+  if (sourceBase && typeof sourceBase === 'string') {
+    return sanitizeAdIdPart(sourceBase);
+  }
+  if (materialId) {
+    return sanitizeAdIdPart(getMaterialAlias(materialId));
+  }
+  return 'photo';
+}
+
 /**
  * Генерирует уникальный ID объявления
- * @param {string} materialId - ID материала
- * @param {string} address - адрес объявления
- * @param {Date|string} dateBegin - дата начала публикации (с временем)
- * @param {number} counter - порядковый номер (1-999)
- * @returns {string} - например, "s00_bron_241210-125501_01"
+ * @param {Object|string} params - объект с параметрами или материал/alias для обратной совместимости
+ * @param {string} [params.sourceBase] - basename исходника (s00_1)
+ * @param {string} [params.materialId] - ID материала (используется как фолбэк для basename)
+ * @param {string} [params.address] - адрес объявления
+ * @param {Date|string} [params.dateBegin] - дата начала публикации (с временем)
+ * @param {number} [params.counter] - порядковый номер (1-999)
+ * @returns {string} - например, "s00_1_dmd_241210-125501_1"
  */
-export function generateAdId(materialId, address, dateBegin, counter) {
-  const matAlias = getMaterialAlias(materialId);
+export function generateAdId(materialIdOrParams, address, dateBegin, counter) {
+  if (materialIdOrParams && typeof materialIdOrParams === 'object') {
+    const { sourceBase, materialId, address: addr, dateBegin: date, counter: cnt } = materialIdOrParams;
+    const cityAlias = getCityAlias(addr);
+    const dateLabel = formatDateLabel(date);
+    const base = resolveSourceBase(sourceBase || materialId, materialId);
+    const counterStr = String(cnt ?? 1);
+    return `${base}_${cityAlias}_${dateLabel}_${counterStr}`;
+  }
+
   const cityAlias = getCityAlias(address);
   const dateLabel = formatDateLabel(dateBegin);
-  const counterStr = String(counter).padStart(2, '0');
-  return `${matAlias}_${cityAlias}_${dateLabel}_${counterStr}`;
+  const base = resolveSourceBase(undefined, materialIdOrParams);
+  const counterStr = String(counter ?? 1);
+  return `${base}_${cityAlias}_${dateLabel}_${counterStr}`;
 }
 
 /**
  * Парсит adId обратно в компоненты
  * @param {string} adId - ID объявления (например, "s00_bron_161225-125501_01")
- * @returns {Object|null} - {materialAlias, cityAlias, dateLabel, counter} или null
+ * @returns {Object|null} - {sourceBase, materialAlias, cityAlias, dateLabel, counter} или null
  */
 export function parseAdId(adId) {
   if (!adId || typeof adId !== 'string') return null;
   const parts = adId.split('_');
-  if (parts.length !== 4) return null;
-  
-  const counter = parseInt(parts[3], 10);
+  if (parts.length < 4) return null;
+
+  const counter = parseInt(parts.pop(), 10);
   if (isNaN(counter)) return null;
-  
-  // dateLabel может быть в формате "DDMMYY-HHmmss" или "DDMMYY" (для обратной совместимости)
-  const dateLabel = parts[2];
-  
+
+  const dateLabel = parts.pop();
+  const cityAlias = parts.pop();
+  const sourceBase = parts.join('_');
+  if (!sourceBase || !cityAlias || !dateLabel) return null;
+
+  const materialAlias = sourceBase.split(/[_\-.]/)[0] || sourceBase;
+
   return {
-    materialAlias: parts[0],
-    cityAlias: parts[1],
+    sourceBase,
+    materialAlias,
+    cityAlias,
     dateLabel,
     counter
   };

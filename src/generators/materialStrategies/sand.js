@@ -5,7 +5,7 @@
 
 import { generateDescription } from '../materials/sand/descriptionGenerator.js';
 import { getSandType } from '../../constants/sandTypes.js';
-import { VARIATION_PARAMETERS, FIXED_PARAMETERS, FLAGSHIP_PARAMETERS, generatePrice } from '../../constants/parameters.js';
+import { VARIATION_PARAMETERS, FIXED_PARAMETERS, generatePrice } from '../../constants/parameters.js';
 
 // Конфигурация дубль-чека для песка
 export const SAND_DUPLICATE_CONFIG = {
@@ -32,6 +32,12 @@ function randomChoice(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function randomInt(min, max, step = 1) {
+  const steps = Math.floor((max - min) / step);
+  const idx = Math.floor(Math.random() * (steps + 1));
+  return min + idx * step;
+}
+
 /**
  * Формирует одно объявление по песку.
  * @param {Object} params
@@ -39,10 +45,18 @@ function randomChoice(arr) {
  * @param {string[]} params.titles
  * @param {string[]} params.addresses
  * @param {string[]} params.photos
- * @param {boolean} [params.isFlagship=false] - Флагманское объявление (используются точные характеристики)
+ * @param {boolean} [params.isFlagship=false] - Флагманское объявление (исторический параметр)
+ * @param {boolean} [params.useBasePrice=false] - Использовать базовую цену
  * @returns {Object} объявление
  */
-export function buildSandAd({ materialId, titles = [], addresses = [], photos = [], isFlagship = false } = {}) {
+export function buildSandAd({
+  materialId,
+  titles = [],
+  addresses = [],
+  photos = [],
+  isFlagship = false,
+  useBasePrice = false
+} = {}) {
   const sandTypeId = materialId || DEFAULT_SAND_TYPE_ID;
   const sandType = getSandType(sandTypeId);
 
@@ -50,21 +64,10 @@ export function buildSandAd({ materialId, titles = [], addresses = [], photos = 
   const address = addresses.length ? randomChoice(addresses) : 'Адрес не указан';
   const photoLink = photos.length ? randomChoice(photos) : '';
 
-  // Для флагманского объявления используем точные значения
-  const priceFor = isFlagship 
-    ? FLAGSHIP_PARAMETERS.PRICE_FOR 
-    : randomChoice(VARIATION_PARAMETERS.PRICE_FOR);
-  
-  const color = isFlagship 
-    ? FLAGSHIP_PARAMETERS.COLOR 
-    : randomChoice(VARIATION_PARAMETERS.COLOR);
-  
-  // Генерируем цену (всегда за тонну)
-  // basePrice всегда в ₽/т
+  const priceFor = randomChoice(VARIATION_PARAMETERS.PRICE_FOR);
+  const color = randomChoice(VARIATION_PARAMETERS.COLOR);
   const price = sandType
-    ? (isFlagship 
-        ? sandType.basePrice 
-        : generatePrice(sandType.basePrice))
+    ? (useBasePrice ? sandType.basePrice : generatePrice(sandType.basePrice))
     : 0;
 
   const { description, latinReplacements, blockOrder, separators, block7Params, block1Variant } =
@@ -85,7 +88,7 @@ export function buildSandAd({ materialId, titles = [], addresses = [], photos = 
     address,
     photoLink,
     fixed: {
-      minSaleQuantity: FIXED_PARAMETERS.MIN_SALE_QUANTITY,
+      minSaleQuantity: randomInt(10, 20, 2), // диапазон 10-20, шаг 2
       availability: FIXED_PARAMETERS.AVAILABILITY,
       packagingType: FIXED_PARAMETERS.PACKAGING_TYPE,
       compactionCoefficient: sandType?.compactionCoefficient
