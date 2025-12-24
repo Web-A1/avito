@@ -214,7 +214,8 @@ export function parseAdId(adId) {
   const sourceBase = parts.join('_');
   if (!sourceBase || !cityAlias || !dateLabel) return null;
 
-  const materialAlias = sourceBase.split(/[_\-.]/)[0] || sourceBase;
+  // Материал может содержать дефисы (r00-0520), поэтому делим только по первому подчёркиванию
+  const materialAlias = sourceBase.split('_')[0] || sourceBase;
 
   return {
     sourceBase,

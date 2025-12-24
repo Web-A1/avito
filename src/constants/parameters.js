@@ -70,7 +70,7 @@ export const FIXED_PARAMETERS = {
 // Контактная информация и метаданные объявлений
 export const CONTACT_PARAMETERS = {
   // Телефон для связи
-  CONTACT_PHONE: '74999389529',
+  CONTACT_PHONE: '74993258898',
   
   // Email для связи
   EMAIL: 'a1@capital-craft.ru',

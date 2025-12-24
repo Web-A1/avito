@@ -218,7 +218,7 @@ pub static ZHIROSHINO_TITLES: Lazy<HashMap<&'static str, &'static [&'static str]
 pub const DEFAULT_LISTING_FEE: &str = "Package";
 pub const DEFAULT_AD_STATUS: &str = "Free";
 pub const DEFAULT_MANAGER_NAME: &str = "Владимир";
-pub const DEFAULT_CONTACT_PHONE: &str = "74999389529";
+pub const DEFAULT_CONTACT_PHONE: &str = "74993258898";
 pub const DEFAULT_CONTACT_METHOD: &str = "По телефону и в сообщениях";
 pub const DEFAULT_EMAIL: &str = "a1@capital-craft.ru";
 pub const DEFAULT_COMPANY_NAME: &str = "NERUDA";

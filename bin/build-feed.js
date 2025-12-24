@@ -78,6 +78,79 @@ function resolveMaterialIdFromAdId(adId) {
   return MATERIAL_ALIAS_TO_ID[parsed.materialAlias] || null;
 }
 
+function getBasePrice(materialId) {
+  if (!materialId) return null;
+  const sandType = getSandType(materialId);
+  if (sandType) return sandType.basePrice ?? null;
+  const rubbleType = getRubbleType(materialId);
+  if (rubbleType) return rubbleType.basePricePerTonne ?? null;
+  return null;
+}
+
+function validateBasePriceShare(ads) {
+  const groups = new Map(); // key: materialId|address
+  ads.forEach((ad) => {
+    const adId = ad.adId || ad.Id;
+    const materialId = ad.materialId || resolveMaterialIdFromAdId(adId);
+    const address = ad.address || '';
+    const key = `${materialId || 'unknown'}|${address}`;
+    if (!groups.has(key)) {
+      groups.set(key, { materialId, address, total: 0, base: 0 });
+    }
+    const g = groups.get(key);
+    const hasFlag = typeof ad.useBasePrice === 'boolean';
+    const basePrice = getBasePrice(materialId);
+    const priceNum = Number(ad.price);
+    if (!Number.isFinite(priceNum) || basePrice === null) return;
+    g.total += 1;
+    if (hasFlag ? ad.useBasePrice : priceNum === basePrice) g.base += 1;
+  });
+
+  const errors = [];
+  groups.forEach((g, key) => {
+    if (g.total === 0) return;
+    const share = g.base / g.total;
+    if (share < 0.4 || share > 0.6) {
+      errors.push(
+        `${g.materialId || 'unknown'} @ ${g.address || 'не указан'}: базовых ${g.base}/${g.total} (${Math.round(
+          share * 100
+        )}%)`
+      );
+    }
+  });
+
+  if (errors.length) {
+    throw new Error(
+      `Доля базовых цен вне допуска 50%±10%:\n` +
+        errors.slice(0, 5).join('\n') +
+        (errors.length > 5 ? `\n... и ещё ${errors.length - 5}` : '')
+    );
+  }
+}
+
+function validateUniqueCleanPhotos(photosMapping) {
+  if (!photosMapping || typeof photosMapping !== 'object') return;
+  const counterMap = new Map(); // key: sourceBase|cityAlias -> count
+  Object.keys(photosMapping).forEach((adId) => {
+    const parsed = parseAdId(adId);
+    if (!parsed || parsed.counter !== 1) return;
+    const key = `${parsed.sourceBase}|${parsed.cityAlias}`;
+    counterMap.set(key, (counterMap.get(key) || 0) + 1);
+  });
+  const duplicates = Array.from(counterMap.entries()).filter(([, count]) => count > 1);
+  if (duplicates.length) {
+    const list = duplicates
+      .slice(0, 5)
+      .map(([key, count]) => `${key}: ${count} файлов с _1`)
+      .join('\n');
+    throw new Error(
+      `Обнаружены дублирующиеся чистые фото (_1) для исходников:\n${list}${
+        duplicates.length > 5 ? `\n... и ещё ${duplicates.length - 5}` : ''
+      }`
+    );
+  }
+}
+
 function parseArgs() {
   const args = process.argv.slice(2);
   const opts = {
@@ -1686,6 +1759,9 @@ async function main() {
             currentAds,
             useBasePrice: useBasePriceFlags
           });
+          ads.forEach((ad, idx) => {
+            ad.useBasePrice = !!useBasePriceFlags[idx];
+          });
 
           let withPhotoCount = 0;
           const adsWithoutPhoto = [];
@@ -1823,6 +1899,10 @@ async function main() {
         const withoutPhotos = generatedAds.length - withPhotos;
         console.log(`      С фото: ${withPhotos}`);
         console.log(`      Без фото: ${withoutPhotos}`);
+
+        // Валидация новых правил
+        validateBasePriceShare(generatedAds);
+        validateUniqueCleanPhotos(photosMapping);
       }
       console.log(`${'═'.repeat(60)}\n`);
     }

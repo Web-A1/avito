@@ -496,36 +496,15 @@ async function main() {
         const { formatAddressLabel, sanitizeName } = await import('./lib/photo-variants/utils.js');
         const safeAddress = sanitizeName(formatAddressLabel(address));
         
-        // Определяем дату для папки на диске
-        // Формат должен быть "DD.MM" (как в build-feed.js используется formatDateLabel(opts.date))
-        // Если в adId есть dateLabel, преобразуем его в формат "DD.MM"
-        let dateLabel = null;
-        if (parsed.dateLabel) {
-          // Парсим dateLabel из adId (формат "DDMMYY-HHmmss" или "DDMMYY")
-          const dateFromLabel = parseDateLabel(parsed.dateLabel);
-          if (dateFromLabel) {
-            const pad = (n) => String(n).padStart(2, '0');
-            dateLabel = `${pad(dateFromLabel.getDate())}.${pad(dateFromLabel.getMonth() + 1)}`;
-          }
-        }
-        // Если не удалось определить из adId, используем текущую дату
-        if (!dateLabel) {
-          const now = new Date();
-          const pad = (n) => String(n).padStart(2, '0');
-          dateLabel = `${pad(now.getDate())}.${pad(now.getMonth() + 1)}`;
-        }
+        // Определяем единственную папку на диске по дате/времени (без вложений по материалу/адресу)
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const folderLabel = `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+        const targetDir = `disk:/${opts.diskRoot}/${folderLabel}`;
         
-        const rootPath = `disk:/${opts.diskRoot}`;
-        const materialPath = `${rootPath}/${materialId}`;
-        const addressPath = `${materialPath}/${safeAddress}`;
-        const datePath = `${addressPath}/${dateLabel}`;
+        await ensureFolder(token, targetDir);
         
-        await ensureFolder(token, rootPath);
-        await ensureFolder(token, materialPath);
-        await ensureFolder(token, addressPath);
-        await ensureFolder(token, datePath);
-        
-        const remotePath = `${datePath}/${adId}.jpg`;
+        const remotePath = `${targetDir}/${adId}.jpg`;
         const newPublicUrl = await uploadAndPublishPhoto(token, photoPath, remotePath);
         console.log(`   ✅ Фото загружено: ${newPublicUrl}`);
         
