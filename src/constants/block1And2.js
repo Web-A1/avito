@@ -96,7 +96,20 @@ export const BLOCK_1_SHEBEN_VTORICHNYI_40_70 = [
 ];
 
 // Блок 2: Применение - ЩЕБЕНЬ ВТОРИЧНЫЙ 40–70 ММ (HTML)
-export const BLOCK_2_SHEBEN_VTORICHNYI_40_70_HTML = `<ol> <li>Отсыпка и поднятие уровня участка<br> Формирование насыпей и поднятие отметки участка, выравнивание рельефа перед устройством оснований и покрытий.</li> <li>Основания под площадки и проезды<br> Устройство несущих слоёв под площадки хранения, стоянки, подъездные пути и внутренние проезды по участку.</li> <li>Засыпка котлованов и укрепление слабых грунтов<br> Заполнение котлованов, засыпка выработок и локальных понижений с одновременным уплотнением и усилением основания.</li> <li>Временные и постоянные дороги<br> Отсыпка временных и вспомогательных дорог для строительной техники, подготовка основания под последующие дорожные слои.</li> </ol>`;
+export const BLOCK_2_SHEBEN_VTORICHNYI_40_70_HTML = `<br>
+<br> 1. Отсыпка и поднятие уровня участка
+<br> Формирование насыпей и поднятие отметки участка, выравнивание рельефа перед устройством оснований и покрытий.
+<br> 
+<br> 2. Основания под площадки и проезды
+<br> Устройство несущих слоёв под площадки хранения, стоянки, подъездные пути и внутренние проезды по участку.
+<br> 
+<br> 3. Засыпка котлованов и укрепление слабых грунтов
+<br> Заполнение котлованов, засыпка выработок и локальных понижений с одновременным уплотнением и усилением основания.
+<br> 
+<br> 4. Временные и постоянные дороги
+<br> Отсыпка временных и вспомогательных дорог для строительной техники, подготовка основания под последующие дорожные слои.
+<br>
+<br>Минимальный объём поставки — 20 м³ (1 самосвал)`;
 
 export const BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS = [
   'Вторичный щебень 40–70 применяется для:',
@@ -105,7 +118,20 @@ export const BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS = [
 ];
 
 // Блок 2: Применение - ЩЕБЕНЬ ВТОРИЧНЫЙ 5–20 ММ (HTML)
-export const BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML = `<ol> <li>Подстилающие и выравнивающие слои<br> Подготовка основания под бетонные стяжки, плиты, тротуары, дорожки, парковочные и складские площадки.</li> <li>Засыпка траншей и котлованов<br> Обратная засыпка и выравнивание траншей под коммуникации, котлованов и локальных понижений рельефа.</li> <li>Основания под площадки и проезды<br> Формирование несущих слоёв под подъездные пути, внутренние проезды, стоянки и технологические зоны.</li> <li>Временные и вспомогательные дорожные конструкции<br> Устройство временных дорог и проездов для строительной техники, организованных площадок складирования и разгрузки.</li> </ol>`;
+export const BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML = `<br>
+<br> 1. Подстилaющиe и выравнивающие слои
+<br> Подготовка основания под бетонные стяжки, плиты, тротуары, дорожки, парковoчные и складские площадки.
+<br> 
+<br> 2. Засыпка траншей и котлованов
+<br> Обратная засыпка и выравнивание траншей под коммуникации, котлованов и локальных понижений рельефа.
+<br> 
+<br> 3. Основания под площадки и проезды
+<br> Формирование несущих слоёв под подъездные пути, внутренние проезды, стоянки и технологические зоны.
+<br>
+<br> 4. Временные и вспомогательные дорожные конструкции
+<br> Устройство временных дорог и проездов для строительной техники, организованных площадок складирования и разгрузки.
+<br>
+<br> Минимальный объём поставки — 20 м³ (1 самосвал)`;
 
 export const BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS = [
   'Вторичный щебень 5–20 применяется для:',
@@ -165,9 +191,7 @@ export const BLOCK_2_INTROS = {
     'Мытый песок крупной фракции (МК 2.0–2.5) - карьерный песок, просеяный и промытый, имеет крупную зернистость и минимальный уровень пылевых и глинистых частиц. Соответствует ГОСТ 8736-2014 «Песок для строительных работ»'
   ],
   scheben_vtorichnyi_5_20: [
-    'Вторичный щебень 5–20 мм — щебень из дроблёного бетона и кирпича, образованный в результате вторичной переработки, отсортированный по размерам частиц 5–20 мм.',
-    'Вторичный щебень 5–20 мм — щебень из дроблёного бетона и кирпича после вторичной переработки, отсортированный по мелкой фракции 5–20 мм, без крупных включений.',
-    'Щебень вторичный фракции 5–20 - переработанный бетон и кирпич, измельчённые и отсортированные по размеру частиц 5–20 мм. Щебень очищен от крупного мусора и посторонних включений.'
+    'Вторичный щебень 5–20 мм — щебень из дроблёного бетона и кирпича после вторичной переработки, отсортированный по мелкой фракции 5–20 мм, без крупных включений.'
   ],
   scheben_vtorichnyi_40_70: [
     'Вторичный щебень 40–70 мм — щебень из дроблёного бетона и кирпича, образованный в результате вторичной переработки, отсортированный по размерам частиц 40–70 мм.',
@@ -191,40 +215,46 @@ export function getBlock2Intro(materialId) {
  */
 export function getBlock2WithHeading(sandTypeId) {
   const intro = getBlock2Intro(sandTypeId);
+  const introHtml = intro ? `<strong>${intro}</strong>` : '';
 
   if (sandTypeId === 'karier_neseyan_nemyt_pesok') {
     const heading = BLOCK_2_NEMYTYY_NESEYANYY_HEADINGS[
       Math.floor(Math.random() * BLOCK_2_NEMYTYY_NESEYANYY_HEADINGS.length)
     ];
-    return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_NEMYTYY_NESEYANYY_HTML}<p>Минимальный объем 20 м³ (1 самосвал)</p>`;
+    const headingHtml = heading ? `<br><br>${heading}` : '';
+    return `<p>${introHtml}${headingHtml}${BLOCK_2_NEMYTYY_NESEYANYY_HTML}<br><br>Минимальный объем 20 м³ (1 самосвал)</p>`;
   }
 
   if (sandTypeId === 'karier_seyan_nemyt_pesok') {
     const heading = BLOCK_2_SEYANYY_NEMYTYY_HEADINGS[
       Math.floor(Math.random() * BLOCK_2_SEYANYY_NEMYTYY_HEADINGS.length)
     ];
-    return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SEYANYY_NEMYTYY_HTML}<p>Минимальный объем 20 м³ (1 самосвал)</p>`;
+    const headingHtml = heading ? `<br><br>${heading}` : '';
+    return `<p>${introHtml}${headingHtml}${BLOCK_2_SEYANYY_NEMYTYY_HTML}<br><br>Минимальный объем 20 м³ (1 самосвал)</p>`;
   }
 
   if (sandTypeId === 'karier_seyan_myt_pesok_1.5') {
     const heading = BLOCK_2_SEYANYY_MYTYY_FINE_HEADINGS[
       Math.floor(Math.random() * BLOCK_2_SEYANYY_MYTYY_FINE_HEADINGS.length)
     ];
-    return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SEYANYY_MYTYY_FINE_HTML}<p>Минимальный объем 20 м³ (1 самосвал)</p>`;
+    const headingHtml = heading ? `<br><br>${heading}` : '';
+    return `<p>${introHtml}${headingHtml}${BLOCK_2_SEYANYY_MYTYY_FINE_HTML}<br><br>Минимальный объем 20 м³ (1 самосвал)</p>`;
   }
 
   if (sandTypeId === 'karier_seyan_myt_pesok_2') {
     const heading = BLOCK_2_SEYANYY_MYTYY_MEDIUM_HEADINGS[
       Math.floor(Math.random() * BLOCK_2_SEYANYY_MYTYY_MEDIUM_HEADINGS.length)
     ];
-    return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SEYANYY_MYTYY_MEDIUM_HTML}<p>Минимальный объем 20 м³ (1 самосвал)</p>`;
+    const headingHtml = heading ? `<br><br>${heading}` : '';
+    return `<p>${introHtml}${headingHtml}${BLOCK_2_SEYANYY_MYTYY_MEDIUM_HTML}<br><br>Минимальный объем 20 м³ (1 самосвал)</p>`;
   }
 
   if (sandTypeId === 'karier_seyan_myt_pesok_2.5') {
     const heading = BLOCK_2_SEYANYY_MYTYY_COARSE_HEADINGS[
       Math.floor(Math.random() * BLOCK_2_SEYANYY_MYTYY_COARSE_HEADINGS.length)
     ];
-    return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SEYANYY_MYTYY_COARSE_HTML}<p>Минимальный объем 20 м³ (1 самосвал)</p>`;
+    const headingHtml = heading ? `<br><br>${heading}` : '';
+    return `<p>${introHtml}${headingHtml}${BLOCK_2_SEYANYY_MYTYY_COARSE_HTML}<br><br>Минимальный объем 20 м³ (1 самосвал)</p>`;
   }
 
   // fallback на немытый несеяный
@@ -232,5 +262,7 @@ export function getBlock2WithHeading(sandTypeId) {
     Math.floor(Math.random() * BLOCK_2_NEMYTYY_NESEYANYY_HEADINGS.length)
   ];
   const fallbackIntro = getBlock2Intro('karier_neseyan_nemyt_pesok') || '';
-  return `${fallbackIntro ? `<p><strong>${fallbackIntro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_NEMYTYY_NESEYANYY_HTML}<p>Минимальный объем 20 м³ (1 самосвал)</p>`;
+  const fallbackIntroHtml = fallbackIntro ? `<strong>${fallbackIntro}</strong>` : '';
+  const headingHtml = heading ? `<br><br>${heading}` : '';
+  return `<p>${fallbackIntroHtml}${headingHtml}${BLOCK_2_NEMYTYY_NESEYANYY_HTML}<br><br>Минимальный объем 20 м³ (1 самосвал)</p>`;
 }

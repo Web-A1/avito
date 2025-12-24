@@ -40,29 +40,24 @@ function getRubbleBlock1(rubbleTypeId) {
 
 function getRubbleBlock2(rubbleTypeId) {
   if (rubbleTypeId === 'scheben_vtorichnyi_5_20') {
-    const heading =
-      BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS[
-        Math.floor(Math.random() * BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS.length)
-      ];
     const intro = getBlock2Intro(rubbleTypeId);
-    return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML}<p>Минимальный объём поставки — 20 м³ (1 самосвал)</p>`;
+    const introHtml = intro ? `<strong>${intro}</strong>` : '';
+    const heading = BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS[1] || BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS[0];
+    const headingHtml = heading ? `<br><br>${heading}` : '';
+    return `<p>${introHtml}${headingHtml}${BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML}</p>`;
   }
 
   if (rubbleTypeId === 'scheben_vtorichnyi_40_70') {
-    const heading =
-      BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS[
-        Math.floor(Math.random() * BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS.length)
-      ];
     const intro = getBlock2Intro(rubbleTypeId);
-    return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SHEBEN_VTORICHNYI_40_70_HTML}<p>Минимальный объём поставки — 20 м³ (1 самосвал)</p>`;
+    const introHtml = intro ? `<strong>${intro}</strong>` : '';
+    const heading = BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS[1] || BLOCK_2_SHEBEN_VTORICHNYI_40_70_HEADINGS[0];
+    const headingHtml = heading ? `<br><br>${heading}` : '';
+    return `<p>${introHtml}${headingHtml}${BLOCK_2_SHEBEN_VTORICHNYI_40_70_HTML}</p>`;
   }
 
-  const heading =
-    BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS[
-      Math.floor(Math.random() * BLOCK_2_SHEBEN_VTORICHNYI_5_20_HEADINGS.length)
-    ];
   const intro = getBlock2Intro('scheben_vtorichnyi_5_20');
-  return `${intro ? `<p><strong>${intro}</strong></p>` : ''}<p>${heading}</p>${BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML}<p>Минимальный объём поставки — 20 м³ (1 самосвал)</p>`;
+  const introHtml = intro ? `<strong>${intro}</strong>` : '';
+  return `<p>${introHtml}${BLOCK_2_SHEBEN_VTORICHNYI_5_20_HTML}</p>`;
 }
 
 function assembleBlocks(blocks, blockOrder) {
