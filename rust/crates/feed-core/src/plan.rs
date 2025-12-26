@@ -156,6 +156,8 @@ pub struct Ad {
     pub condition: Option<String>,
     #[serde(rename = "DateBegin", default)]
     pub date_begin: Option<String>,
+    #[serde(rename = "Location", alias = "location", default)]
+    pub location: Option<String>,
     #[serde(default)]
     pub address: Option<String>,
     #[serde(rename = "photoLink", default)]
@@ -212,6 +214,9 @@ pub struct Ad {
     pub internet_calls: Option<String>,
     #[serde(rename = "Delivery", default)]
     pub delivery: Option<String>,
+    /// Вспомогательное поле: цена взята ровно по базе (для распределения долей).
+    #[serde(rename = "useBasePrice", default)]
+    pub use_base_price: Option<bool>,
 }
 
 /// Маппинг фото: avitoId → public_url.

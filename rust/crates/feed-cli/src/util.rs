@@ -33,7 +33,13 @@ pub fn default_date_label() -> String {
 pub fn sanitize_label_for_file(label: &str) -> String {
     label
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_') {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 

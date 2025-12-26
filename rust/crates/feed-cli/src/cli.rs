@@ -139,8 +139,8 @@ pub fn run() {
                 let mut map = HashMap::new();
                 for item in mapping.items {
                     if let Some(url) = item.public_url.clone() {
-                        if let Some(id) = mapping_key(&item) {
-                            map.insert(id, url);
+                        for id in mapping_keys(&item) {
+                            map.insert(id, url.clone());
                         }
                     }
                 }
@@ -160,8 +160,8 @@ pub fn run() {
                 let mut map = HashMap::new();
                 for item in mapping.items {
                     if let Some(url) = item.public_url.clone() {
-                        if let Some(id) = mapping_key(&item) {
-                            map.insert(id, url);
+                        for id in mapping_keys(&item) {
+                            map.insert(id, url.clone());
                         }
                     }
                 }
@@ -200,6 +200,10 @@ pub fn run() {
                 eprintln!("Ошибка генерации новых объявлений: {}", e);
                 std::process::exit(1);
             }
+        }
+        if let Err(e) = validate_base_price_share(&new_ads) {
+            eprintln!("Валидация цен: {}", e);
+            std::process::exit(1);
         }
     } else {
         println!("Фото-маппинг не загружен, новые объявления не генерируются");
@@ -317,18 +321,92 @@ fn resolve_optional_parent(path: &PathBuf) -> PathBuf {
     }
     path.clone()
 }
-fn mapping_key(item: &feed_core::PhotoMappingItem) -> Option<String> {
+fn mapping_keys(item: &feed_core::PhotoMappingItem) -> Vec<String> {
     if let Some(id) = &item.avito_id {
-        return Some(id.clone());
+        return vec![id.clone()];
     }
+    let mut out = Vec::new();
     if let Some(file) = &item.file_name {
-        let trimmed = file
+        let lower = file.to_ascii_lowercase();
+        let trimmed = lower
             .trim_end_matches(".jpg")
             .trim_end_matches(".jpeg")
             .trim_end_matches(".png");
         if !trimmed.is_empty() {
-            return Some(trimmed.to_string());
+            out.push(trimmed.to_string());
+            let parts: Vec<&str> = trimmed.split('_').collect();
+            if parts.len() == 5 {
+                // JS-формат: matAlias/_variant_/city/date/counter -> нормализуем к mat_city_date_counter
+                let alt = format!("{}_{}_{}_{}", parts[0], parts[2], parts[3], parts[4]);
+                out.push(alt);
+            }
+            // Чистое фото (_1) уникально на basename+city
+            if let Err(e) = validate_clean_photo_uniqueness(parts) {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
         }
     }
-    None
+    out
+}
+
+fn validate_clean_photo_uniqueness(parts: Vec<&str>) -> Result<(), String> {
+    // parts: [matAlias, variant, city, date, counter]
+    if parts.len() != 5 {
+        return Ok(());
+    }
+    if parts[4] != "1" {
+        return Ok(());
+    }
+    thread_local! {
+        static SEEN: std::cell::RefCell<std::collections::HashSet<(String, String)>> = Default::default();
+    }
+    let key = (format!("{}_{}", parts[0], parts[1]), parts[2].to_string());
+    let dup = SEEN.with(|set| {
+        let mut s = set.borrow_mut();
+        !s.insert(key.clone())
+    });
+    if dup {
+        return Err(format!(
+            "Дублирование чистого фото (_1) для исходника {} в городе {}",
+            format!("{}_{}", parts[0], parts[1]),
+            parts[2]
+        ));
+    }
+    Ok(())
+}
+
+fn validate_base_price_share(ads: &[feed_core::Ad]) -> Result<(), String> {
+    use std::collections::HashMap;
+    let mut stats: HashMap<(String, String), (u32, u32)> = HashMap::new();
+    for ad in ads {
+        let mat = ad.material_id.clone().unwrap_or_default();
+        let addr = ad.address.clone().unwrap_or_default();
+        if mat.is_empty() || addr.is_empty() {
+            continue;
+        }
+        let entry = stats.entry((mat, addr)).or_insert((0, 0));
+        if ad.use_base_price.unwrap_or(false) {
+            entry.0 += 1;
+        }
+        entry.1 += 1;
+    }
+    let mut bad = Vec::new();
+    for ((mat, addr), (base, total)) in stats {
+        if total == 0 {
+            continue;
+        }
+        let pct = base as f64 / total as f64 * 100.0;
+        if pct < 40.0 || pct > 60.0 {
+            bad.push(format!(
+                "{} @ {}: базовых {:.1}%, ожидается 40-60%",
+                mat, addr, pct
+            ));
+        }
+    }
+    if bad.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("Доля базовых цен вне допуска:\n{}", bad.join("\n")))
+    }
 }

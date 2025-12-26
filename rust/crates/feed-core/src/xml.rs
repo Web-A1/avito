@@ -8,9 +8,9 @@ use crate::{
     constants::{
         DEFAULT_AD_STATUS, DEFAULT_AD_TYPE, DEFAULT_AVAILABILITY, DEFAULT_BULK_MATERIAL_SUBTYPE,
         DEFAULT_COMPANY_NAME, DEFAULT_CONDITION, DEFAULT_CONTACT_METHOD, DEFAULT_CONTACT_PHONE,
-        DEFAULT_DELIVERY, DEFAULT_EMAIL, DEFAULT_INTERNET_CALLS, DEFAULT_LISTING_FEE,
-        DEFAULT_MANAGER_NAME, DEFAULT_MIN_SALE_QUANTITY, DEFAULT_PACKAGING_TYPE,
-        DEFAULT_TARGET_AUDIENCE, SELLER_ADDRESS_ALIASES, SELLER_ADDRESS_IDS,
+        DEFAULT_EMAIL, DEFAULT_INTERNET_CALLS, DEFAULT_LISTING_FEE, DEFAULT_MANAGER_NAME,
+        DEFAULT_MIN_SALE_QUANTITY, DEFAULT_PACKAGING_TYPE, DEFAULT_TARGET_AUDIENCE,
+        SELLER_ADDRESS_ALIASES, SELLER_ADDRESS_IDS,
     },
     Ad,
 };
@@ -88,7 +88,8 @@ fn write_ad(
         "Category",
         ad.category.as_deref().unwrap_or("Ремонт и строительство"),
     )?;
-    let seller_address_id = resolve_seller_address_id(ad.address.as_deref())?;
+    let address = pick_address(ad);
+    let seller_address_id = resolve_seller_address_id(address)?;
     text_elem(writer, "SellerAddressID", &seller_address_id)?;
     text_elem(writer, "Title", ad.title.as_deref().unwrap_or(""))?;
     cdata_elem(
@@ -173,19 +174,7 @@ fn write_ad(
         "GoodsSubType",
         ad.goods_sub_type.as_deref().unwrap_or("Сыпучие материалы"),
     )?;
-    let bulk_material_type = ad
-        .bulk_material_type
-        .clone()
-        .or_else(|| {
-            ad.material_id.as_ref().map(|m| {
-                if m.starts_with("scheben") {
-                    "Щебень, гравий".to_string()
-                } else {
-                    "Песок".to_string()
-                }
-            })
-        })
-        .unwrap_or_else(|| "Песок".to_string());
+    let bulk_material_type = resolve_bulk_material_type(ad)?;
     let bulk_material_sub_type = ad
         .bulk_material_sub_type
         .as_deref()
@@ -235,13 +224,31 @@ fn write_ad(
             .as_deref()
             .unwrap_or(DEFAULT_TARGET_AUDIENCE),
     )?;
-    let delivery_val = ad.delivery.as_deref().unwrap_or(DEFAULT_DELIVERY);
-    if !delivery_val.is_empty() {
-        text_elem(writer, "Delivery", delivery_val)?;
-    }
-
     end_elem(writer, "Ad")?;
     Ok(())
+}
+
+fn pick_address(ad: &Ad) -> Option<&str> {
+    ad.address.as_deref().and_then(|s| {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    })
+}
+
+fn resolve_bulk_material_type(ad: &Ad) -> Result<String, String> {
+    if let Some(t) = ad.bulk_material_type.clone() {
+        let trimmed = t.trim();
+        if trimmed.is_empty() {
+            return Err("BulkMaterialType пустой".into());
+        }
+        return Ok(trimmed.to_string());
+    }
+
+    Err("BulkMaterialType не задан".into())
 }
 
 fn resolve_seller_address_id(address: Option<&str>) -> Result<String, String> {

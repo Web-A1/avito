@@ -1,6 +1,6 @@
 use chrono::{NaiveDate, NaiveDateTime};
 
-use crate::constants::{CITY_ALIASES, MATERIAL_ALIASES};
+use crate::constants::{CITY_ALIASES, MATERIAL_ALIASES, SELLER_ADDRESS_ALIASES};
 
 #[derive(Debug)]
 pub enum AdIdError {
@@ -17,8 +17,12 @@ fn get_material_alias(material_id: &str) -> String {
 }
 
 fn get_city_alias(address: &str) -> Result<&'static str, AdIdError> {
-    CITY_ALIASES
+    let canonical = SELLER_ADDRESS_ALIASES
         .get(address)
+        .copied()
+        .unwrap_or(address);
+    CITY_ALIASES
+        .get(canonical)
         .copied()
         .ok_or_else(|| AdIdError::UnknownAddress(address.to_string()))
 }
@@ -43,7 +47,7 @@ pub fn generate_ad_id(
     let mat_alias = get_material_alias(material_id);
     let city_alias = get_city_alias(address)?;
     let date_label = format_date_label(date_begin);
-    let counter_str = format!("{:02}", counter);
+    let counter_str = format!("{}", counter);
     Ok(format!(
         "{}_{}_{}_{}",
         mat_alias, city_alias, date_label, counter_str

@@ -151,6 +151,33 @@ function validateUniqueCleanPhotos(photosMapping) {
   }
 }
 
+function validateMinSaleQuantity(ads) {
+  if (!Array.isArray(ads)) return;
+  const bad = [];
+  for (const ad of ads) {
+    const val = ad.minSaleQuantity ?? ad.minsalequantity ?? ad.MinSaleQuantity;
+    if (val === undefined || val === null) {
+      bad.push(`Не задан MinSaleQuantity для adId=${ad.adId || ad.Id || 'n/a'}`);
+      continue;
+    }
+    const num = Number(val);
+    const stepOk = (num - 10) % 2 === 0;
+    if (Number.isNaN(num) || num < 10 || num > 20 || !stepOk) {
+      bad.push(
+        `MinSaleQuantity вне диапазона 10–20/шаг 2 для adId=${ad.adId || ad.Id || 'n/a'}: ${val}`
+      );
+    }
+  }
+  if (bad.length) {
+    throw new Error(
+      `Проверка MinSaleQuantity не пройдена:\n` +
+        bad.slice(0, 5).join('\n') +
+        (bad.length > 5 ? `\n... и ещё ${bad.length - 5}` : '')
+    );
+  }
+  console.log('   ✅ Проверка MinSaleQuantity (10–20, шаг 2): OK');
+}
+
 function parseArgs() {
   const args = process.argv.slice(2);
   const opts = {
@@ -1903,6 +1930,7 @@ async function main() {
         // Валидация новых правил
         validateBasePriceShare(generatedAds);
         validateUniqueCleanPhotos(photosMapping);
+        validateMinSaleQuantity(generatedAds);
       }
       console.log(`${'═'.repeat(60)}\n`);
     }

@@ -98,6 +98,10 @@ function formatAd(ad, idx, dateLabel = '') {
   const internetCalls = ad.internetCalls || ad.internetcalls || CONTACT_PARAMETERS.INTERNET_CALLS;
   // ManagerName: из объявления или значение по умолчанию "Владимир"
   const managerName = ad.managerName || ad.managername || CONTACT_PARAMETERS.MANAGER_NAME;
+  if (ad.minSaleQuantity === undefined || ad.minSaleQuantity === null) {
+    throw new Error('MinSaleQuantity обязателен, но не задан в объявлении');
+  }
+  const minSaleQuantity = ad.minSaleQuantity;
 
   return `
     <Ad>

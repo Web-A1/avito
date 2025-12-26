@@ -44,10 +44,17 @@ pub fn read_ads_from_excel(path: impl AsRef<Path>) -> Result<Vec<Ad>, String> {
                 "Title" | "title" => ad.title = Some(val),
                 "Description" | "description" => ad.description = Some(val),
                 "DateBegin" => ad.date_begin = Some(val),
+                "Location" | "location" => ad.location = Some(val),
                 "Address" | "address" => ad.address = Some(val),
                 "Photo" | "PhotoLink" | "photoLink" => ad.photo_link = Some(val),
                 "MaterialId" | "materialId" => ad.material_id = Some(val),
-                "Price" | "price" => ad.price = val.parse().ok(),
+                "Price" | "price" => {
+                    let normalized = val.replace(',', ".");
+                    ad.price = normalized.parse().ok()
+                }
+                "useBasePrice" | "UseBasePrice" => {
+                    ad.use_base_price = Some(val == "true" || val == "1")
+                }
                 "PriceFor" | "priceFor" => ad.price_for = Some(val),
                 "Color" | "color" => ad.color = Some(val),
                 "ManagerName" | "managerName" => ad.manager_name = Some(val),

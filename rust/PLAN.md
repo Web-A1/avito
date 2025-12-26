@@ -32,25 +32,24 @@
    - CLI ищет `update_old_ads.json` по указанному пути, а если не найден — пробует `../update_old_ads.json` (удобно при запуске из `rust/`).
 
 6. Генерация новых объявлений
-   - Генерация adId по material/address/dateBegin/counter.
+   - Генерация adId по material/address/dateBegin/counter (без паддинга счётчика, учитывает алиасы адресов для adId).
    - Привязка к `publicationQueue` (строгое соответствие позиций).
    - Использование фото из маппинга; ошибка, если нет фото для нужного adId.
    - Фолбек фото: если точного adId нет, берём первую запись с тем же materialAlias+cityAlias+counter (разные метки времени в маппинге).
-   - Черновик: генерация adId, базовый выбор заголовков (EXACT/Top), требование фото для каждого слота (`crates/feed-core/src/generate.rs`, вызов в CLI).
+   - Реализовано: распределение заголовков TOP/Zhiroshino/Exact (70/15/15, первый слот — Exact), цены 50/50±10% на связку материал+адрес (с валидацией), MinSale/Compaction/Color из справочников, PriceFor “тонну”. Требование фото для каждого слота (`crates/feed-core/src/generate.rs`, вызов в CLI). Нужно сверить с JS по результату.
 
 7. Загрузка фото на Яндекс.Диск (Rust-обвязка)
    - HTTP через `reqwest` + ретраи/backoff: ensure folder, upload, publish, получить `public_url`.
    - Формирование объединённого `photos_links_*.json`.
 
 8. Формирование XML и манифестов
-   - Генератор XML на `quick-xml` (`crates/feed-core/src/xml.rs`), выводит поля из Excel + дефолты (Id/AvitoId/DateBegin/DateEnd/ListingFee/AdStatus/контакты/цена/упаковка/минимальный заказ/материал/характеристики/Images); Title/Description/Address/PriceFor/CompactionCoefficient теперь всегда присутствуют с пустыми значениями при их отсутствии.
+   - Генератор XML на `quick-xml` (`crates/feed-core/src/xml.rs`), выводит поля из Excel + дефолты (Id/AvitoId/DateBegin/DateEnd/ListingFee/AdStatus/контакты/цена/упаковка/минимальный заказ/характеристики/Images); Title/Description/PriceFor/CompactionCoefficient теперь всегда присутствуют с пустыми значениями при их отсутствии. Address в XML не пишем, только SellerAddressID (обязательный).
+   - BulkMaterialType обязателен (берётся только из данных объявления, без дефолтов из materialId). RubbleType/Fraction/FlakinessIndex/ConcreteGrade/FrostResistance выводятся только для `BulkMaterialType="Щебень, гравий"` и `BulkMaterialSubType="Щебень"`, RubbleType/Fraction поддерживают извлечение из title/description как в JS.
    - Id: используется adId/Id/AvitoId или fallback `sand_<dateLabel>_<idx>`; `feed-cli` передает dateLabel в генератор.
    - AdStatus: берётся из AdStatus (или дефолт Free), AvitoStatus игнорируем (чтобы совпасть с JS).
-   - RubbleType/Fraction/FlakinessIndex/ConcreteGrade/FrostResistance выводятся только для `BulkMaterialType="Щебень, гравий"` и `BulkMaterialSubType="Щебень"`, RubbleType/Fraction поддерживают извлечение из title/description как в JS.
-   - Delivery: выводится, если задано (пока пустой дефолт).
-   - `ImageUrls` используется как fallback для фото.
+   - Delivery: не выводится (в JS его нет); `ImageUrls` используется как fallback для фото.
    - XML/манифест/build-log сохраняются (`feed-cli`): `ads_<label>.xml`, `ads_<label>_manifest.json`, `build-log_<label>.json`.
-   - Следующее: сверить XML с JS выводом на образце и добить оставшиеся различия по шаблонам.
+   - Следующее: сверить XML с JS выводом на образце и добить оставшиеся различия по шаблонам. В генерации добавлены цены 50/50±10%, MinSale/Compaction/Color из справочников, распределение заголовков TOP/Zhiroshino/Exact 70/15/15 с Exact на первом слоте; фото-мэппинг понимает JS имена с 5 частями. Валидации доли базовых цен и уникальности чистых фото (_1) уже в CLI. Остаётся подтянуть Excel-объявления к справочникам.
 
 ### Ближайшие шаги по описаниям (чтобы совпасть с JS)
 1. Оценить соответствие latinizator/рандома чисел блока 7 с JS на образце (один прогон и визуальное сравнение).

@@ -128,7 +128,12 @@ fn build_block2_sand(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
             BLOCK_2_NEMYTYY_NESEYANYY_HTML,
         ),
     };
-    build_block2(intro, pick(headings, rng), list_html, "Минимальный объем 20 м³ (1 самосвал)")
+    build_block2(
+        intro,
+        pick(headings, rng),
+        list_html,
+        "Минимальный объем 20 м³ (1 самосвал)",
+    )
 }
 
 fn build_block2_rubble(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
@@ -167,7 +172,10 @@ fn build_block2(intro: String, heading: String, list_html: &str, minimum: &str) 
     } else {
         format!("<br><br>{}", minimum)
     };
-    format!("<p>{}{}{}{}<\/p>", intro_html, heading_html, list_part, minimum_html)
+    format!(
+        "<p>{}{}{}{}</p>",
+        intro_html, heading_html, list_part, minimum_html
+    )
 }
 
 fn build_block2_rubble_5_20(intro: String) -> String {
@@ -229,12 +237,7 @@ fn build_block7_sand(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
 
     let fraction_range = sand.fraction_range.unwrap_or((1.0, 3.0, 2));
     let fraction = format_num(
-        rand_in_range(
-            rng,
-            fraction_range.0,
-            fraction_range.1,
-            fraction_range.2,
-        ),
+        rand_in_range(rng, fraction_range.0, fraction_range.1, fraction_range.2),
         fraction_range.2,
     );
 
@@ -274,12 +277,7 @@ fn rubble_label(mat: &str) -> String {
     }
 }
 
-fn rand_in_range(
-    rng: &mut rand::rngs::ThreadRng,
-    min: f64,
-    max: f64,
-    precision: usize,
-) -> f64 {
+fn rand_in_range(rng: &mut rand::rngs::ThreadRng, min: f64, max: f64, precision: usize) -> f64 {
     if precision == 0 {
         let min_int = min as i64;
         let max_int = max as i64;
@@ -335,7 +333,10 @@ fn gen_separators(rng: &mut rand::rngs::ThreadRng) -> Vec<String> {
             }
         }
 
-        seps.push(format!("<p>{}{}{}{}</p>", space_before, line, space_after, ""));
+        seps.push(format!(
+            "<p>{}{}{}{}</p>",
+            space_before, line, space_after, ""
+        ));
     }
     seps
 }
@@ -422,7 +423,7 @@ struct SandType {
     display_name: &'static str,
     density_range: Option<(f64, f64)>,
     module_range: Option<(f64, f64, usize)>,
-        fraction_range: Option<(f64, f64, usize)>,
+    fraction_range: Option<(f64, f64, usize)>,
 }
 
 fn ensure_known_material(mat: &str) {
@@ -483,15 +484,30 @@ fn latin_keywords(material_id: &str) -> Vec<&'static str> {
     match material_id {
         "karier_neseyan_nemyt_pesok" => &["песок", "карьерный", "немытый"][..],
         "karier_seyan_nemyt_pesok" => &["песок", "карьерный", "сеяный"][..],
-        "karier_seyan_myt_pesok_1.5" => {
-            &["песок", "карьерный", "сеяный", "мытый", "модуль", "крупности"][..]
-        }
-        "karier_seyan_myt_pesok_2" => {
-            &["песок", "карьерный", "сеяный", "мытый", "модуль", "крупности"][..]
-        }
-        "karier_seyan_myt_pesok_2.5" => {
-            &["песок", "карьерный", "сеяный", "мытый", "модуль", "крупности"][..]
-        }
+        "karier_seyan_myt_pesok_1.5" => &[
+            "песок",
+            "карьерный",
+            "сеяный",
+            "мытый",
+            "модуль",
+            "крупности",
+        ][..],
+        "karier_seyan_myt_pesok_2" => &[
+            "песок",
+            "карьерный",
+            "сеяный",
+            "мытый",
+            "модуль",
+            "крупности",
+        ][..],
+        "karier_seyan_myt_pesok_2.5" => &[
+            "песок",
+            "карьерный",
+            "сеяный",
+            "мытый",
+            "модуль",
+            "крупности",
+        ][..],
         "scheben_vtorichnyi_5_20" => &["щебень", "вторичный"][..],
         "scheben_vtorichnyi_40_70" => &["щебень", "вторичный"][..],
         _ => &["песок"][..],
@@ -507,8 +523,7 @@ struct WordInfo {
 }
 
 fn extract_words(text: &str, keywords: &[&str]) -> Vec<WordInfo> {
-    let kw: std::collections::HashSet<String> =
-        keywords.iter().map(|k| k.to_lowercase()).collect();
+    let kw: std::collections::HashSet<String> = keywords.iter().map(|k| k.to_lowercase()).collect();
     let mut out = Vec::new();
     let mut in_tag = false;
     let mut current_start: Option<usize> = None;
@@ -579,11 +594,7 @@ fn select_words_for_replacement(
     if !keyword_indices.is_empty() {
         let mut kw = keyword_indices.to_vec();
         kw.shuffle(rng);
-        let take_kw = if kw.len() >= 2 {
-            kw.len().min(4)
-        } else {
-            1
-        };
+        let take_kw = if kw.len() >= 2 { kw.len().min(4) } else { 1 };
         selected.extend(kw.into_iter().take(take_kw));
     }
 

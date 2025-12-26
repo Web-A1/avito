@@ -148,7 +148,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -212,7 +212,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -276,7 +276,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -340,7 +340,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -404,7 +404,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -468,7 +468,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -532,7 +532,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -660,7 +660,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -710,7 +710,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -772,7 +772,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -822,7 +822,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -886,7 +886,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -950,7 +950,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1014,7 +1014,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1064,7 +1064,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1128,7 +1128,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1256,7 +1256,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1318,7 +1318,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1446,7 +1446,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1510,7 +1510,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1572,7 +1572,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1700,7 +1700,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1764,7 +1764,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1828,7 +1828,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1892,7 +1892,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -1956,7 +1956,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2082,7 +2082,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2130,7 +2130,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2194,7 +2194,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2320,7 +2320,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2382,7 +2382,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2446,7 +2446,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2508,7 +2508,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2572,7 +2572,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2636,7 +2636,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2700,7 +2700,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2892,7 +2892,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -2956,7 +2956,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3020,7 +3020,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3084,7 +3084,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3148,7 +3148,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3212,7 +3212,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3276,7 +3276,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3404,7 +3404,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3468,7 +3468,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3532,7 +3532,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3660,7 +3660,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3788,7 +3788,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3852,7 +3852,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3902,7 +3902,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -3966,7 +3966,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4030,7 +4030,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4080,7 +4080,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4144,7 +4144,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4208,7 +4208,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4336,7 +4336,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4400,7 +4400,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4450,7 +4450,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4500,7 +4500,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4564,7 +4564,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.35</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4628,7 +4628,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4820,7 +4820,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4884,7 +4884,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -4934,7 +4934,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.25</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5060,7 +5060,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5124,7 +5124,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5186,7 +5186,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5250,7 +5250,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5312,7 +5312,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5376,7 +5376,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5500,7 +5500,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5560,7 +5560,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5622,7 +5622,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5686,7 +5686,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5864,7 +5864,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5928,7 +5928,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -5992,7 +5992,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6056,7 +6056,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6120,7 +6120,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6184,7 +6184,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6248,7 +6248,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6312,7 +6312,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6374,7 +6374,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6438,7 +6438,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6500,7 +6500,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6626,7 +6626,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6752,7 +6752,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6816,7 +6816,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6878,7 +6878,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -6942,7 +6942,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7006,7 +7006,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7070,7 +7070,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7134,7 +7134,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7198,7 +7198,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7324,7 +7324,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7388,7 +7388,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7452,7 +7452,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7516,7 +7516,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7580,7 +7580,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7708,7 +7708,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7836,7 +7836,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7900,7 +7900,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -7964,7 +7964,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8028,7 +8028,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8092,7 +8092,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8156,7 +8156,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8218,7 +8218,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8282,7 +8282,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8344,7 +8344,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8534,7 +8534,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8660,7 +8660,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8722,7 +8722,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8786,7 +8786,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8850,7 +8850,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8914,7 +8914,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -8978,7 +8978,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9106,7 +9106,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9170,7 +9170,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9234,7 +9234,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9298,7 +9298,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9362,7 +9362,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9426,7 +9426,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9490,7 +9490,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9552,7 +9552,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9678,7 +9678,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9728,7 +9728,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9790,7 +9790,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9854,7 +9854,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9902,7 +9902,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -9966,7 +9966,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10028,7 +10028,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10092,7 +10092,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10156,7 +10156,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10220,7 +10220,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10284,7 +10284,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10348,7 +10348,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10412,7 +10412,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10476,7 +10476,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10604,7 +10604,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10668,7 +10668,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.4</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10718,7 +10718,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10782,7 +10782,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10846,7 +10846,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10910,7 +10910,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -10974,7 +10974,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11102,7 +11102,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.7</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11166,7 +11166,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>14</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11294,7 +11294,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11342,7 +11342,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>16</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11406,7 +11406,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11468,7 +11468,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11532,7 +11532,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11594,7 +11594,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11658,7 +11658,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11720,7 +11720,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11784,7 +11784,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>10</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11846,7 +11846,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>18</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
@@ -11910,7 +11910,7 @@
       <CompanyName>NERUDA</CompanyName>
       <PackagingType>Россыпью</PackagingType>
       <CompactionCoefficient>1.6</CompactionCoefficient>
-      <MinSaleQuantity>20</MinSaleQuantity>
+      <MinSaleQuantity>12</MinSaleQuantity>
       <PriceFor>тонну</PriceFor>
       <GoodsType>Стройматериалы</GoodsType>
       <AdType>Товар от производителя</AdType>
