@@ -3,47 +3,66 @@
 <head>
   <meta charset="UTF-8" />
   <title>Plan Builder</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 12px; }
-    .task-card { border: 1px solid #8fa3ff; background: #e4e9ff; border-radius: 8px; padding: 12px; margin-bottom: 14px; }
-    h4 { margin-top: 16px; margin-bottom: 8px; }
-    .row { margin-bottom: 6px; }
-    label { display: inline-block; min-width: 120px; }
-    input, select, button { padding: 4px 6px; }
-    pre { background: #f8f8f8; padding: 8px; border: 1px solid #eee; }
-    .hint { font-size: 12px; color: #555; margin: 4px 0 10px 0; }
-  </style>
+  <link rel="stylesheet" href="./style.css?v=1" />
 </head>
 <body>
-  <h3>План публикаций</h3>
-  <div class="row" style="margin-bottom: 16px;">
-    <label>Дата/время начала (DateBegin):</label>
-    <span id="dateBeginDisplay"></span>
+  <div class="container">
+  <div class="card">
+    <details open>
+      <summary><strong>Пропорции по товарам</strong></summary>
+      <div class="hint">Проценты нормализуются автоматически.</div>
+      <div class="weights-wrapper" style="margin-top:12px;">
+        <div id="weights"></div>
+      </div>
+    </details>
   </div>
-  
-  <h4>Товары</h4>
-  <div class="hint">
-    Локации распределяются автоматически: песок — по всем 5 точкам в системе; щебень — только по Подольску и Домодедово.
-  </div>
-  <div style="margin:6px 0;">Seed генерации: <span id="seedDisplay"></span></div>
-  <div id="tasks"></div>
-  <button id="addTask">+ Товар</button>
 
-  <div style="margin-top:12px;">
-    <div id="warn" style="color:#c00; margin-top:6px;"></div>
-    <pre id="output"></pre>
-    <div style="display:flex; gap:8px; margin-top:8px;">
-      <button id="reshuffle">Перегенерировать расписание</button>
-      <button id="download">Скачать plan.json</button>
+  <div class="card">
+    <h4>Автосбор</h4>
+    <div class="hint">
+      <div class="address-columns">
+        <div>
+          <div class="addr-title">Песок</div>
+          <ul class="addr-list">
+            <li>Бронницы</li>
+            <li>Чехов</li>
+            <li>Подольск</li>
+            <li>Троицк</li>
+            <li>Домодедово</li>
+          </ul>
+        </div>
+        <div>
+          <div class="addr-title">Щебень</div>
+          <ul class="addr-list">
+            <li>Подольск</li>
+            <li>Домодедово</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <label>Целевая дата конца:</label>
+      <input type="date" id="targetEnd" />
+      <button id="autoBuild" style="margin-left:8px;">Автосбор</button>
+    </div>
+    <div class="hint" id="lastDateHint" style="margin-top:6px;">Время последнего объявления будет показано после построения.</div>
+    <pre id="balanceOutput" class="output-block" style="display:none;"></pre>
+    <div id="autoStatus" class="hint" style="margin-top:6px; min-height:18px;"></div>
+  </div>
+
+  <div class="card" style="display:none;">
+    <div id="hidden-manual">
+      <span id="dateBeginDisplay"></span>
+      <span id="seedDisplay"></span>
+      <div id="tasks"></div>
+      <button id="addTask" type="button"></button>
+      <button id="reshuffle" type="button"></button>
+      <button id="savePlan" type="button"></button>
+      <div id="saveStatus"></div>
+      <div id="warn"></div>
+      <pre id="output"></pre>
     </div>
   </div>
-  <div style="margin-top:16px;">
-    <h4>Тестовый сценарий</h4>
-    <ol>
-      <li>Добавьте 3–5 товаров с разными materialId и категориями (песок/щебень).</li>
-      <li>Проверьте, что в <code>publicationQueue</code> порядок чередует категории, затем товары, затем локации (для песка 5 точек, для щебня Подольск/Домодедово).</li>
-      <li>Убедитесь, что <code>DateBegin</code> и времена в <code>publicationQueue</code> попадают в окна 07:00–10:00 или 19:00–23:59.</li>
-    </ol>
   </div>
 
   <script>
@@ -70,15 +89,29 @@
     const rubbleLocationNames = locations
       .filter((l) => l.name.includes('Подольск') || l.name.includes('Домодедово'))
       .map((l) => l.name);
+    const materialTypeById = new Map(materials.map((m) => [m.id, m.material]));
 
     const dateBeginDisplay = document.getElementById('dateBeginDisplay');
     const tasksDiv = document.getElementById('tasks');
     const addTaskBtn = document.getElementById('addTask');
     const outputPre = document.getElementById('output');
-    const downloadBtn = document.getElementById('download');
     const reshuffleBtn = document.getElementById('reshuffle');
     const warnDiv = document.getElementById('warn');
     const seedDisplay = document.getElementById('seedDisplay');
+    const saveBtn = document.getElementById('savePlan');
+    const saveStatus = document.getElementById('saveStatus');
+    const countBtn = document.getElementById('countCurrent');
+    const countOutput = document.getElementById('countOutput');
+    const balanceTarget = { value: 0 }; // total подбирается по дате
+    const balanceBtn = { onclick: null }; // кнопка расчёта убрана
+    const autoBtn = document.getElementById('autoBuild');
+    const balanceOutput = document.getElementById('balanceOutput');
+    const autoStatus = document.getElementById('autoStatus');
+    const lastDateHint = document.getElementById('lastDateHint');
+    const lastExcelTime = document.getElementById('lastExcelTime');
+    const targetEndInput = document.getElementById('targetEnd');
+    const weightsContainer = document.getElementById('weights');
+    const typeWeightsContainer = weightsContainer;
     const MIN_STEP_MIN = 5;
     const MAX_STEP_MIN = 30;
     const ALLOWED_WINDOWS = [
@@ -87,11 +120,155 @@
     ];
     let currentSeed = Math.floor(Date.now()) >>> 0;
     let randomState = currentSeed;
+    let currentCounts = new Map();
+    let lastExcelRead = null;
+    let materialWeights = new Map();
+    let typeWeights = new Map();
 
     function reseed(seed) {
       currentSeed = (seed >>> 0) || 1;
       randomState = currentSeed;
       seedDisplay.textContent = currentSeed;
+    }
+
+    function renderWeights() {
+      weightsContainer.innerHTML = '';
+
+      const types = [
+        { id: 'sand', name: 'Песок' },
+        { id: 'rubble', name: 'Щебень' }
+      ];
+      types.forEach((t) => {
+        const block = document.createElement('details');
+        block.className = 'tree-type';
+        block.open = false;
+        block.innerHTML = `
+          <summary class="tree-type-header">
+            <span class="arrow">▸</span>
+            <span class="type-title">${t.name}</span>
+            <input type="number" min="0" max="100" step="1" data-type="${t.id}" class="type-weight-input" />
+          </summary>
+          <div class="tree-items" data-type-items="${t.id}"></div>
+        `;
+        weightsContainer.appendChild(block);
+      });
+
+      const sandItems = materials.filter((m) => m.material === 'sand');
+      const rubbleItems = materials.filter((m) => m.material === 'rubble');
+
+      const sandDetails = weightsContainer.querySelector('[data-type-items="sand"]');
+      const rubbleDetails = weightsContainer.querySelector('[data-type-items="rubble"]');
+
+      sandItems.forEach((m) => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
+          <label>${m.name}</label>
+          <input type="number" min="0" max="100" step="1" data-mat="${m.id}" class="weight-input" />
+        `;
+        sandDetails.appendChild(row);
+      });
+
+      rubbleItems.forEach((m) => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
+          <label>${m.name}</label>
+          <input type="number" min="0" max="100" step="1" data-mat="${m.id}" class="weight-input" />
+        `;
+        rubbleDetails.appendChild(row);
+      });
+
+      weightsContainer.addEventListener('input', onTypeWeightInput);
+      weightsContainer.addEventListener('input', onWeightInput);
+    }
+
+    function normalizeValues(arr, key) {
+      const total = arr.reduce((acc, v) => acc + v[key], 0);
+      if (total === 0) {
+        const equal = 100 / arr.length;
+        arr.forEach((v) => (v[key] = equal));
+      } else {
+        const scale = 100 / total;
+        arr.forEach((v) => (v[key] = Math.round(v[key] * scale * 10) / 10));
+      }
+    }
+
+    function onTypeWeightInput(e) {
+      if (!e.target.classList.contains('type-weight-input')) return;
+      const inputs = Array.from(typeWeightsContainer.querySelectorAll('.type-weight-input'));
+      if (inputs.length === 0) return;
+      const source = e.target;
+      const sourceVal = Math.max(0, Math.min(100, Number(source.value) || 0));
+      const others = inputs.filter((inp) => inp !== source);
+      const share = others.length > 0 ? Math.max(0, 100 - sourceVal) / others.length : 0;
+
+      inputs.forEach((inp) => {
+        const id = inp.getAttribute('data-type');
+        let val = inp === source ? sourceVal : share;
+        val = Math.round(val * 10) / 10;
+        typeWeights.set(id, val);
+        inp.value = val;
+      });
+    }
+
+    function onWeightInput(e) {
+      const inputs = Array.from(weightsContainer.querySelectorAll('.weight-input'));
+      const source = e.target;
+      const sourceId = source.getAttribute('data-mat');
+      const sourceType = materialTypeById.get(sourceId);
+      const groupInputs = inputs.filter(
+        (inp) => materialTypeById.get(inp.getAttribute('data-mat')) === sourceType
+      );
+      const sourceVal = Math.max(0, Math.min(100, Number(source.value) || 0));
+      const others = groupInputs.filter((inp) => inp.getAttribute('data-mat') !== sourceId);
+      const remaining = Math.max(0, 100 - sourceVal);
+      const share = others.length > 0 ? remaining / others.length : 0;
+
+      inputs.forEach((inp) => {
+        const id = inp.getAttribute('data-mat');
+        const t = materialTypeById.get(id);
+        let val = materialWeights.get(id) || 0;
+        if (t === sourceType) {
+          val = id === sourceId ? sourceVal : share;
+        }
+        val = Math.round(val * 10) / 10;
+        materialWeights.set(id, val);
+        inp.value = val;
+      });
+    }
+
+    // Читает введённые значения и приводит к нормализованным, чтобы пересчёт всегда учитывал актуальные пропорции.
+    function syncWeightsFromInputs() {
+      // Сначала типы (песок/щебень)
+      const typeInputs = Array.from(typeWeightsContainer.querySelectorAll('.type-weight-input')).map((inp) => {
+        const id = inp.getAttribute('data-type');
+        const val = Math.max(0, Math.min(100, Number(inp.value) || 0));
+        return { id, val, inp };
+      });
+      normalizeValues(typeInputs, 'val');
+      typeInputs.forEach(({ id, val, inp }) => {
+        typeWeights.set(id, val);
+        inp.value = val;
+      });
+
+      // Далее товары внутри каждого типа отдельно
+      const grouped = new Map();
+      Array.from(weightsContainer.querySelectorAll('.weight-input')).forEach((inp) => {
+        const id = inp.getAttribute('data-mat');
+        const t = materialTypeById.get(id);
+        const val = Math.max(0, Math.min(100, Number(inp.value) || 0));
+        if (!grouped.has(t)) grouped.set(t, []);
+        grouped.get(t).push({ id, val, inp });
+      });
+
+      grouped.forEach((arr, typeId) => {
+        normalizeValues(arr, 'val');
+        arr.forEach(({ id, val, inp }) => {
+          materialWeights.set(id, val);
+          inp.value = val;
+        });
+      });
     }
 
     function seededRandom() {
@@ -142,6 +319,17 @@
 
     function getDateBegin() {
       return new Date(baseDateBegin.getTime());
+    }
+
+    function parsePlanDate(dateStr) {
+      if (!dateStr) return null;
+      const [d, t] = dateStr.split(' ');
+      if (!d) return null;
+      const [day, month, year] = d.split('.').map(Number);
+      const [hh, mm] = t ? t.split(':').map(Number) : [23, 59];
+      if (!year || !month || !day) return null;
+      const dt = new Date(year, (month || 1) - 1, day || 1, hh || 0, mm || 0, 0, 0);
+      return isNaN(dt.getTime()) ? null : dt;
     }
 
     function randomInt(min, max) {
@@ -342,6 +530,7 @@
         tasks,
         publicationQueue
       };
+      updateLastDate(publicationQueue);
       return plan;
     }
 
@@ -386,12 +575,20 @@
       return `Публикаций: ${total}. В день влезает: ~${avgPerDay} (мин ${minPerDay}, макс ${maxPerDay}). Оценка дней: ~${approxDays} (минимум ${minDays}, максимум ${maxDays}).`;
     }
 
+    function updateLastDate(queue) {
+      if (!queue || queue.length === 0) {
+        lastDateHint.textContent = 'Время последнего объявления: нет данных';
+        return;
+      }
+      const last = queue[queue.length - 1];
+      lastDateHint.textContent = `Время последнего объявления: ${last.DateBegin || ''}`;
+    }
+
     function updateOutput() {
       const plan = buildPlan();
       const validation = validatePlan(plan);
       const capacityHint = buildCapacityHint(plan.publicationQueue.length || 0);
       warnDiv.textContent = [validation.message, capacityHint].filter(Boolean).join(' ');
-      downloadBtn.disabled = !validation.valid;
       dateBeginDisplay.textContent = plan.DateBegin || '';
       outputPre.textContent = JSON.stringify(plan, null, 2);
       return plan;
@@ -399,18 +596,359 @@
 
     tasksDiv.addEventListener('input', updateOutput);
     reseed(currentSeed);
+    renderWeights();
     updateOutput();
 
-    downloadBtn.onclick = () => {
-      const plan = updateOutput();
-      const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'plan.json';
-      a.click();
-      URL.revokeObjectURL(url);
+    async function fetchCurrentCounts() {
+      if (countOutput) countOutput.textContent = 'Считаем...';
+      setBusy(true);
+      try {
+        const res = await fetch('/api/count-current', { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        const lines = [];
+        lines.push(`Файл: ${data.file || ''}`);
+        lines.push(`Всего объявлений: ${data.total ?? 0}`);
+        const orderMap = new Map(materials.map((m, idx) => [m.id, idx]));
+        const sorted = (data.counts || []).sort((a, b) => {
+          const ai = orderMap.has(a.materialId) ? orderMap.get(a.materialId) : 999;
+          const bi = orderMap.has(b.materialId) ? orderMap.get(b.materialId) : 999;
+          if (ai !== bi) return ai - bi;
+          return (b.count || 0) - (a.count || 0);
+        });
+        sorted.forEach((item) => {
+          const mat = materials.find((m) => m.id === item.materialId);
+          const name = mat ? mat.name : item.materialId;
+          lines.push(`${name}: ${item.count}`);
+        });
+        currentCounts = new Map(sorted.map((i) => [i.materialId, i.count]));
+        lastExcelRead = new Date();
+        if (lastExcelTime) {
+          lastExcelTime.textContent = `Последнее чтение: ${lastExcelRead.toLocaleString()}`;
+        }
+        if (countOutput) {
+          countOutput.textContent = lines.join('\n');
+        }
+      } catch (e) {
+        if (countOutput) {
+          countOutput.textContent = `Ошибка: ${e.message}. Убедитесь, что запущен сервер (node tools/plan-builder/server.js) и есть .xlsx в data/current.`;
+        }
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    if (countBtn) countBtn.onclick = fetchCurrentCounts;
+
+    function applyCountsToTasks(countMap) {
+      tasksDiv.innerHTML = '';
+      materials.forEach((m) => {
+        const addCount = Number(countMap.get(m.id)) || 0;
+        if (addCount <= 0) return;
+        const node = createTask();
+        const materialSelect = node.querySelector('.task-material');
+        const countInput = node.querySelector('.task-count');
+        materialSelect.value = m.id;
+        countInput.value = addCount;
+        tasksDiv.appendChild(node);
+      });
+      updateOutput();
+    }
+
+    function computeBalance(targetTotal) {
+      if (!currentCounts || currentCounts.size === 0) {
+        throw new Error('Нет данных из Excel. Сначала нажми "Посчитать в Excel"');
+      }
+      if (!targetTotal || targetTotal <= 0) {
+        throw new Error('Укажи целевое количество > 0');
+      }
+      const matIds = materials.map((m) => m.id);
+
+      const currentTotal = matIds.reduce(
+        (acc, id) => acc + (Number(currentCounts.get(id)) || 0),
+        0
+      );
+      const warning =
+        targetTotal < currentTotal
+          ? `Цель (${targetTotal}) меньше текущего количества (${currentTotal}). План будет без добавления.`
+          : '';
+
+      const planCounts = new Map();
+      const perTypeTotals = { sand: 0, rubble: 0 };
+      const lines = [];
+      const byType = {
+        sand: materials.filter((m) => m.material === 'sand').map((m) => m.id),
+        rubble: materials.filter((m) => m.material === 'rubble').map((m) => m.id),
+      };
+
+      // Распределяем total между типами по весам
+      const typeArr = [
+        { id: 'sand', val: Math.max(0, Number(typeWeights.get('sand')) || 0) },
+        { id: 'rubble', val: Math.max(0, Number(typeWeights.get('rubble')) || 0) },
+      ];
+      normalizeValues(typeArr, 'val');
+
+      const typeShares = new Map();
+      typeArr.forEach((t) => {
+        const share = Math.round((targetTotal * t.val) / 100);
+        typeShares.set(t.id, share);
+      });
+
+      // Для каждого типа делим его share по товарам этого типа по их весам
+      Object.keys(byType).forEach((typeId) => {
+        const ids = byType[typeId];
+        if (ids.length === 0) return;
+        const share = typeShares.get(typeId) ?? Math.floor(targetTotal / 2);
+        const weights = ids.map((id) => ({
+          id,
+          val: Math.max(0, Number(materialWeights.get(id)) || 0),
+        }));
+        normalizeValues(weights, 'val');
+        let remaining = share;
+
+        weights.forEach((w) => {
+          const desired = Math.round((share * w.val) / 100);
+          const current = Number(currentCounts.get(w.id)) || 0;
+          const needAdd = Math.max(0, desired - current);
+          planCounts.set(w.id, needAdd);
+          remaining -= desired;
+          perTypeTotals[typeId] += desired;
+          const mat = materials.find((m) => m.id === w.id);
+          const name = mat ? mat.name : w.id;
+          lines.push({
+            type: typeId,
+            name,
+            needAdd,
+            current,
+            desired,
+          });
+        });
+
+        if (remaining > 0) {
+          weights.forEach((w) => {
+            if (remaining <= 0) return;
+            planCounts.set(w.id, (planCounts.get(w.id) || 0) + 1);
+            remaining -= 1;
+          });
+        }
+      });
+
+      matIds.forEach((id) => {
+        if (!planCounts.has(id)) {
+          planCounts.set(id, 0);
+        }
+      });
+
+      return { warning, lines, planCounts, perTypeTotals };
+    }
+
+    balanceBtn.onclick = () => {
+      try {
+        syncWeightsFromInputs();
+        const targetTotal = Number(balanceTarget.value) || 0;
+        const { warning, lines, planCounts, perTypeTotals } = computeBalance(targetTotal);
+        balanceOutput.textContent = formatBalanceOutput(lines, warning, perTypeTotals);
+        balanceOutput.style.display = 'block';
+        applyCountsToTasks(planCounts);
+      } catch (e) {
+        balanceOutput.textContent = `Ошибка: ${e.message}`;
+        balanceOutput.style.display = 'block';
+      }
     };
+
+    autoBtn.onclick = async () => {
+      try {
+        syncWeightsFromInputs();
+        setBusy(true);
+        autoStatus.textContent = 'Шаг 1/5: считаем Excel...';
+        await fetchCurrentCounts();
+
+        const targetEndVal = targetEndInput.value;
+        let targetTotal = Number(balanceTarget.value) || 0;
+        if (targetEndVal) {
+          autoStatus.textContent = 'Шаг 2/5: подбираем total под целевую дату...';
+          const targetDate = new Date(`${targetEndVal}T23:59:00`);
+          if (isNaN(targetDate.getTime())) {
+            throw new Error('Некорректная целевая дата');
+          }
+          targetTotal = await estimateTotalByEnd(targetDate, targetTotal);
+          balanceTarget.value = targetTotal;
+        }
+
+        autoStatus.textContent = 'Шаг 3/5: балансируем...';
+        const { warning, lines, planCounts, perTypeTotals } = computeBalance(targetTotal);
+        balanceOutput.textContent = formatBalanceOutput(lines, warning, perTypeTotals);
+        balanceOutput.style.display = 'block';
+        autoStatus.textContent = 'Шаг 4/5: строим расписание...';
+        applyCountsToTasks(planCounts);
+        autoStatus.textContent = 'Шаг 5/5: сохраняем...';
+        await savePlan();
+        autoStatus.textContent = 'Готово: план сохранён в data/plan.json';
+      } catch (e) {
+        autoStatus.textContent = `Ошибка: ${e.message}`;
+        balanceOutput.style.display = 'block';
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    async function savePlan() {
+      saveStatus.textContent = 'Сохраняем...';
+      try {
+        const plan = updateOutput();
+        const res = await fetch('/api/save-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(plan)
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        saveStatus.textContent = `Сохранено: ${data.path || 'data/plan.json'}`;
+      } catch (e) {
+        saveStatus.textContent = `Ошибка сохранения: ${e.message}. Убедитесь, что запущен сервер plan-builder.`;
+      }
+    }
+
+    saveBtn.onclick = savePlan;
+
+    function setBusy(flag) {
+      [countBtn, autoBtn, balanceBtn, saveBtn, reshuffleBtn, addTaskBtn].forEach((btn) => {
+        if (btn) btn.disabled = flag;
+      });
+    }
+
+    async function estimateTotalByEnd(targetDate, fallbackTotal) {
+      let total = fallbackTotal && fallbackTotal > 0 ? fallbackTotal : 0;
+      const currentTotal = Array.from(currentCounts.values()).reduce((a, b) => a + (Number(b) || 0), 0);
+      if (!total || total < currentTotal) {
+        total = Math.max(currentTotal, 1);
+      }
+      let best = { total, diff: Number.MAX_SAFE_INTEGER };
+      let low = 0;
+      let high = null;
+
+      for (let iter = 0; iter < 20; iter++) {
+        const { planCounts } = computeBalance(total);
+        applyCountsToTasks(planCounts);
+        const plan = buildPlan();
+        const last = plan.publicationQueue.at(-1);
+        const lastDate = parsePlanDate(last?.DateBegin);
+        if (!lastDate) break;
+        const diff = Math.abs(targetDate.getTime() - lastDate.getTime());
+        if (diff < best.diff) {
+          best = { total, diff };
+        }
+        const after = lastDate > targetDate;
+        const before = lastDate < targetDate;
+        if (!after && !before) {
+          best = { total, diff: 0 };
+          break;
+        }
+
+        if (after) {
+          high = total;
+        } else {
+          low = total;
+        }
+
+        if (high !== null) {
+          const mid = Math.floor((low + high) / 2);
+          total = Math.max(1, mid);
+        } else {
+          const step = Math.max(1, Math.floor(total * 0.1));
+          total = after ? Math.max(1, total - step) : total + step;
+        }
+      }
+
+      return best.total;
+    }
+
+    function formatBalanceOutput(lines, warning, perTypeTotals) {
+      let out = [];
+      if (warning) out.push(`Внимание: ${warning}`, '');
+
+      const typeTitle = { sand: 'Песок', rubble: 'Щебень' };
+      const grouped = { sand: [], rubble: [] };
+      lines.forEach((e) => {
+        const row = {
+          name: e.name,
+          current: e.current,
+          add: e.needAdd,
+          target: e.desired,
+        };
+        if (grouped[e.type]) grouped[e.type].push(row);
+      });
+
+      const col1Width = Math.max(
+        ...lines.map((e) => (e.name || '').length),
+        ...Object.values(typeTitle).map((t) => t.length),
+        10
+      );
+      const totalsAll = { current: 0, add: 0, target: 0 };
+      const colCurrW = 14;
+      const colAddW = 14;
+      const colTargetW = 12;
+
+      const buildHeader = (totals) =>
+        [
+          padRight('Товар', col1Width),
+          padRight(`Текущих ${totals.current}`, colCurrW),
+          padRight(`Добавить ${totals.add}`, colAddW),
+          padRight(`Итого ${totals.target}`, colTargetW),
+        ].join('  ');
+
+      // временный header будет обновлён после подсчёта totalsAll
+      out.push(buildHeader(totalsAll));
+      out.push('-'.repeat(out[0].length));
+      ['sand', 'rubble'].forEach((type) => {
+        const rows = grouped[type] || [];
+        if (rows.length === 0) return;
+        let subtotal = { current: 0, add: 0, target: 0 };
+        rows.forEach((r) => {
+          out.push(
+            [
+              padRight(r.name, col1Width),
+              padRight(String(r.current), colCurrW),
+              padRight(String(r.add), colAddW),
+              padRight(String(r.target), colTargetW),
+            ].join('  ')
+          );
+          subtotal.current += Number(r.current) || 0;
+          subtotal.add += Number(r.add) || 0;
+          subtotal.target += Number(r.target) || 0;
+          totalsAll.current += Number(r.current) || 0;
+          totalsAll.add += Number(r.add) || 0;
+          totalsAll.target += Number(r.target) || 0;
+        });
+        out.push('-'.repeat(out[0].length));
+        out.push(
+          [
+            padRight('', col1Width),
+            padRight(String(subtotal.current), colCurrW),
+            padRight(String(subtotal.add), colAddW),
+            padRight(String(subtotal.target), colTargetW),
+          ].join('  ')
+        );
+        out.push('');
+      });
+
+      // Обновляем заголовок на вершине с итоговыми суммами
+      const finalHeader = buildHeader(totalsAll);
+      out[0] = finalHeader;
+      out[1] = '-'.repeat(finalHeader.length);
+
+      return out.join('\n');
+    }
+
+    function padRight(str, width) {
+      const s = String(str);
+      if (s.length >= width) return s;
+      return s + ' '.repeat(width - s.length);
+    }
   </script>
 </body>
 </html>

@@ -95,6 +95,9 @@ export const CONTACT_PARAMETERS = {
   
   // Имя менеджера
   MANAGER_NAME: 'Владимир'
+  
+  // Доставка
+  ,DELIVERY: 'Свой курьер'
 };
 
 /**

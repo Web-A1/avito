@@ -98,6 +98,8 @@ function formatAd(ad, idx, dateLabel = '') {
   const internetCalls = ad.internetCalls || ad.internetcalls || CONTACT_PARAMETERS.INTERNET_CALLS;
   // ManagerName: из объявления или значение по умолчанию "Владимир"
   const managerName = ad.managerName || ad.managername || CONTACT_PARAMETERS.MANAGER_NAME;
+  // Delivery: из объявления или значение по умолчанию "Свой курьер"
+  const delivery = ad.delivery || CONTACT_PARAMETERS.DELIVERY;
   if (ad.minSaleQuantity === undefined || ad.minSaleQuantity === null) {
     throw new Error('MinSaleQuantity обязателен, но не задан в объявлении');
   }
@@ -120,6 +122,7 @@ function formatAd(ad, idx, dateLabel = '') {
       ${ad.price ? `<Price>${ad.price}</Price>` : ''}
       ${formatImages(images)}
       <ContactMethod>${escapeXml(CONTACT_PARAMETERS.CONTACT_METHOD)}</ContactMethod>
+      <Delivery>${escapeXml(String(delivery))}</Delivery>
       <InternetCalls>${escapeXml(String(internetCalls))}</InternetCalls>
       <EMail>${escapeXml(CONTACT_PARAMETERS.EMAIL)}</EMail>
       <CompanyName>${escapeXml(CONTACT_PARAMETERS.COMPANY_NAME)}</CompanyName>

@@ -119,6 +119,13 @@ fn write_ad(
     )?;
     text_elem(
         writer,
+        "Delivery",
+        ad.delivery
+            .as_deref()
+            .unwrap_or(crate::constants::DEFAULT_DELIVERY),
+    )?;
+    text_elem(
+        writer,
         "InternetCalls",
         ad.internet_calls
             .as_deref()
@@ -237,6 +244,58 @@ fn pick_address(ad: &Ad) -> Option<&str> {
             Some(trimmed)
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::constants::{DEFAULT_AD_STATUS, DEFAULT_LISTING_FEE};
+
+    fn base_ad() -> Ad {
+        Ad {
+            ad_id: Some("s00_troi_010123-100000_1".to_string()),
+            address: Some("Троицк, Индустриальная улица, 1".to_string()),
+            price: Some(1000.0),
+            photo_link: Some("https://example.com/pic.jpg".to_string()),
+            material_id: Some("karier_neseyan_nemyt_pesok".to_string()),
+            bulk_material_type: Some("Песок".to_string()),
+            bulk_material_sub_type: Some("Карьерный".to_string()),
+            ..Ad::default()
+        }
+    }
+
+    #[test]
+    fn generates_xml_with_defaults_and_seller_address_id() {
+        let xml =
+            generate_xml(&[base_ad()], Some("010123")).expect("xml generation should succeed");
+        assert!(
+            xml.contains(&format!("<ListingFee>{}</ListingFee>", DEFAULT_LISTING_FEE)),
+            "should include default ListingFee"
+        );
+        assert!(
+            xml.contains(&format!("<AdStatus>{}</AdStatus>", DEFAULT_AD_STATUS)),
+            "should include default AdStatus"
+        );
+        assert!(
+            xml.contains("<Delivery>Свой курьер</Delivery>"),
+            "should include default Delivery"
+        );
+        assert!(xml.contains("<Title></Title>"));
+        assert!(xml.contains("<Description><![CDATA[]]></Description>"));
+        assert!(
+            xml.contains("<SellerAddressID>101431339</SellerAddressID>"),
+            "SellerAddressID should be resolved from aliases"
+        );
+    }
+
+    #[test]
+    fn errors_when_no_images() {
+        let mut ad = base_ad();
+        ad.photo_link = None;
+        ad.image_urls = None;
+        let err = generate_xml(&[ad], Some("010123")).unwrap_err();
+        assert!(err.contains("изображение"), "expected image error");
+    }
 }
 
 fn resolve_bulk_material_type(ad: &Ad) -> Result<String, String> {

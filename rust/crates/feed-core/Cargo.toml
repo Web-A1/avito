@@ -14,3 +14,14 @@ rand = "0.8"
 calamine = "0.32.0"
 quick-xml = "0.38.4"
 regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+urlencoding = "2"
+mime_guess = "2"
+ureq = { version = "2.10", features = ["tls"] }
+glob = "0.3"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+font8x8 = "0.3"
+
+[dev-dependencies]
+httpmock = "0.7"
+tempfile = "3"

@@ -1,0 +1,209 @@
+/* Base */
+body {
+  font-family: Arial, sans-serif;
+  margin: 12px;
+  color: #222;
+  background: #f7f8fa;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto 24px auto;
+}
+
+h4 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.row {
+  margin-bottom: 6px;
+}
+
+label {
+  display: inline-block;
+  min-width: 120px;
+}
+
+input,
+select,
+button {
+  padding: 4px 6px;
+  font-size: 14px;
+}
+
+pre {
+  background: #f8f8f8;
+  padding: 8px;
+  border: 1px solid #eee;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 13px;
+}
+
+.hint {
+  font-size: 12px;
+  color: #555;
+  margin: 20px 0;
+}
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+  margin: 12px 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Details toggles (top-level collapsibles) */
+.card > details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card > details > summary::marker,
+.card > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.card > details > summary::before {
+  content: '▶';
+  display: inline-block;
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.card > details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* Proportions tree */
+.weights-wrapper {
+  max-width: 560px;
+  padding: 8px 0;
+}
+
+.tree-type {
+  margin-bottom: 12px;
+}
+
+.tree-type-header {
+  display: block;
+}
+
+.tree-type-header summary {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 14px 120px 90px;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 0 6px 4px;
+}
+
+.tree-type-header summary::marker {
+  display: none;
+  content: '';
+}
+
+.tree-type-header summary::-webkit-details-marker {
+  display: none;
+}
+
+.tree-type-header summary .arrow {
+  text-align: center;
+  font-size: 12px;
+  cursor: pointer;
+  color: #333;
+}
+
+.tree-type[open] summary .arrow {
+  transform: rotate(90deg);
+}
+
+.tree-type-header .type-title {
+  font-weight: 600;
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tree-type-header input {
+  width: 90px;
+  text-align: right;
+  padding: 4px;
+  font-size: 13px;
+}
+
+.tree-items {
+  margin-top: 6px;
+  padding-left: 20px;
+  border-left: 2px solid #ddd;
+  max-width: 420px;
+}
+
+.item-row {
+  display: grid;
+  grid-template-columns: 200px 70px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.item-row label {
+  margin: 0;
+  line-height: 1.2;
+  font-size: 12px;
+}
+
+.item-row input {
+  width: 100%;
+  text-align: right;
+  padding: 4px;
+  font-size: 12px;
+}
+
+/* Buttons block */
+.actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+summary {
+  user-select: none;
+}
+
+.output-block {
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #f4f6f9;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 13px;
+}
+
+/* Address hint columns */
+.address-columns {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.addr-title {
+  font-weight: 400;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.addr-list {
+  margin: 0 0 6px 14px;
+  padding: 0;
+  list-style: disc;
+  font-size: 12px;
+  color: #444;
+}

@@ -29,18 +29,20 @@ function findSingleXlsx(dir) {
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const opts = { file: '' };
+  const opts = { file: '', json: false };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if ((arg === '--file' || arg === '-f') && args[i + 1]) {
       opts.file = args[++i];
+    } else if (arg === '--json') {
+      opts.json = true;
     }
   }
   return opts;
 }
 
 async function main() {
-  const { file } = parseArgs();
+  const { file, json } = parseArgs();
   const xlsxPath =
     file && file.trim()
       ? path.resolve(file)
@@ -60,11 +62,19 @@ async function main() {
     counts.set(materialId, (counts.get(materialId) || 0) + 1);
   }
 
-  console.log(`Файл: ${path.basename(xlsxPath)}`);
-  console.log(`Всего объявлений: ${ads.length}`);
-  [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .forEach(([k, v]) => console.log(`${k} = ${v}`));
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  if (json) {
+    const payload = {
+      file: path.basename(xlsxPath),
+      total: ads.length,
+      counts: sorted.map(([materialId, count]) => ({ materialId, count }))
+    };
+    console.log(JSON.stringify(payload, null, 2));
+  } else {
+    console.log(`Файл: ${path.basename(xlsxPath)}`);
+    console.log(`Всего объявлений: ${ads.length}`);
+    sorted.forEach(([k, v]) => console.log(`${k} = ${v}`));
+  }
 }
 
 main().catch((err) => {

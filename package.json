@@ -9,7 +9,8 @@
     "photos:upload": "node bin/upload-photos.js",
     "build:feed": "node bin/build-feed.js",
     "clean:history": "node bin/clean-history.js",
-    "validate": "node bin/validate-xml.js"
+    "validate": "node bin/validate-xml.js",
+    "plan-builder": "node tools/plan-builder/server.js"
   },
   "dependencies": {
     "dotenv": "^16.3.1",

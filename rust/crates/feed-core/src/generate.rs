@@ -415,7 +415,7 @@ fn decide_use_base(
     stats: &mut HashMap<(String, String), (u32, u32)>,
     material_id: &str,
     address: &str,
-    counter: u32,
+    _counter: u32,
     rng: &mut impl Rng,
 ) -> bool {
     let key = (material_id.to_string(), address.to_string());
@@ -462,4 +462,87 @@ fn pick_color(options: &[&str], rng: &mut impl Rng) -> String {
         .choose(rng)
         .map(|s| s.to_string())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use super::*;
+    use crate::PublicationSlot;
+
+    fn plan_with_slot(date: &str, material_id: &str, address: &str) -> Plan {
+        Plan {
+            date_begin: "01.01.2023".to_string(),
+            tasks: Vec::new(),
+            publication_queue: vec![PublicationSlot {
+                date_begin: date.to_string(),
+                material_id: material_id.to_string(),
+                material: None,
+                location: address.to_string(),
+            }],
+            aliases: None,
+        }
+    }
+
+    #[test]
+    fn generates_ad_with_exact_photo() {
+        let address = "Москва, Троицк, Индустриальная ул., 1";
+        let plan = plan_with_slot("01.01.2023 10:00", "karier_neseyan_nemyt_pesok", address);
+        let ad_id = "s00_troi_010123-100000_1".to_string();
+        let mut photo_map = HashMap::new();
+        photo_map.insert(ad_id.clone(), "https://example.com/photo.jpg".to_string());
+        let existing_ids = HashSet::new();
+
+        let res = generate_new_ads(&plan, &photo_map, &existing_ids).expect("generation failed");
+        assert_eq!(res.len(), 1);
+        let ad = &res[0];
+        assert_eq!(ad.ad_id.as_deref(), Some(ad_id.as_str()));
+        assert_eq!(
+            ad.photo_link.as_deref(),
+            Some("https://example.com/photo.jpg")
+        );
+        assert_eq!(
+            ad.material_id.as_deref(),
+            Some("karier_neseyan_nemyt_pesok")
+        );
+        assert_eq!(ad.address.as_deref(), Some(address));
+    }
+
+    #[test]
+    fn falls_back_to_alias_photo_when_date_differs() {
+        let address = "Москва, Троицк, Индустриальная ул., 1";
+        let plan = plan_with_slot("01.01.2023 10:00", "karier_neseyan_nemyt_pesok", address);
+        let desired_ad_id = "s00_troi_010123-100000_1".to_string();
+        let mut photo_map = HashMap::new();
+        photo_map.insert(
+            "s00_troi_020123-090000_1".to_string(),
+            "https://example.com/fallback.jpg".to_string(),
+        );
+        let existing_ids = HashSet::new();
+
+        let res = generate_new_ads(&plan, &photo_map, &existing_ids).expect("generation failed");
+        assert_eq!(res.len(), 1);
+        let ad = &res[0];
+        assert_eq!(ad.ad_id.as_deref(), Some(desired_ad_id.as_str()));
+        assert_eq!(
+            ad.photo_link.as_deref(),
+            Some("https://example.com/fallback.jpg")
+        );
+    }
+
+    #[test]
+    fn errors_when_photo_missing() {
+        let address = "Москва, Троицк, Индустриальная ул., 1";
+        let plan = plan_with_slot("01.01.2023 10:00", "karier_neseyan_nemyt_pesok", address);
+        let photo_map = HashMap::new();
+        let existing_ids = HashSet::new();
+
+        let err = generate_new_ads(&plan, &photo_map, &existing_ids).unwrap_err();
+        assert!(
+            err.contains("Не найдено фото"),
+            "expected photo error, got: {}",
+            err
+        );
+    }
 }

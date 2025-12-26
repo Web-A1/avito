@@ -7,6 +7,7 @@ use feed_core::{
 
 use crate::photo::{generate_photos, read_photo_mapping, upload_photos};
 use crate::util::{cleanup_output, default_date_label, find_single_xlsx, sanitize_label_for_file};
+use feed_core::PhotoOptions;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -34,6 +35,10 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     photos: bool,
 
+    /// Запустить генерацию фото на Rust (замена JS generate-photo-variants.js)
+    #[arg(long, default_value_t = false)]
+    photos_rust: bool,
+
     /// Корневой каталог на Я.Диске
     #[arg(long, default_value = "Cursor_for_Avito")]
     disk_root: String,
@@ -41,6 +46,34 @@ pub struct Args {
     /// Каталог вывода (совпадает с JS upload-photos.js --out)
     #[arg(long, default_value = "output")]
     out_dir: PathBuf,
+
+    /// Каталог для сгенерированных фото (используется и для Rust-генератора, и для upload)
+    #[arg(long, default_value = "output/photos")]
+    photos_dir: PathBuf,
+
+    /// Корень исходников фото (по умолчанию data/photos)
+    #[arg(long, default_value = "data/photos")]
+    photos_root: PathBuf,
+
+    /// Количество фото на локацию, если не задано в плане
+    #[arg(long, default_value_t = 1)]
+    photos_default_count: u32,
+
+    /// Прозрачность текстового водяного знака (перекрывает defaults/overrides)
+    #[arg(long)]
+    photos_text_opacity: Option<f64>,
+
+    /// Прозрачность паттерна/шума (перекрывает defaults/overrides)
+    #[arg(long)]
+    photos_pattern_opacity: Option<f64>,
+
+    /// Цвет текста водяного знака (#RRGGBB)
+    #[arg(long)]
+    photos_text_color: Option<String>,
+
+    /// Текст водяного знака
+    #[arg(long)]
+    photos_text: Option<String>,
 
     /// Метка даты для фото/маппинга (если не задана — берется текущее время)
     #[arg(long, default_value = "")]
@@ -50,14 +83,85 @@ pub struct Args {
     #[arg(long)]
     photos_mapping: Option<PathBuf>,
 
+    /// Использовать встроенную загрузку фото на Я.Диск (без JS upload-photos.js)
+    #[arg(long, default_value_t = false)]
+    upload_rust: bool,
+
     /// Очистка каталога вывода от старых ads/manifest/photos_links
     #[arg(long, default_value_t = false)]
     cleanup: bool,
+
+    /// Сгенерировать шаблон watermark-overrides.json (по маске файлов) и выйти
+    #[arg(long)]
+    make_wm_template: Option<String>,
+
+    /// Превью водяных знаков: исходник
+    #[arg(long)]
+    photos_preview: Option<PathBuf>,
+
+    /// Список opacity через запятую для превью (по умолчанию 0.04,0.06,0.08,0.10,0.12)
+    #[arg(long, default_value = "0.04,0.06,0.08,0.10,0.12")]
+    preview_opacities: String,
+
+    /// Куда складывать превью (по умолчанию output/photos_preview)
+    #[arg(long, default_value = "output/photos_preview")]
+    preview_out: PathBuf,
+
+    /// Сравнить итоговый XML с эталоном (удобно для сверки с JS) после генерации
+    #[arg(long)]
+    xml_compare: Option<PathBuf>,
 }
 
 pub fn run() {
     dotenv().ok();
     let args = Args::parse();
+
+    if let Some(glob) = &args.make_wm_template {
+        match feed_core::generate_overrides_template(glob, false) {
+            Ok(list) => {
+                let path = std::path::PathBuf::from("data/watermark-overrides.json");
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent).ok();
+                }
+                let json = serde_json::to_string_pretty(&list).unwrap_or_else(|_| "[]".to_string());
+                match std::fs::write(&path, json) {
+                    Ok(_) => {
+                        println!(
+                            "Шаблон watermark-overrides записан: {} ({} записей)",
+                            path.display(),
+                            list.len()
+                        );
+                    }
+                    Err(e) => eprintln!("Не удалось записать шаблон overrides: {}", e),
+                }
+            }
+            Err(e) => eprintln!("Ошибка генерации шаблона overrides: {}", e),
+        }
+        return;
+    }
+
+    if let Some(src) = &args.photos_preview {
+        let ops = parse_opacities(&args.preview_opacities);
+        let overrides_path = std::path::PathBuf::from("data/watermark-overrides.json");
+        let overrides = feed_core::load_overrides(&overrides_path).unwrap_or_default();
+        let opts = PhotoOptions {
+            out_dir: args.preview_out.clone(),
+            pattern_opacity: args.photos_pattern_opacity,
+            text_opacity: args.photos_text_opacity,
+            text_color: args.photos_text_color.clone(),
+            text_watermark: args.photos_text.clone().or(Some("NERUDA".into())),
+            overrides,
+            count: 1,
+        };
+        match feed_core::generate_preview_grid(src, &ops, &opts) {
+            Ok(v) => println!("Сгенерировано превью: {}", v.len()),
+            Err(e) => {
+                eprintln!("Ошибка превью: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
 
     let cfg = FeedConfig::load(&args.config).unwrap_or_else(|_| FeedConfig::default());
     let plan = read_plan(&args.plan).unwrap_or_else(|e| {
@@ -95,15 +199,63 @@ pub fn run() {
     let update_rules_path = resolve_optional_parent(&args.update_rules);
     let update_rules = feed_core::read_update_rules(&update_rules_path).ok();
 
-    // Фото-этапы через JS (опционально) или чтение готового маппинга
+    if args.photos && args.photos_rust {
+        eprintln!("Нужно выбрать либо --photos (JS), либо --photos-rust (Rust)");
+        std::process::exit(1);
+    }
+    if args.photos && args.upload_rust {
+        eprintln!("Нужно выбрать либо --photos (JS), либо --upload-rust (Rust), но не оба сразу");
+        std::process::exit(1);
+    }
+
+    let date_label = if args.date_label.is_empty() {
+        default_date_label()
+    } else {
+        args.date_label.clone()
+    };
+
+    // Генерация фото на Rust (без загрузки)
+    if args.photos_rust {
+        let overrides_path = std::path::PathBuf::from("data/watermark-overrides.json");
+        let overrides = feed_core::load_overrides(&overrides_path).unwrap_or_else(|e| {
+            eprintln!(
+                "Не удалось загрузить watermark-overrides.json (используем дефолты): {}",
+                e
+            );
+            Vec::new()
+        });
+        let opts = PhotoOptions {
+            out_dir: args.photos_dir.clone(),
+            pattern_opacity: args.photos_pattern_opacity,
+            text_opacity: args.photos_text_opacity,
+            text_color: args.photos_text_color.clone(),
+            text_watermark: args.photos_text.clone(),
+            overrides,
+            count: args.photos_default_count.max(1),
+        };
+        match feed_core::generate_plan_photos(&plan, &args.photos_root, &date_label, &opts) {
+            Ok(variants) => {
+                println!(
+                    "Rust: сгенерировано {} фото ({} исходников)",
+                    variants.len(),
+                    variants
+                        .iter()
+                        .map(|v| v.source.clone())
+                        .collect::<std::collections::HashSet<_>>()
+                        .len()
+                );
+                println!("Каталог фото: {}", args.photos_dir.display());
+            }
+            Err(e) => {
+                eprintln!("Ошибка генерации фото на Rust: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    // Фото-этапы через JS (опционально), Rust upload или чтение готового маппинга
     let mut photo_map: Option<HashMap<String, String>> = None;
     if args.photos {
-        let date_label = if args.date_label.is_empty() {
-            default_date_label()
-        } else {
-            args.date_label.clone()
-        };
-
         println!("→ Генерация фото через JS...");
         if let Err(e) = generate_photos(&args.plan) {
             fail(PlanValidationError::CountsMismatch(format!(
@@ -128,53 +280,36 @@ pub fn run() {
             p
         };
 
-        match read_photo_mapping(&mapping_path) {
+        photo_map = load_mapping(&mapping_path);
+    }
+
+    if args.upload_rust {
+        match crate::photo::upload_photos_rust(
+            &args.photos_dir,
+            &args.disk_root,
+            &date_label,
+            &args.out_dir,
+        ) {
             Ok(mapping) => {
-                let count = mapping.items.len();
-                println!(
-                    "Маппинг фото загружен ({} записей) из {}",
-                    count,
-                    mapping_path.display()
-                );
-                let mut map = HashMap::new();
-                for item in mapping.items {
-                    if let Some(url) = item.public_url.clone() {
-                        for id in mapping_keys(&item) {
-                            map.insert(id, url.clone());
-                        }
-                    }
-                }
-                photo_map = Some(map);
+                photo_map = Some(mapping_to_map(mapping));
             }
-            Err(e) => eprintln!("Не удалось прочитать маппинг фото: {}", e),
+            Err(e) => {
+                eprintln!("Ошибка загрузки фото на Я.Диск: {}", e);
+                std::process::exit(1);
+            }
         }
     } else if let Some(mapping_path) = &args.photos_mapping {
-        match read_photo_mapping(mapping_path) {
-            Ok(mapping) => {
-                let count = mapping.items.len();
-                println!(
-                    "Маппинг фото загружен ({} записей) из {}",
-                    count,
-                    mapping_path.display()
-                );
-                let mut map = HashMap::new();
-                for item in mapping.items {
-                    if let Some(url) = item.public_url.clone() {
-                        for id in mapping_keys(&item) {
-                            map.insert(id, url.clone());
-                        }
-                    }
-                }
-                photo_map = Some(map);
-            }
-            Err(e) => eprintln!("Не удалось прочитать маппинг фото: {}", e),
-        }
+        photo_map = load_mapping(mapping_path);
     }
 
     // Применение правил обновления к старым объявлениям (без генерации текстов)
     let updated_current = if let Some(rules) = update_rules {
         let rules_map = feed_core::build_update_map(&rules, &current_ads);
-        let updated = feed_core::apply_updates(current_ads, &rules_map, photo_map.as_ref());
+        let updated = feed_core::apply_updates(current_ads, &rules_map, photo_map.as_ref())
+            .unwrap_or_else(|e| {
+                eprintln!("Ошибка применения правил обновления: {}", e);
+                std::process::exit(1);
+            });
         println!(
             "Старые объявления после применения правил: {}",
             updated.len()
@@ -201,9 +336,11 @@ pub fn run() {
                 std::process::exit(1);
             }
         }
-        if let Err(e) = validate_base_price_share(&new_ads) {
-            eprintln!("Валидация цен: {}", e);
-            std::process::exit(1);
+        if new_ads.len() >= 2 {
+            if let Err(e) = validate_base_price_share(&new_ads) {
+                eprintln!("Валидация цен: {}", e);
+                std::process::exit(1);
+            }
         }
     } else {
         println!("Фото-маппинг не загружен, новые объявления не генерируются");
@@ -223,11 +360,7 @@ pub fn run() {
     );
 
     // Генерация XML и манифеста
-    let xml_label = if !args.date_label.is_empty() {
-        args.date_label.clone()
-    } else {
-        default_date_label()
-    };
+    let xml_label = date_label.clone();
     let file_label = sanitize_label_for_file(&xml_label);
     let xml = match feed_core::generate_xml(&all_ads, Some(&xml_label)) {
         Ok(x) => x,
@@ -291,6 +424,18 @@ pub fn run() {
                     .unwrap_or(""),
             ],
         );
+    }
+
+    // Сравнение XML с эталоном (опционально)
+    if let Some(ref_path) = &args.xml_compare {
+        match compare_xml(&xml_path, ref_path) {
+            Ok(true) => println!("XML совпадает с эталоном ({})", ref_path.display()),
+            Ok(false) => eprintln!(
+                "XML отличается от эталона ({}). Проверьте расхождения.",
+                ref_path.display()
+            ),
+            Err(e) => eprintln!("Сравнение XML не удалось: {}", e),
+        }
     }
 
     println!("XML записан: {}", xml_path.display());
@@ -374,6 +519,98 @@ fn validate_clean_photo_uniqueness(parts: Vec<&str>) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+fn mapping_to_map(mapping: feed_core::PhotoMapping) -> HashMap<String, String> {
+    let count = mapping.items.len();
+    println!("Маппинг фото загружен ({} записей)", count,);
+    let mut map = HashMap::new();
+    for item in mapping.items {
+        if let Some(url) = item.public_url.clone() {
+            for id in mapping_keys(&item) {
+                map.insert(id, url.clone());
+            }
+        }
+    }
+    map
+}
+
+fn load_mapping(path: &PathBuf) -> Option<HashMap<String, String>> {
+    match read_photo_mapping(path) {
+        Ok(mapping) => Some(mapping_to_map(mapping)),
+        Err(e) => {
+            eprintln!("Не удалось прочитать маппинг фото: {}", e);
+            None
+        }
+    }
+}
+
+fn parse_opacities(input: &str) -> Vec<f64> {
+    input
+        .split(',')
+        .filter_map(|s| s.trim().parse::<f64>().ok())
+        .collect()
+}
+
+fn normalize_xml_str(s: &str) -> String {
+    let mut out = String::new();
+    let mut in_tag = false;
+    for ch in s.chars() {
+        match ch {
+            '<' => {
+                in_tag = true;
+                out.push('<');
+            }
+            '>' => {
+                in_tag = false;
+                out.push('>');
+            }
+            _ => {
+                if in_tag {
+                    out.push(ch);
+                } else if !ch.is_whitespace() {
+                    out.push(ch);
+                }
+            }
+        }
+    }
+    out
+}
+
+fn compare_xml(a: &PathBuf, b: &PathBuf) -> Result<bool, String> {
+    let sa = std::fs::read_to_string(a)
+        .map_err(|e| format!("Не удалось прочитать {}: {}", a.display(), e))?;
+    let sb = std::fs::read_to_string(b)
+        .map_err(|e| format!("Не удалось прочитать {}: {}", b.display(), e))?;
+    Ok(normalize_xml_str(&sa) == normalize_xml_str(&sb))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn photo_options_default_has_out_dir() {
+        let opts = PhotoOptions::default();
+        assert!(!opts.out_dir.as_os_str().is_empty());
+    }
+
+    #[test]
+    fn parse_opacities_parses_numbers() {
+        let ops = parse_opacities("0.1, 0.2 ,bad,0.3");
+        assert_eq!(ops, vec![0.1, 0.2, 0.3]);
+    }
+
+    #[test]
+    fn compare_xml_reports_equal() {
+        let tmp = tempfile::tempdir().unwrap();
+        let a = tmp.path().join("a.xml");
+        let b = tmp.path().join("b.xml");
+        std::fs::write(&a, "<root>\n  <x>1</x>\n</root>").unwrap();
+        std::fs::write(&b, "<root><x>1</x></root>").unwrap();
+        let eq = compare_xml(&a, &b).unwrap();
+        assert!(eq);
+    }
 }
 
 fn validate_base_price_share(ads: &[feed_core::Ad]) -> Result<(), String> {

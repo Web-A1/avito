@@ -236,4 +236,4 @@ pub const DEFAULT_AD_TYPE: &str = "Товар от производителя";
 pub const DEFAULT_CONDITION: &str = "Новое";
 pub const DEFAULT_TARGET_AUDIENCE: &str = "Частные лица и бизнес";
 pub const DEFAULT_INTERNET_CALLS: &str = "Да";
-pub const DEFAULT_DELIVERY: &str = "";
+pub const DEFAULT_DELIVERY: &str = "Свой курьер";

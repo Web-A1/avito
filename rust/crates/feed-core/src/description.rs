@@ -33,7 +33,7 @@ fn generate_sand_description(mat: &str) -> String {
     let block6 = BLOCK_6_ASSORTMENT_SAND_HTML.to_string();
     let block7 = build_block7_sand(mat, &mut rng);
 
-    let mut blocks = vec![block1, block2, block3, block4, block5, block6, block7];
+    let blocks = vec![block1, block2, block3, block4, block5, block6, block7];
     let mut ordered = vec![blocks[0].clone(), blocks[1].clone(), blocks[2].clone()];
     for idx in order {
         ordered.push(blocks[*idx].clone());
@@ -64,7 +64,7 @@ fn generate_rubble_description(mat: &str) -> String {
     let block6 = BLOCK_6_ASSORTMENT_RUBBLE_HTML.to_string();
     let block7 = build_block7_rubble(mat, &mut rng);
 
-    let mut blocks = vec![block1, block2, block3, block4, block5, block6, block7];
+    let blocks = vec![block1, block2, block3, block4, block5, block6, block7];
     let mut ordered = vec![blocks[0].clone(), blocks[1].clone(), blocks[2].clone()];
     for idx in order {
         ordered.push(blocks[*idx].clone());
@@ -528,7 +528,7 @@ fn extract_words(text: &str, keywords: &[&str]) -> Vec<WordInfo> {
     let mut in_tag = false;
     let mut current_start: Option<usize> = None;
 
-    let mut push_word = |start: usize, end: usize, out: &mut Vec<WordInfo>| {
+    let push_word = |start: usize, end: usize, out: &mut Vec<WordInfo>| {
         if start < end {
             let word = &text[start..end];
             let is_kw = kw.contains(&word.to_lowercase());

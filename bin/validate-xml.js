@@ -413,6 +413,7 @@ function checkRequiredFields(ads) {
     'CompactionCoefficient',
     'MinSaleQuantity',
     'PriceFor',
+    'Delivery',
     'InternetCalls'
     // DateBegin - опциональное поле (не проверяем обязательность, только формат если присутствует)
   ];
