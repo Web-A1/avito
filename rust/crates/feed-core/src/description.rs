@@ -7,31 +7,40 @@ pub fn generate_description(
     material_id: Option<&str>,
     address: Option<&str>,
 ) -> String {
+    let mut rng = thread_rng();
+    generate_description_with_rng(&mut rng, title, material_id, address)
+}
+
+pub fn generate_description_with_rng<R: Rng + ?Sized>(
+    rng: &mut R,
+    title: Option<&str>,
+    material_id: Option<&str>,
+    address: Option<&str>,
+) -> String {
     let _ = title;
     let _ = address;
     let mat = material_id.unwrap_or_default();
     ensure_known_material(mat);
     if mat.starts_with("scheben") {
-        return generate_rubble_description(mat);
+        return generate_rubble_description(mat, rng);
     }
-    generate_sand_description(mat)
+    generate_sand_description(mat, rng)
 }
 
-fn generate_sand_description(mat: &str) -> String {
-    let mut rng = thread_rng();
-    let separators = gen_separators(&mut rng);
+fn generate_sand_description<R: Rng + ?Sized>(mat: &str, rng: &mut R) -> String {
+    let separators = gen_separators(rng);
     let order = BLOCK_ORDER_VARIANTS
-        .choose(&mut rng)
+        .choose(rng)
         .copied()
         .unwrap_or(BLOCK_ORDER_VARIANTS[0]);
 
-    let block1 = build_block1_sand(mat, &mut rng);
-    let block2 = build_block2_sand(mat, &mut rng);
+    let block1 = build_block1_sand(mat, rng);
+    let block2 = build_block2_sand(mat, rng);
     let block3 = BLOCK_3_CALL_TO_ACTION_HTML.to_string();
     let block4 = BLOCK_4_ADVANTAGES_HTML.to_string();
     let block5 = BLOCK_5_WORK_HOURS_HTML.to_string();
     let block6 = BLOCK_6_ASSORTMENT_SAND_HTML.to_string();
-    let block7 = build_block7_sand(mat, &mut rng);
+    let block7 = build_block7_sand(mat, rng);
 
     let blocks = vec![block1, block2, block3, block4, block5, block6, block7];
     let mut ordered = vec![blocks[0].clone(), blocks[1].clone(), blocks[2].clone()];
@@ -45,24 +54,23 @@ fn generate_sand_description(mat: &str) -> String {
         out.push_str(&separators[i - 1]);
         out.push_str(&ordered[i]);
     }
-    apply_latin_replacements(&out, mat, &mut rng)
+    apply_latin_replacements(&out, mat, rng)
 }
 
-fn generate_rubble_description(mat: &str) -> String {
-    let mut rng = thread_rng();
-    let separators = gen_separators(&mut rng);
+fn generate_rubble_description<R: Rng + ?Sized>(mat: &str, rng: &mut R) -> String {
+    let separators = gen_separators(rng);
     let order = BLOCK_ORDER_VARIANTS
-        .choose(&mut rng)
+        .choose(rng)
         .copied()
         .unwrap_or(BLOCK_ORDER_VARIANTS[0]);
 
-    let block1 = build_block1_rubble(mat, &mut rng);
-    let block2 = build_block2_rubble(mat, &mut rng);
+    let block1 = build_block1_rubble(mat, rng);
+    let block2 = build_block2_rubble(mat, rng);
     let block3 = BLOCK_3_CALL_TO_ACTION_HTML.to_string();
     let block4 = BLOCK_4_ADVANTAGES_HTML.to_string();
     let block5 = BLOCK_5_WORK_HOURS_HTML.to_string();
     let block6 = BLOCK_6_ASSORTMENT_RUBBLE_HTML.to_string();
-    let block7 = build_block7_rubble(mat, &mut rng);
+    let block7 = build_block7_rubble(mat, rng);
 
     let blocks = vec![block1, block2, block3, block4, block5, block6, block7];
     let mut ordered = vec![blocks[0].clone(), blocks[1].clone(), blocks[2].clone()];
@@ -76,10 +84,10 @@ fn generate_rubble_description(mat: &str) -> String {
         out.push_str(&separators[i - 1]);
         out.push_str(&ordered[i]);
     }
-    apply_latin_replacements(&out, mat, &mut rng)
+    apply_latin_replacements(&out, mat, rng)
 }
 
-fn build_block1_sand(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
+fn build_block1_sand<R: Rng + ?Sized>(mat: &str, rng: &mut R) -> String {
     let text = match mat {
         "karier_neseyan_nemyt_pesok" => pick(BLOCK_1_NEMYTYY_NESEYANYY, rng),
         "karier_seyan_nemyt_pesok" => pick(BLOCK_1_SEYANYY_NEMYTYY, rng),
@@ -91,7 +99,7 @@ fn build_block1_sand(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
     format!("<p>{}</p>", text)
 }
 
-fn build_block1_rubble(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
+fn build_block1_rubble<R: Rng + ?Sized>(mat: &str, rng: &mut R) -> String {
     let text = match mat {
         "scheben_vtorichnyi_5_20" => pick(BLOCK_1_SHEBEN_VTORICHNYI_5_20, rng),
         "scheben_vtorichnyi_40_70" => pick(BLOCK_1_SHEBEN_VTORICHNYI_40_70, rng),
@@ -100,7 +108,7 @@ fn build_block1_rubble(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
     format!("<p>{}</p>", text)
 }
 
-fn build_block2_sand(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
+fn build_block2_sand<R: Rng + ?Sized>(mat: &str, rng: &mut R) -> String {
     let intro = pick(block2_intro_variants(mat), rng);
     let (headings, list_html) = match mat {
         "karier_neseyan_nemyt_pesok" => (
@@ -136,7 +144,7 @@ fn build_block2_sand(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
     )
 }
 
-fn build_block2_rubble(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
+fn build_block2_rubble<R: Rng + ?Sized>(mat: &str, rng: &mut R) -> String {
     if mat == "scheben_vtorichnyi_5_20" {
         let intro = pick(block2_intro_variants(mat), rng);
         return build_block2_rubble_5_20(intro);
@@ -218,7 +226,7 @@ fn build_block2_rubble_40_70(intro: String) -> String {
     )
 }
 
-fn build_block7_sand(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
+fn build_block7_sand<R: Rng + ?Sized>(mat: &str, rng: &mut R) -> String {
     let sand = sand_type(mat);
     let volume = rng.gen_range(BLOCK7_VOLUME_MIN..=BLOCK7_VOLUME_MAX);
     let truck_brand = pick(TRUCK_BRANDS, rng);
@@ -250,7 +258,7 @@ fn build_block7_sand(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
     )
 }
 
-fn build_block7_rubble(mat: &str, rng: &mut rand::rngs::ThreadRng) -> String {
+fn build_block7_rubble<R: Rng + ?Sized>(mat: &str, rng: &mut R) -> String {
     let label = rubble_label(mat);
     let volume = rng.gen_range(BLOCK7_VOLUME_MIN..=BLOCK7_VOLUME_MAX);
     let truck_brand = pick(TRUCK_BRANDS, rng);
@@ -277,7 +285,7 @@ fn rubble_label(mat: &str) -> String {
     }
 }
 
-fn rand_in_range(rng: &mut rand::rngs::ThreadRng, min: f64, max: f64, precision: usize) -> f64 {
+fn rand_in_range<R: Rng + ?Sized>(rng: &mut R, min: f64, max: f64, precision: usize) -> f64 {
     if precision == 0 {
         let min_int = min as i64;
         let max_int = max as i64;
@@ -288,8 +296,8 @@ fn rand_in_range(rng: &mut rand::rngs::ThreadRng, min: f64, max: f64, precision:
     s.parse::<f64>().unwrap_or(val)
 }
 
-fn rand_with_step(
-    rng: &mut rand::rngs::ThreadRng,
+fn rand_with_step<R: Rng + ?Sized>(
+    rng: &mut R,
     min: f64,
     max: f64,
     step: f64,
@@ -302,12 +310,12 @@ fn rand_with_step(
     s.parse::<f64>().unwrap_or(val)
 }
 
-fn generate_truck_number(rng: &mut rand::rngs::ThreadRng) -> String {
+fn generate_truck_number<R: Rng + ?Sized>(rng: &mut R) -> String {
     let num: u32 = rng.gen_range(10..=999);
     format!("{:0>3}", num)
 }
 
-fn gen_separators(rng: &mut rand::rngs::ThreadRng) -> Vec<String> {
+fn gen_separators<R: Rng + ?Sized>(rng: &mut R) -> Vec<String> {
     let length = rng.gen_range(SEPARATOR_MIN_LEN..=SEPARATOR_MAX_LEN);
     let mut seps = Vec::new();
     for i in 0..SEPARATOR_COUNT {
@@ -341,14 +349,14 @@ fn gen_separators(rng: &mut rand::rngs::ThreadRng) -> Vec<String> {
     seps
 }
 
-fn pick<'a>(arr: &'a [&'a str], rng: &mut rand::rngs::ThreadRng) -> String {
+fn pick<'a, R: Rng + ?Sized>(arr: &'a [&'a str], rng: &mut R) -> String {
     arr.choose(rng).unwrap_or(&arr[0]).to_string()
 }
 
-fn pick_block1_seyanyy_mytyy(
+fn pick_block1_seyanyy_mytyy<R: Rng + ?Sized>(
     module_range: &str,
     size: &str,
-    rng: &mut rand::rngs::ThreadRng,
+    rng: &mut R,
 ) -> String {
     let variants: Vec<String> = BLOCK_1_SEYANYY_MYTYY_TEMPLATES
         .iter()
@@ -442,10 +450,10 @@ const KNOWN_MATERIALS: &[&str] = &[
     "scheben_vtorichnyi_40_70",
 ];
 
-fn apply_latin_replacements(
+fn apply_latin_replacements<R: Rng + ?Sized>(
     text: &str,
     material_id: &str,
-    rng: &mut rand::rngs::ThreadRng,
+    rng: &mut R,
 ) -> String {
     let keywords = latin_keywords(material_id);
     let words = extract_words(text, &keywords);
@@ -572,10 +580,10 @@ fn extract_words(text: &str, keywords: &[&str]) -> Vec<WordInfo> {
     out
 }
 
-fn select_words_for_replacement(
+fn select_words_for_replacement<R: Rng + ?Sized>(
     words: &[WordInfo],
     keyword_indices: &[usize],
-    rng: &mut rand::rngs::ThreadRng,
+    rng: &mut R,
 ) -> Vec<usize> {
     let total = words.len();
     if total == 0 {
@@ -623,7 +631,7 @@ fn select_words_for_replacement(
     selected
 }
 
-fn replace_letters(word: &str, rng: &mut rand::rngs::ThreadRng) -> Option<String> {
+fn replace_letters<R: Rng + ?Sized>(word: &str, rng: &mut R) -> Option<String> {
     let mut positions = Vec::new();
     for (i, ch) in word.chars().enumerate() {
         if let Some(rep) = latin_map(ch) {

@@ -46,6 +46,11 @@ pre {
   margin: 20px 0;
 }
 
+.issue-text {
+  color: #b00020;
+  font-weight: 400;
+}
+
 .card {
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -185,7 +190,7 @@ summary {
   font-family: Consolas, Monaco, monospace;
   font-size: 13px;
 }
-
+.issue-text
 /* Address hint columns */
 .address-columns {
   display: flex;

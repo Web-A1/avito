@@ -94,10 +94,14 @@ export const CONTACT_PARAMETERS = {
   AD_STATUS: 'Free',
   
   // Имя менеджера
-  MANAGER_NAME: 'Владимир'
+  MANAGER_NAME: 'Владимир',
   
   // Доставка
-  ,DELIVERY: 'Свой курьер'
+  DELIVERY: 'Свой курьер',
+
+  // Значения по умолчанию для услуг
+  SERVICE_ROOM_TYPE: 'Нежилое',
+  SERVICE_WORK_DAYS: 'пн. | вт. | ср. | чт. | пт. | сб. | вс.'
 };
 
 /**

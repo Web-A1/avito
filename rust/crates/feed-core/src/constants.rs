@@ -237,3 +237,5 @@ pub const DEFAULT_CONDITION: &str = "Новое";
 pub const DEFAULT_TARGET_AUDIENCE: &str = "Частные лица и бизнес";
 pub const DEFAULT_INTERNET_CALLS: &str = "Да";
 pub const DEFAULT_DELIVERY: &str = "Свой курьер";
+pub const DEFAULT_SERVICE_ROOM_TYPE: &str = "Нежилое";
+pub const DEFAULT_SERVICE_WORK_DAYS: &str = "пн. | вт. | ср. | чт. | пт. | сб. | вс.";

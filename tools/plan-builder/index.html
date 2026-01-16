@@ -46,6 +46,7 @@
       <button id="autoBuild" style="margin-left:8px;">Автосбор</button>
     </div>
     <div class="hint" id="lastDateHint" style="margin-top:6px;">Время последнего объявления будет показано после построения.</div>
+    <div class="hint" id="addressIssues" style="margin-top:6px;"></div>
     <pre id="balanceOutput" class="output-block" style="display:none;"></pre>
     <div id="autoStatus" class="hint" style="margin-top:6px; min-height:18px;"></div>
   </div>
@@ -108,6 +109,7 @@
     const balanceOutput = document.getElementById('balanceOutput');
     const autoStatus = document.getElementById('autoStatus');
     const lastDateHint = document.getElementById('lastDateHint');
+    const addressIssues = document.getElementById('addressIssues');
     const lastExcelTime = document.getElementById('lastExcelTime');
     const targetEndInput = document.getElementById('targetEnd');
     const weightsContainer = document.getElementById('weights');
@@ -631,9 +633,13 @@
         if (countOutput) {
           countOutput.textContent = lines.join('\n');
         }
+        await fetchAddressIssues();
       } catch (e) {
         if (countOutput) {
           countOutput.textContent = `Ошибка: ${e.message}. Убедитесь, что запущен сервер (node tools/plan-builder/server.js) и есть .xlsx в data/current.`;
+        }
+        if (addressIssues) {
+          addressIssues.textContent = '';
         }
       } finally {
         setBusy(false);
@@ -948,6 +954,30 @@
       const s = String(str);
       if (s.length >= width) return s;
       return s + ' '.repeat(width - s.length);
+    }
+
+    async function fetchAddressIssues() {
+      if (!addressIssues) return;
+      try {
+        const res = await fetch('/api/check-addresses', { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        if (!data.issueCount) {
+          addressIssues.textContent = 'Адреса в Excel выглядят корректно.';
+          addressIssues.classList.remove('issue-text');
+          return;
+        }
+        const lines = (data.issues || [])
+          .slice(0, 5)
+          .map((i, idx) => `${idx + 1}. ${i.address}, строка ${i.row}`);
+        addressIssues.innerHTML = `Найдены адреса без населенного пункта:<br>${lines.join('<br>')}`;
+        addressIssues.classList.add('issue-text');
+      } catch (e) {
+        addressIssues.textContent = '';
+        addressIssues.classList.remove('issue-text');
+      }
     }
   </script>
 </body>

@@ -55,7 +55,7 @@ pub fn read_ads_from_excel(path: impl AsRef<Path>) -> Result<Vec<Ad>, String> {
                 "useBasePrice" | "UseBasePrice" => {
                     ad.use_base_price = Some(val == "true" || val == "1")
                 }
-                "PriceFor" | "priceFor" => ad.price_for = Some(val),
+                "PriceFor" | "priceFor" => ad.price_for = normalize_price_for_value(&val),
                 "Color" | "color" => ad.color = Some(val),
                 "ManagerName" | "managerName" => ad.manager_name = Some(val),
                 "CompanyName" | "companyName" => ad.company_name = Some(val),
@@ -82,6 +82,24 @@ pub fn read_ads_from_excel(path: impl AsRef<Path>) -> Result<Vec<Ad>, String> {
                     ad.compaction_coefficient = val.parse().ok()
                 }
                 "Delivery" | "delivery" => ad.delivery = Some(val),
+                "ServiceType" => ad.service_type = Some(val),
+                "ServiceSubtype" => ad.service_subtype = Some(val),
+                "WasteType" => ad.waste_type = Some(val),
+                "SameDayPickup" => ad.same_day_pickup = Some(val),
+                "PerformersOnTheTeam" => ad.performers_on_the_team = Some(val),
+                "RoomType" => ad.room_type = Some(val),
+                "WorkExperience" => ad.work_experience = Some(val),
+                "WorkWithLegalEntities" => ad.work_with_legal_entities = Some(val),
+                "WorkDays" => ad.work_days = Some(val),
+                "WorkTimeFrom" => ad.work_time_from = Some(val),
+                "WorkTimeTo" => ad.work_time_to = Some(val),
+                "MinimumOrderAmount" => ad.minimum_order_amount = Some(val),
+                "CallsDevices" => ad.calls_devices = Some(val),
+                "Promo" => ad.promo = Some(val),
+                "PromoAutoOptions" => ad.promo_auto_options = Some(val),
+                "PromoManualOptions" => ad.promo_manual_options = Some(val),
+                "Latitude" => ad.latitude = Some(val),
+                "Longitude" => ad.longitude = Some(val),
                 _ => {}
             }
         }
@@ -99,4 +117,24 @@ pub fn read_ads_from_excel(path: impl AsRef<Path>) -> Result<Vec<Ad>, String> {
     }
 
     Ok(ads)
+}
+
+fn normalize_price_for_value(value: &str) -> Option<String> {
+    let normalized = value.to_lowercase();
+    let trimmed = normalized.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed == "тонну" || trimmed == "тонна" || trimmed == "т" || trimmed == "tonnu" {
+        return Some("тонну".to_string());
+    }
+    if trimmed == "м³"
+        || trimmed == "м3"
+        || trimmed == "м^3"
+        || trimmed.contains('м')
+        || trimmed.contains("куб")
+    {
+        return Some("м³".to_string());
+    }
+    Some(value.to_string())
 }

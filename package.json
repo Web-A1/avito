@@ -8,6 +8,7 @@
     "photo:watermark:preview": "node bin/generate-watermark-previews.js",
     "photos:upload": "node bin/upload-photos.js",
     "build:feed": "node bin/build-feed.js",
+    "normalize:addresses": "node bin/normalize-current-addresses.js",
     "clean:history": "node bin/clean-history.js",
     "validate": "node bin/validate-xml.js",
     "plan-builder": "node tools/plan-builder/server.js"

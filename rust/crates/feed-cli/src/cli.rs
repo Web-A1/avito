@@ -324,7 +324,7 @@ pub fn run() {
     if let Some(pm) = &photo_map {
         let existing_ids: std::collections::HashSet<String> = updated_current
             .iter()
-            .filter_map(|ad| ad.ad_id.clone().or(ad.id.clone()).or(ad.avito_id.clone()))
+            .filter_map(|ad| ad.id.clone())
             .collect();
         match feed_core::generate_new_ads(&plan, pm, &existing_ids) {
             Ok(ads) => {
@@ -480,11 +480,6 @@ fn mapping_keys(item: &feed_core::PhotoMappingItem) -> Vec<String> {
         if !trimmed.is_empty() {
             out.push(trimmed.to_string());
             let parts: Vec<&str> = trimmed.split('_').collect();
-            if parts.len() == 5 {
-                // JS-формат: matAlias/_variant_/city/date/counter -> нормализуем к mat_city_date_counter
-                let alt = format!("{}_{}_{}_{}", parts[0], parts[2], parts[3], parts[4]);
-                out.push(alt);
-            }
             // Чистое фото (_1) уникально на basename+city
             if let Err(e) = validate_clean_photo_uniqueness(parts) {
                 eprintln!("{}", e);
@@ -577,12 +572,47 @@ fn normalize_xml_str(s: &str) -> String {
     out
 }
 
+fn strip_tag_content(mut input: String, tag: &str) -> String {
+    let open = format!("<{}>", tag);
+    let close = format!("</{}>", tag);
+    let mut cursor = 0;
+    while let Some(start_rel) = input[cursor..].find(&open) {
+        let start = cursor + start_rel;
+        let content_start = start + open.len();
+        if let Some(end_rel) = input[content_start..].find(&close) {
+            let end = content_start + end_rel;
+            input.replace_range(content_start..end, "");
+            cursor = content_start + close.len();
+        } else {
+            break;
+        }
+    }
+    input
+}
+
+fn normalize_xml_for_compare(s: &str) -> String {
+    let mut out = s.to_string();
+    for tag in [
+        "Title",
+        "Description",
+        "Price",
+        "MinSaleQuantity",
+        "ConcreteGrade",
+        "FrostResistance",
+        "FlakinessIndex",
+        "Color",
+    ] {
+        out = strip_tag_content(out, tag);
+    }
+    normalize_xml_str(&out)
+}
+
 fn compare_xml(a: &PathBuf, b: &PathBuf) -> Result<bool, String> {
     let sa = std::fs::read_to_string(a)
         .map_err(|e| format!("Не удалось прочитать {}: {}", a.display(), e))?;
     let sb = std::fs::read_to_string(b)
         .map_err(|e| format!("Не удалось прочитать {}: {}", b.display(), e))?;
-    Ok(normalize_xml_str(&sa) == normalize_xml_str(&sb))
+    Ok(normalize_xml_for_compare(&sa) == normalize_xml_for_compare(&sb))
 }
 
 #[cfg(test)]

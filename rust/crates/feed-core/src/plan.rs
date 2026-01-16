@@ -39,6 +39,10 @@ pub struct Location {
     pub address: String,
     #[serde(default)]
     pub count: u32,
+    #[serde(default)]
+    pub percent: Option<f64>,
+    #[serde(default)]
+    pub addr: Option<String>,
 }
 
 /// Очередь публикаций с фиксированными временными слотами.
@@ -214,6 +218,42 @@ pub struct Ad {
     pub internet_calls: Option<String>,
     #[serde(rename = "Delivery", default)]
     pub delivery: Option<String>,
+    #[serde(rename = "ServiceType", default)]
+    pub service_type: Option<String>,
+    #[serde(rename = "ServiceSubtype", default)]
+    pub service_subtype: Option<String>,
+    #[serde(rename = "WasteType", default)]
+    pub waste_type: Option<String>,
+    #[serde(rename = "SameDayPickup", default)]
+    pub same_day_pickup: Option<String>,
+    #[serde(rename = "PerformersOnTheTeam", default)]
+    pub performers_on_the_team: Option<String>,
+    #[serde(rename = "RoomType", default)]
+    pub room_type: Option<String>,
+    #[serde(rename = "WorkExperience", default)]
+    pub work_experience: Option<String>,
+    #[serde(rename = "WorkWithLegalEntities", default)]
+    pub work_with_legal_entities: Option<String>,
+    #[serde(rename = "WorkDays", default)]
+    pub work_days: Option<String>,
+    #[serde(rename = "WorkTimeFrom", default)]
+    pub work_time_from: Option<String>,
+    #[serde(rename = "WorkTimeTo", default)]
+    pub work_time_to: Option<String>,
+    #[serde(rename = "MinimumOrderAmount", default)]
+    pub minimum_order_amount: Option<String>,
+    #[serde(rename = "CallsDevices", default)]
+    pub calls_devices: Option<String>,
+    #[serde(rename = "Promo", default)]
+    pub promo: Option<String>,
+    #[serde(rename = "PromoAutoOptions", default)]
+    pub promo_auto_options: Option<String>,
+    #[serde(rename = "PromoManualOptions", default)]
+    pub promo_manual_options: Option<String>,
+    #[serde(rename = "Latitude", default)]
+    pub latitude: Option<String>,
+    #[serde(rename = "Longitude", default)]
+    pub longitude: Option<String>,
     /// Вспомогательное поле: цена взята ровно по базе (для распределения долей).
     #[serde(rename = "useBasePrice", default)]
     pub use_base_price: Option<bool>,

@@ -10,9 +10,13 @@
 import { createServer } from 'http';
 import { readFile } from 'fs/promises';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import { execFile } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import xlsx from 'xlsx';
+import { readCurrentAdsFromXlsx } from '../../src/utils/currentAdsReader.js';
+import { CITY_ALIASES } from '../../src/constants/materialAliases.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +24,60 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 const INDEX_PATH = path.join(__dirname, 'index.html');
+
+function findSingleXlsx(dir) {
+  const files = fsSync.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.xlsx'));
+  if (files.length === 0) {
+    throw new Error(`Нет .xlsx в ${dir}`);
+  }
+  if (files.length > 1) {
+    throw new Error(`Нашлось несколько .xlsx в ${dir}, укажите нужный вручную`);
+  }
+  return path.join(dir, files[0]);
+}
+
+function buildCityNames() {
+  const names = new Set();
+  Object.keys(CITY_ALIASES).forEach((addr) => {
+    const parts = addr.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts[1]) names.add(parts[1]);
+  });
+  return Array.from(names);
+}
+
+function hasLocality(address, cityNames) {
+  const text = String(address || '').toLowerCase();
+  return cityNames.some((city) => text.includes(city.toLowerCase()));
+}
+
+function detectHeaderRow(rows = []) {
+  if (rows.length >= 2) {
+    const headerRow1 = rows[1] || [];
+    if (headerRow1.some((cell) =>
+      String(cell || '').toLowerCase().includes('уникальный идентификатор объявления')
+    )) {
+      return { headerRowIndex: 1, dataStartIndex: 2 };
+    }
+  }
+  if (rows.length >= 1) {
+    const headerRow0 = rows[0] || [];
+    if (headerRow0.some((cell) =>
+      String(cell || '').toLowerCase() === 'id' ||
+      String(cell || '').toLowerCase() === 'avitoid'
+    )) {
+      return { headerRowIndex: 0, dataStartIndex: 1 };
+    }
+  }
+  return { headerRowIndex: -1, dataStartIndex: -1 };
+}
+
+function toKey(header = '') {
+  return header
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^\p{L}\p{N}_]/gu, '')
+    .toLowerCase();
+}
 
 function runCountScript() {
   return new Promise((resolve, reject) => {
@@ -74,6 +132,49 @@ const server = createServer(async (req, res) => {
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify(data));
+      return;
+    }
+
+    if (req.url === '/api/check-addresses') {
+      const currentDir = path.join(ROOT, 'data', 'current');
+      const xlsxPath = findSingleXlsx(currentDir);
+      const cityNames = buildCityNames();
+      const workbook = xlsx.readFile(xlsxPath);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
+      const { headerRowIndex, dataStartIndex } = detectHeaderRow(rows);
+      if (headerRowIndex === -1) {
+        throw new Error('Не удалось найти заголовки в Excel');
+      }
+      const headers = (rows[headerRowIndex] || []).map((h) => toKey(String(h || '')));
+      const addressIdx = headers.findIndex((h) => h === 'адрес' || h === 'address');
+      if (addressIdx === -1) {
+        throw new Error('Не найден столбец Address/Адрес в Excel');
+      }
+      const bad = [];
+      for (let i = dataStartIndex; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+        const addr = String(row[addressIdx] || '').trim();
+        if (!addr) continue;
+        if (!hasLocality(addr, cityNames)) {
+          bad.push({
+            address: addr,
+            row: i + 1
+          });
+        }
+      }
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(
+        JSON.stringify({
+          file: path.basename(xlsxPath),
+          total: rows.length - dataStartIndex,
+          issues: bad,
+          issueCount: bad.length
+        })
+      );
       return;
     }
 

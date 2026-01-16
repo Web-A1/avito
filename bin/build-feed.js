@@ -78,6 +78,11 @@ function resolveMaterialIdFromAdId(adId) {
   return MATERIAL_ALIAS_TO_ID[parsed.materialAlias] || null;
 }
 
+function isSupportedMaterial(materialId) {
+  if (!materialId) return false;
+  return Boolean(getSandType(materialId) || getRubbleType(materialId));
+}
+
 function getBasePrice(materialId) {
   if (!materialId) return null;
   const sandType = getSandType(materialId);
@@ -109,6 +114,7 @@ function validateBasePriceShare(ads) {
   const errors = [];
   groups.forEach((g, key) => {
     if (g.total === 0) return;
+    if (g.total < 2) return;
     const share = g.base / g.total;
     if (share < 0.4 || share > 0.6) {
       errors.push(
@@ -235,6 +241,9 @@ function parseArgs() {
       opts.skipUpdates = true;
     } else if (arg === '--skip-generation') {
       opts.skipGeneration = true;
+    } else if (arg === '--new-only') {
+      opts.skipOldPhotos = true;
+      opts.skipUpdates = true;
     } else if (arg === '--dry-run') {
       opts.dryRun = true;
     } else if (arg === '--test-output-dir' && args[i + 1]) {
@@ -362,6 +371,7 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
       
       let processedCount = 0;
       let skippedNoIdCount = 0;
+      let skippedUnsupportedCount = 0;
       
       // Для каждого объявления из Excel создаем правила
       for (const ad of currentAds) {
@@ -383,7 +393,7 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
         
         // Если не удалось определить из Id, используем значения из объявления или дефолтные
         if (!materialId) {
-          materialId = ad.bulkMaterialSubType || 'karier_neseyan_nemyt_pesok';
+          materialId = ad.bulkMaterialSubType || null;
         }
         if (!address) {
           // Берём адрес из Excel как есть (в полном формате, как в выгрузке Авито)
@@ -391,6 +401,11 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
           if (rawAddress) {
             address = rawAddress;
           }
+        }
+
+        if (!isSupportedMaterial(materialId)) {
+          skippedUnsupportedCount++;
+          continue;
         }
         
         // Создаем правила для этого объявления
@@ -416,6 +431,9 @@ async function buildUpdateRulesMap(updateRules, currentAds = []) {
       console.log(`      [DEBUG] Обработано объявлений: ${processedCount}`);
       if (skippedNoIdCount > 0) {
         console.log(`      [DEBUG] Пропущено (нет Id): ${skippedNoIdCount}`);
+      }
+      if (skippedUnsupportedCount > 0) {
+        console.log(`      [DEBUG] Пропущено (нет шаблонов): ${skippedUnsupportedCount}`);
       }
       console.log(`      [DEBUG] Создано правил: ${rulesMap.size}`);
     } else {
@@ -1134,6 +1152,7 @@ async function main() {
   let currentStepName = '';
   const startTime = Date.now(); // Объявляем до блока try, чтобы была доступна в catch
   let opts;
+  let plan = null;
   
   try {
     opts = parseArgs();
@@ -1173,7 +1192,7 @@ async function main() {
     logStep(currentStep, currentStepName);
     const planPath = opts.plan || DEFAULT_PLAN_PATH;
     console.log(`   Путь к плану: ${planPath}`);
-    const plan = readPlan(opts.plan);
+    plan = readPlan(opts.plan);
     if (!plan || !plan.tasks || plan.tasks.length === 0) {
       throw new Error(`План не найден или пуст. Путь: ${planPath}`);
     }
@@ -1341,9 +1360,14 @@ async function main() {
           
           // Определяем materialId и address из правил обновления или объявления
           const rules = updateRulesMap.get(ad.Id);
-          const materialId = rules?.materialId || 'karier_neseyan_nemyt_pesok';
-          // Используем адрес из правил (без префикса "Московская обл."), а не из Excel
-          const address = rules?.newAddress || rules?.address || 'Московская область, Троицк';
+          const materialId = rules?.materialId || resolveMaterialIdFromAdId(ad.Id);
+          if (!isSupportedMaterial(materialId)) {
+            console.log(`   ⚠️  Нет шаблонов для материала ${materialId || 'неизвестно'}, фото не обновляем`);
+            skippedCount++;
+            continue;
+          }
+          // Используем адрес из правил, иначе берём адрес из Excel
+          const address = rules?.newAddress || rules?.address || ad.address;
           
           console.log(`   Параметры:`);
           console.log(`      materialId: ${materialId}`);
@@ -1351,6 +1375,11 @@ async function main() {
           
           if (!materialId) {
             throw new Error(`Не указан materialId для объявления ${ad.Id}. Укажите materialId в update_old_ads.json`);
+          }
+          if (!address) {
+            console.log(`   ⚠️  Нет адреса для объявления ${ad.Id}, фото не обновляем`);
+            skippedCount++;
+            continue;
           }
           
           try {
@@ -1607,8 +1636,8 @@ async function main() {
               console.log(`      Режим: автогенерация`);
               // Автогенерация описания
               const materialId = rules.materialId || resolveMaterialIdFromAdId(ad.Id);
-              if (!materialId) {
-                console.warn(`      ⚠️  Не удалось определить materialId для объявления ${ad.Id}. Описание оставлено без изменений.`);
+              if (!materialId || !isSupportedMaterial(materialId)) {
+                console.warn(`      ⚠️  Нет шаблонов для materialId=${materialId || 'неизвестно'}. Описание оставлено без изменений.`);
                 continue;
               }
               const rubbleType = getRubbleType(materialId);
@@ -2238,7 +2267,7 @@ async function main() {
     try {
       const { formatAddressLabel, sanitizeName } = await import('./lib/photo-variants/utils.js');
       const locationsMap = new Map();
-      for (const task of plan.tasks || []) {
+      for (const task of (plan?.tasks || [])) {
         const materialId = task.materialId;
         for (const slot of task.slots || []) {
           for (const loc of slot.locations || []) {

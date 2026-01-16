@@ -73,6 +73,7 @@ export function buildSandAd({
   const { description, latinReplacements, blockOrder, separators, block7Params, block1Variant } =
     generateDescription(sandTypeId, sandType?.displayName || 'Песок карьерный');
 
+  const minSaleQuantity = randomInt(10, 20, 2); // диапазон 10-20, шаг 2
   return {
     title,
     description,
@@ -81,14 +82,16 @@ export function buildSandAd({
     separators,
     block7: block7Params,
     block1Variant,
+    bulkMaterialType: 'Песок',
     bulkMaterialSubType: FIXED_PARAMETERS.BULK_MATERIAL_SUBTYPE,
     color,
     priceFor,
     price,
     address,
     photoLink,
+    minSaleQuantity,
     fixed: {
-      minSaleQuantity: randomInt(10, 20, 2), // диапазон 10-20, шаг 2
+      minSaleQuantity,
       availability: FIXED_PARAMETERS.AVAILABILITY,
       packagingType: FIXED_PARAMETERS.PACKAGING_TYPE,
       compactionCoefficient: sandType?.compactionCoefficient

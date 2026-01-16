@@ -112,6 +112,7 @@ export function buildRubbleAd({
   const frostResistance = randomChoice(['F100', 'F150', 'F200', 'F300']);
   const flakinessIndex = randomChoice(['1 группа', '2 группа', '3 группа', '4 группа']);
 
+  const minSaleQuantity = randomInt(10, 20, 2);
   return {
     title,
     description,
@@ -133,8 +134,9 @@ export function buildRubbleAd({
     separators,
     block7: block7Params,
     block1Variant,
+    minSaleQuantity,
     fixed: {
-      minSaleQuantity: randomInt(10, 20, 2),
+      minSaleQuantity,
       availability: 'В наличии',
       packagingType: 'Россыпью',
       // По договорённости используем коэффициент уплотнения = насыпной плотности (т/м³)

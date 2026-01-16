@@ -11,6 +11,11 @@ pub fn find_single_xlsx(dir: &PathBuf) -> Option<PathBuf> {
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| {
+            if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                if name.starts_with("~$") {
+                    return false;
+                }
+            }
             p.extension()
                 .map(|ext| ext.to_string_lossy().to_ascii_lowercase() == "xlsx")
                 .unwrap_or(false)

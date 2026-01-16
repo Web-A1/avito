@@ -1,0 +1,20 @@
+{
+  "status": "success",
+  "startTime": "2026-01-12T12:55:45.628Z",
+  "endTime": "2026-01-12T13:10:00.032Z",
+  "durationSeconds": 854,
+  "plan": {
+    "tasks": 4,
+    "publicationQueue": 216
+  },
+  "ads": {
+    "old": 191,
+    "generated": 216,
+    "total": 407
+  },
+  "files": {
+    "xml": "ads_12.01.xml",
+    "manifest": "ads_12.01_manifest.json",
+    "photosMapping": "photos_links_12.01.2026 15-55-46.json"
+  }
+}

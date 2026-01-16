@@ -1,0 +1,12 @@
+{
+  "status": "error",
+  "message": "В папке /Users/andrey.filipov/Desktop/avito_api/data/current найдено несколько .xlsx, оставьте один файл.",
+  "stack": "Error: В папке /Users/andrey.filipov/Desktop/avito_api/data/current найдено несколько .xlsx, оставьте один файл.\n    at findSingleXlsx (file:///Users/andrey.filipov/Desktop/avito_api/bin/build-feed.js:286:11)\n    at main (file:///Users/andrey.filipov/Desktop/avito_api/bin/build-feed.js:1229:24)\n    at file:///Users/andrey.filipov/Desktop/avito_api/bin/build-feed.js:2312:3\n    at ModuleJob.run (node:internal/modules/esm/module_job:271:25)",
+  "startTime": "2026-01-14T08:27:08.737Z",
+  "endTime": "2026-01-14T08:27:08.759Z",
+  "durationSeconds": 0,
+  "plan": {
+    "tasks": 4,
+    "publicationQueue": 154
+  }
+}

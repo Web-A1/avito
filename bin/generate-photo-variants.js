@@ -36,7 +36,7 @@ import { aHashFromBuffer, hamming, pruneByHash, findCloseIndices } from './lib/p
 import { loadHistory, saveHistory, saveHistoryTmp, filterActiveAds } from './lib/photo-variants/history.js';
 import { applyTransformations } from './lib/photo-variants/transformations.js';
 import { collectSourcesFromPlan } from './lib/photo-variants/plan.js';
-import { generateAdId } from '../src/constants/materialAliases.js';
+import { generateAdId, parseAdId } from '../src/constants/materialAliases.js';
 import { loadWatermarkOverrides, findWatermarkOverride } from './lib/photo-variants/watermark-overrides.js';
 
 function parseArgs() {
@@ -181,11 +181,31 @@ async function generateVariants({
   console.log(`Материал: ${displayName}`);
   console.log(`Адрес: ${displayAddress}`);
   console.log(`Исходник: ${inputFileName}`);
+  const hasHistory = historyHashes.length > 0;
+  const hasCleanForSource = historyData.ads.some((ad) => {
+    if (ad && ad.adId) {
+      const parsed = parseAdId(ad.adId);
+      if (parsed && parsed.sourceBase === sourceBaseName && parsed.counter === 1) {
+        return true;
+      }
+    }
+    const photoPath = typeof ad?.photoPath === 'string' ? ad.photoPath : '';
+    if (!photoPath) return false;
+    const base = photoPath.replace(/\.(jpg|jpeg|png)$/i, '');
+    if (!base.startsWith(`${sourceBaseName}_`)) return false;
+    const m = base.match(/_(\d+)$/);
+    return m ? Number(m[1]) === 1 : false;
+  });
+  const allowCleanForSource = !hasCleanForSource;
   console.log(`История: ${historyHashes.length} фото`);
   if (totalPhotosInLocation > 0) {
     console.log(`Всего будет создано фото для этой локации: ${totalPhotosInLocation}`);
   }
-  console.log(`Первое фото этого исходника будет без искажений (только водяной знак)`);
+  console.log(
+    allowCleanForSource
+      ? 'Первое фото этого исходника будет без искажений (только водяной знак)'
+      : 'Для этого исходника чистое фото уже было — все фото будут с трансформациями'
+  );
   console.log(`${'─'.repeat(60)}`);
   
   // Функция для получения имени файла (с поддержкой adId)
@@ -574,10 +594,14 @@ async function generateVariants({
     }
   }
 
-  console.log(`\n✅ Первая копия будет с одним водяным знаком, остальные — с трансформациями`);
+  if (allowCleanForSource) {
+    console.log(`\n✅ Первая копия будет с одним водяным знаком, остальные — с трансформациями`);
+  } else {
+    console.log(`\n✅ Чистое фото для этого исходника уже есть — все копии с трансформациями`);
+  }
 
   for (let i = 0; i < targetCount; i++) {
-    if (i === 0) {
+    if (i === 0 && allowCleanForSource) {
       await makeVariantSafe(0, true); // Без искажений, только водяной знак
     } else {
       await makeVariantSafe(i, false); // С искажениями
@@ -693,6 +717,8 @@ async function generateVariants({
     return {
       adId,
       hash: item.hash,
+      sourceBase: sourceBaseName,
+      isClean: allowCleanForSource && generated.indexOf(item) === 0,
       materialId: materialId || '',
       address: safeAddr,
       dateBegin: dateBegin || '',

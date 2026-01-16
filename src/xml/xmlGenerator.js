@@ -34,13 +34,40 @@ function formatAd(ad, idx, dateLabel = '') {
   const fixed = ad.fixed || {};
   const images = ad.photoLink ? [ad.photoLink] : [];
   const description = wrapCdata(ad.description || '');
-  const bulkMaterialType = ad.bulkMaterialType || 'Песок';
-  const bulkMaterialSubType = ad.bulkMaterialSubType || FIXED_PARAMETERS.BULK_MATERIAL_SUBTYPE;
-  const packagingType = ad.packagingType || FIXED_PARAMETERS.PACKAGING_TYPE;
-  const availability = ad.availability || FIXED_PARAMETERS.AVAILABILITY;
+  const isGenerated = !!(ad.adId || ad.materialId || ad.material);
+  const category = isGenerated ? 'Ремонт и строительство' : (ad.category || ad.Category || '');
+  const goodsType = isGenerated ? 'Стройматериалы' : (ad.goodsType || ad.goodstype || '');
+  const goodsSubType = isGenerated ? 'Сыпучие материалы' : (ad.goodsSubType || ad.goodssubtype || '');
+  const adType = isGenerated ? 'Товар от производителя' : (ad.adType || ad.adtype || '');
+  const condition = isGenerated ? 'Новое' : (ad.condition || ad.Condition || '');
+  const serviceType = ad.serviceType || ad.servicetype || '';
+  const serviceSubtype = ad.serviceSubtype || ad.servicesubtype || '';
+  const wasteType = ad.wasteType || ad.wastetype || '';
+  const categoryRaw = String(category || '').toLowerCase();
+  const isServiceAd =
+    !isGenerated && (categoryRaw.includes('услуг') || serviceType || serviceSubtype || wasteType);
+  const resolvedCategory = category || (isServiceAd ? '' : 'Ремонт и строительство');
+  const resolvedGoodsType = goodsType || (isServiceAd ? '' : 'Стройматериалы');
+  const resolvedGoodsSubType = goodsSubType || (isServiceAd ? '' : 'Сыпучие материалы');
+  const resolvedAdType = adType || (isServiceAd ? '' : 'Товар от производителя');
+  const resolvedCondition = condition || (isServiceAd ? '' : 'Новое');
+  const bulkMaterialType = ad.bulkMaterialType || '';
+  const bulkMaterialSubType = ad.bulkMaterialSubType || '';
+  if (isGenerated && !bulkMaterialType) {
+    throw new Error('BulkMaterialType обязателен для новых объявлений');
+  }
+  const packagingType = isServiceAd
+    ? ad.packagingType || ''
+    : ad.packagingType || FIXED_PARAMETERS.PACKAGING_TYPE;
+  const availability = isServiceAd
+    ? ad.availability || ''
+    : ad.availability || FIXED_PARAMETERS.AVAILABILITY;
   const compactionCoefficient =
     ad.compactionCoefficient ?? fixed.compactionCoefficient ?? '';
-  const minSaleQuantity = ad.minSaleQuantity ?? FIXED_PARAMETERS.MIN_SALE_QUANTITY;
+  const minSaleQuantity = isServiceAd
+    ? ad.minSaleQuantity ?? ''
+    : ad.minSaleQuantity ?? FIXED_PARAMETERS.MIN_SALE_QUANTITY;
+  const priceFor = isServiceAd ? ad.priceFor || '' : ad.priceFor || '';
   const dateBegin = ad.dateBegin;
   const sellerAddressId = getSellerAddressId(ad.address || ad.location || '');
 
@@ -98,13 +125,37 @@ function formatAd(ad, idx, dateLabel = '') {
   const internetCalls = ad.internetCalls || ad.internetcalls || CONTACT_PARAMETERS.INTERNET_CALLS;
   // ManagerName: из объявления или значение по умолчанию "Владимир"
   const managerName = ad.managerName || ad.managername || CONTACT_PARAMETERS.MANAGER_NAME;
-  // Delivery: из объявления или значение по умолчанию "Свой курьер"
-  const delivery = ad.delivery || CONTACT_PARAMETERS.DELIVERY;
-  if (ad.minSaleQuantity === undefined || ad.minSaleQuantity === null) {
-    throw new Error('MinSaleQuantity обязателен, но не задан в объявлении');
-  }
-  const minSaleQuantity = ad.minSaleQuantity;
-
+  const contactPhone = ad.contactPhone || ad.contactphone || CONTACT_PARAMETERS.CONTACT_PHONE;
+  const contactMethod = ad.contactMethod || ad.contactmethod || CONTACT_PARAMETERS.CONTACT_METHOD;
+  const email = ad.email || ad.eMail || CONTACT_PARAMETERS.EMAIL;
+  const companyName = ad.companyName || ad.companyname || CONTACT_PARAMETERS.COMPANY_NAME;
+  const targetAudience =
+    ad.targetAudience || ad.targetaudience || CONTACT_PARAMETERS.TARGET_AUDIENCE;
+  const sameDayPickup = ad.sameDayPickup || ad.samedaypickup || '';
+  const performersOnTheTeam = ad.performersOnTheTeam || ad.performersontheteam || '';
+  const workExperience = ad.workExperience || ad.workexperience || '';
+  const workWithLegalEntities =
+    ad.workWithLegalEntities || ad.workwithlegalentities || '';
+  const workDays = ad.workDays || ad.workdays || '';
+  const workTimeFrom = ad.workTimeFrom || ad.worktimefrom || '';
+  const workTimeTo = ad.workTimeTo || ad.worktimeto || '';
+  const minimumOrderAmount = ad.minimumOrderAmount || ad.minimumorderamount || '';
+  const callsDevices = ad.callsDevices || ad.callsdevices || '';
+  const promo = ad.promo || '';
+  const promoAutoOptions = ad.promoAutoOptions || ad.promoautooptions || '';
+  const promoManualOptions = ad.promoManualOptions || ad.promomanualoptions || '';
+  const roomType = ad.roomType || ad.roomtype || '';
+  const latitude = ad.latitude || ad.Latitude || '';
+  const longitude = ad.longitude || ad.Longitude || '';
+  const addressValue = ad.address || ad.Address || '';
+  // Delivery: для услуг не добавляем; для товаров подставляем дефолт, если пусто
+  const workDaysValue = isServiceAd
+    ? normalizeWorkDays(workDays || CONTACT_PARAMETERS.SERVICE_WORK_DAYS)
+    : workDays;
+  const roomTypeValue = isServiceAd
+    ? roomType || CONTACT_PARAMETERS.SERVICE_ROOM_TYPE
+    : roomType;
+  const delivery = isServiceAd ? ad.delivery || '' : ad.delivery || CONTACT_PARAMETERS.DELIVERY;
   return `
     <Ad>
       <Id>${escapeXml(id)}</Id>
@@ -114,37 +165,82 @@ function formatAd(ad, idx, dateLabel = '') {
       <ListingFee>${escapeXml(String(listingFee))}</ListingFee>
       <AdStatus>${escapeXml(String(adStatus))}</AdStatus>
       <ManagerName>${escapeXml(managerName)}</ManagerName>
-      <ContactPhone>${escapeXml(CONTACT_PARAMETERS.CONTACT_PHONE)}</ContactPhone>
-      <Category>Ремонт и строительство</Category>
+      <ContactPhone>${escapeXml(contactPhone)}</ContactPhone>
+      ${resolvedCategory ? `<Category>${escapeXml(resolvedCategory)}</Category>` : ''}
       <SellerAddressID>${escapeXml(sellerAddressId)}</SellerAddressID>
+      ${isServiceAd && addressValue ? `<Address>${escapeXml(addressValue)}</Address>` : ''}
+      ${isServiceAd && latitude ? `<Latitude>${escapeXml(String(latitude))}</Latitude>` : ''}
+      ${isServiceAd && longitude ? `<Longitude>${escapeXml(String(longitude))}</Longitude>` : ''}
       <Title>${escapeXml(ad.title || '')}</Title>
       <Description>${description}</Description>
       ${ad.price ? `<Price>${ad.price}</Price>` : ''}
       ${formatImages(images)}
-      <ContactMethod>${escapeXml(CONTACT_PARAMETERS.CONTACT_METHOD)}</ContactMethod>
-      <Delivery>${escapeXml(String(delivery))}</Delivery>
+      <ContactMethod>${escapeXml(contactMethod)}</ContactMethod>
+      ${delivery ? `<Delivery>${escapeXml(String(delivery))}</Delivery>` : ''}
       <InternetCalls>${escapeXml(String(internetCalls))}</InternetCalls>
-      <EMail>${escapeXml(CONTACT_PARAMETERS.EMAIL)}</EMail>
-      <CompanyName>${escapeXml(CONTACT_PARAMETERS.COMPANY_NAME)}</CompanyName>
-      <PackagingType>${escapeXml(packagingType)}</PackagingType>
-      <CompactionCoefficient>${compactionCoefficient}</CompactionCoefficient>
-      <MinSaleQuantity>${minSaleQuantity}</MinSaleQuantity>
-      <PriceFor>${escapeXml(ad.priceFor || '')}</PriceFor>
-      <GoodsType>Стройматериалы</GoodsType>
-      <AdType>Товар от производителя</AdType>
-      <Condition>Новое</Condition>
-      <Availability>${escapeXml(availability)}</Availability>
-      <GoodsSubType>Сыпучие материалы</GoodsSubType>
-      <BulkMaterialType>${escapeXml(bulkMaterialType)}</BulkMaterialType>
-      <BulkMaterialSubType>${escapeXml(bulkMaterialSubType)}</BulkMaterialSubType>
-      ${rubbleTypeXml}
-      ${fractionXml}
-      ${flakinessIndexXml}
-      ${concreteGradeXml}
-      ${frostResistanceXml}
+      <EMail>${escapeXml(email)}</EMail>
+      <CompanyName>${escapeXml(companyName)}</CompanyName>
+      ${serviceType ? `<ServiceType>${escapeXml(serviceType)}</ServiceType>` : ''}
+      ${serviceSubtype ? `<ServiceSubtype>${escapeXml(serviceSubtype)}</ServiceSubtype>` : ''}
+      ${wasteType ? `<WasteType>${escapeXml(wasteType)}</WasteType>` : ''}
+      ${sameDayPickup ? `<SameDayPickup>${escapeXml(String(sameDayPickup))}</SameDayPickup>` : ''}
+      ${performersOnTheTeam ? `<PerformersOnTheTeam>${escapeXml(String(performersOnTheTeam))}</PerformersOnTheTeam>` : ''}
+      ${workExperience ? `<WorkExperience>${escapeXml(String(workExperience))}</WorkExperience>` : ''}
+      ${workWithLegalEntities ? `<WorkWithLegalEntities>${escapeXml(String(workWithLegalEntities))}</WorkWithLegalEntities>` : ''}
+      ${workDaysValue ? `<WorkDays>${escapeXml(String(workDaysValue))}</WorkDays>` : ''}
+      ${workTimeFrom ? `<WorkTimeFrom>${escapeXml(String(workTimeFrom))}</WorkTimeFrom>` : ''}
+      ${workTimeTo ? `<WorkTimeTo>${escapeXml(String(workTimeTo))}</WorkTimeTo>` : ''}
+      ${minimumOrderAmount ? `<MinimumOrderAmount>${escapeXml(String(minimumOrderAmount))}</MinimumOrderAmount>` : ''}
+      ${callsDevices ? `<CallsDevices>${escapeXml(String(callsDevices))}</CallsDevices>` : ''}
+      ${promo ? `<Promo>${escapeXml(String(promo))}</Promo>` : ''}
+      ${promoAutoOptions ? `<PromoAutoOptions>${escapeXml(String(promoAutoOptions))}</PromoAutoOptions>` : ''}
+      ${promoManualOptions ? `<PromoManualOptions>${escapeXml(String(promoManualOptions))}</PromoManualOptions>` : ''}
+      ${roomTypeValue ? `<RoomType>${escapeXml(String(roomTypeValue))}</RoomType>` : ''}
+      ${!isServiceAd ? `<PackagingType>${escapeXml(packagingType)}</PackagingType>` : ''}
+      ${!isServiceAd ? `<CompactionCoefficient>${compactionCoefficient}</CompactionCoefficient>` : ''}
+      ${!isServiceAd ? `<MinSaleQuantity>${minSaleQuantity}</MinSaleQuantity>` : ''}
+      ${!isServiceAd ? `<PriceFor>${escapeXml(priceFor)}</PriceFor>` : ''}
+      ${!isServiceAd ? `<GoodsType>${escapeXml(resolvedGoodsType)}</GoodsType>` : ''}
+      ${!isServiceAd ? `<AdType>${escapeXml(resolvedAdType)}</AdType>` : ''}
+      ${!isServiceAd ? `<Condition>${escapeXml(resolvedCondition)}</Condition>` : ''}
+      ${!isServiceAd ? `<Availability>${escapeXml(availability)}</Availability>` : ''}
+      ${!isServiceAd ? `<GoodsSubType>${escapeXml(resolvedGoodsSubType)}</GoodsSubType>` : ''}
+      ${!isServiceAd ? `<BulkMaterialType>${escapeXml(bulkMaterialType)}</BulkMaterialType>` : ''}
+      ${!isServiceAd ? `<BulkMaterialSubType>${escapeXml(bulkMaterialSubType)}</BulkMaterialSubType>` : ''}
+      ${!isServiceAd ? rubbleTypeXml : ''}
+      ${!isServiceAd ? fractionXml : ''}
+      ${!isServiceAd ? flakinessIndexXml : ''}
+      ${!isServiceAd ? concreteGradeXml : ''}
+      ${!isServiceAd ? frostResistanceXml : ''}
       ${ad.color ? `<Color>${escapeXml(ad.color)}</Color>` : ''}
-      <TargetAudience>${escapeXml(CONTACT_PARAMETERS.TARGET_AUDIENCE)}</TargetAudience>
+      ${!isServiceAd ? `<TargetAudience>${escapeXml(targetAudience)}</TargetAudience>` : ''}
     </Ad>`;
+}
+
+function normalizeWorkDays(value = '') {
+  const raw = String(value || '').toLowerCase();
+  if (!raw) return '';
+  const map = {
+    'пн': 'пн.',
+    'вт': 'вт.',
+    'ср': 'ср.',
+    'чт': 'чт.',
+    'пт': 'пт.',
+    'сб': 'сб.',
+    'вс': 'вс.'
+  };
+  const tokens = raw
+    .replace(/\./g, '')
+    .split(/[^а-яa-z]+/i)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const days = [];
+  for (const t of tokens) {
+    const key = t.slice(0, 2);
+    if (map[key]) days.push(map[key]);
+  }
+  const unique = [...new Set(days)];
+  return unique.length ? unique.join(' | ') : String(value || '');
 }
 
 // Извлекает тип щебня из текста (Title или Description)

@@ -9,7 +9,8 @@ use crate::{
         DEFAULT_AD_STATUS, DEFAULT_AD_TYPE, DEFAULT_AVAILABILITY, DEFAULT_BULK_MATERIAL_SUBTYPE,
         DEFAULT_COMPANY_NAME, DEFAULT_CONDITION, DEFAULT_CONTACT_METHOD, DEFAULT_CONTACT_PHONE,
         DEFAULT_EMAIL, DEFAULT_INTERNET_CALLS, DEFAULT_LISTING_FEE, DEFAULT_MANAGER_NAME,
-        DEFAULT_MIN_SALE_QUANTITY, DEFAULT_PACKAGING_TYPE, DEFAULT_TARGET_AUDIENCE,
+        DEFAULT_MIN_SALE_QUANTITY, DEFAULT_PACKAGING_TYPE, DEFAULT_SERVICE_ROOM_TYPE,
+        DEFAULT_SERVICE_WORK_DAYS, DEFAULT_TARGET_AUDIENCE,
         SELLER_ADDRESS_ALIASES, SELLER_ADDRESS_IDS,
     },
     Ad,
@@ -73,6 +74,7 @@ fn write_ad(
     }
     let status = ad.ad_status.as_deref().unwrap_or(DEFAULT_AD_STATUS);
     text_elem(writer, "AdStatus", status)?;
+    let is_service = is_service_ad(ad);
     text_elem(
         writer,
         "ManagerName",
@@ -83,14 +85,40 @@ fn write_ad(
         "ContactPhone",
         ad.contact_phone.as_deref().unwrap_or(DEFAULT_CONTACT_PHONE),
     )?;
-    text_elem(
-        writer,
-        "Category",
-        ad.category.as_deref().unwrap_or("Ремонт и строительство"),
-    )?;
+    if is_service {
+        let category = ad
+            .category
+            .as_deref()
+            .unwrap_or("Предложение услуг")
+            .trim();
+        if !category.is_empty() {
+            text_elem(writer, "Category", category)?;
+        }
+    } else {
+        text_elem(
+            writer,
+            "Category",
+            ad.category.as_deref().unwrap_or("Ремонт и строительство"),
+        )?;
+    }
     let address = pick_address(ad);
     let seller_address_id = resolve_seller_address_id(address)?;
     text_elem(writer, "SellerAddressID", &seller_address_id)?;
+    if is_service {
+        if let Some(address) = address {
+            text_elem(writer, "Address", address)?;
+        }
+        if let Some(latitude) = ad.latitude.as_deref() {
+            if !latitude.trim().is_empty() {
+                text_elem(writer, "Latitude", latitude)?;
+            }
+        }
+        if let Some(longitude) = ad.longitude.as_deref() {
+            if !longitude.trim().is_empty() {
+                text_elem(writer, "Longitude", longitude)?;
+            }
+        }
+    }
     text_elem(writer, "Title", ad.title.as_deref().unwrap_or(""))?;
     cdata_elem(
         writer,
@@ -106,8 +134,7 @@ fn write_ad(
     }
     start_elem(writer, "Images", &[])?;
     for url in images {
-        start_elem(writer, "Image", &[("url", &url)])?;
-        end_elem(writer, "Image")?;
+        empty_elem(writer, "Image", &[("url", &url)])?;
     }
     end_elem(writer, "Images")?;
     text_elem(
@@ -117,13 +144,15 @@ fn write_ad(
             .as_deref()
             .unwrap_or(DEFAULT_CONTACT_METHOD),
     )?;
-    text_elem(
-        writer,
-        "Delivery",
-        ad.delivery
-            .as_deref()
-            .unwrap_or(crate::constants::DEFAULT_DELIVERY),
-    )?;
+    if !is_service {
+        text_elem(
+            writer,
+            "Delivery",
+            ad.delivery
+                .as_deref()
+                .unwrap_or(crate::constants::DEFAULT_DELIVERY),
+        )?;
+    }
     text_elem(
         writer,
         "InternetCalls",
@@ -141,98 +170,238 @@ fn write_ad(
         "CompanyName",
         ad.company_name.as_deref().unwrap_or(DEFAULT_COMPANY_NAME),
     )?;
-    text_elem(
-        writer,
-        "PackagingType",
-        ad.packaging_type
+    if is_service {
+        if let Some(service_type) = ad.service_type.as_deref() {
+            if !service_type.trim().is_empty() {
+                text_elem(writer, "ServiceType", service_type)?;
+            }
+        }
+        if let Some(service_subtype) = ad.service_subtype.as_deref() {
+            if !service_subtype.trim().is_empty() {
+                text_elem(writer, "ServiceSubtype", service_subtype)?;
+            }
+        }
+        if let Some(waste_type) = ad.waste_type.as_deref() {
+            if !waste_type.trim().is_empty() {
+                text_elem(writer, "WasteType", waste_type)?;
+            }
+        }
+        if let Some(value) = ad.same_day_pickup.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "SameDayPickup", value)?;
+            }
+        }
+        if let Some(value) = ad.performers_on_the_team.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "PerformersOnTheTeam", value)?;
+            }
+        }
+        if let Some(value) = ad.work_experience.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "WorkExperience", value)?;
+            }
+        }
+        if let Some(value) = ad.work_with_legal_entities.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "WorkWithLegalEntities", value)?;
+            }
+        }
+        let work_days = normalize_work_days(
+            ad.work_days
+                .as_deref()
+                .unwrap_or(DEFAULT_SERVICE_WORK_DAYS),
+        );
+        if !work_days.trim().is_empty() {
+            text_elem(writer, "WorkDays", &work_days)?;
+        }
+        if let Some(value) = ad.work_time_from.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "WorkTimeFrom", value)?;
+            }
+        }
+        if let Some(value) = ad.work_time_to.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "WorkTimeTo", value)?;
+            }
+        }
+        if let Some(value) = ad.minimum_order_amount.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "MinimumOrderAmount", value)?;
+            }
+        }
+        if let Some(value) = ad.calls_devices.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "CallsDevices", value)?;
+            }
+        }
+        if let Some(value) = ad.promo.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "Promo", value)?;
+            }
+        }
+        if let Some(value) = ad.promo_auto_options.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "PromoAutoOptions", value)?;
+            }
+        }
+        if let Some(value) = ad.promo_manual_options.as_deref() {
+            if !value.trim().is_empty() {
+                text_elem(writer, "PromoManualOptions", value)?;
+            }
+        }
+        let room_type = ad
+            .room_type
             .as_deref()
-            .unwrap_or(DEFAULT_PACKAGING_TYPE),
-    )?;
-    let compaction = ad
-        .compaction_coefficient
-        .map(|v| v.to_string())
-        .unwrap_or_else(String::new);
-    text_elem(writer, "CompactionCoefficient", &compaction)?;
-    let min_sale = ad.min_sale_quantity.unwrap_or(DEFAULT_MIN_SALE_QUANTITY);
-    text_elem(writer, "MinSaleQuantity", &min_sale.to_string())?;
-    text_elem(writer, "PriceFor", ad.price_for.as_deref().unwrap_or(""))?;
-    text_elem(
-        writer,
-        "GoodsType",
-        ad.goods_type.as_deref().unwrap_or("Стройматериалы"),
-    )?;
-    text_elem(
-        writer,
-        "AdType",
-        ad.ad_type.as_deref().unwrap_or(DEFAULT_AD_TYPE),
-    )?;
-    text_elem(
-        writer,
-        "Condition",
-        ad.condition.as_deref().unwrap_or(DEFAULT_CONDITION),
-    )?;
-    text_elem(
-        writer,
-        "Availability",
-        ad.availability.as_deref().unwrap_or(DEFAULT_AVAILABILITY),
-    )?;
-    text_elem(
-        writer,
-        "GoodsSubType",
-        ad.goods_sub_type.as_deref().unwrap_or("Сыпучие материалы"),
-    )?;
-    let bulk_material_type = resolve_bulk_material_type(ad)?;
-    let bulk_material_sub_type = ad
-        .bulk_material_sub_type
-        .as_deref()
-        .unwrap_or(DEFAULT_BULK_MATERIAL_SUBTYPE);
-    text_elem(writer, "BulkMaterialType", &bulk_material_type)?;
-    text_elem(writer, "BulkMaterialSubType", bulk_material_sub_type)?;
-
-    if bulk_material_type == "Щебень, гравий" && bulk_material_sub_type == "Щебень"
-    {
-        if let Some(rubble_type) = ad.rubble_type.clone().or_else(|| {
-            extract_rubble_type_from_text(ad.title.as_deref(), ad.description.as_deref())
-        }) {
-            text_elem(writer, "RubbleType", &rubble_type)?;
+            .unwrap_or(DEFAULT_SERVICE_ROOM_TYPE);
+        if !room_type.trim().is_empty() {
+            text_elem(writer, "RoomType", room_type)?;
         }
-
-        if let Some(fraction) = ad
-            .fraction
-            .clone()
-            .or_else(|| extract_fraction_from_text(ad.description.as_deref()))
-        {
-            text_elem(writer, "Fraction", &fraction)?;
-        }
-
-        if let Some(flakiness) = ad
-            .flakiness_index
+    } else {
+        text_elem(
+            writer,
+            "PackagingType",
+            ad.packaging_type
+                .as_deref()
+                .unwrap_or(DEFAULT_PACKAGING_TYPE),
+        )?;
+        let compaction = ad
+            .compaction_coefficient
+            .map(|v| v.to_string())
+            .unwrap_or_else(String::new);
+        text_elem(writer, "CompactionCoefficient", &compaction)?;
+        let min_sale = ad.min_sale_quantity.unwrap_or(DEFAULT_MIN_SALE_QUANTITY);
+        text_elem(writer, "MinSaleQuantity", &min_sale.to_string())?;
+        text_elem(writer, "PriceFor", ad.price_for.as_deref().unwrap_or(""))?;
+        text_elem(
+            writer,
+            "GoodsType",
+            ad.goods_type.as_deref().unwrap_or("Стройматериалы"),
+        )?;
+        text_elem(
+            writer,
+            "AdType",
+            ad.ad_type.as_deref().unwrap_or(DEFAULT_AD_TYPE),
+        )?;
+        text_elem(
+            writer,
+            "Condition",
+            ad.condition.as_deref().unwrap_or(DEFAULT_CONDITION),
+        )?;
+        text_elem(
+            writer,
+            "Availability",
+            ad.availability.as_deref().unwrap_or(DEFAULT_AVAILABILITY),
+        )?;
+        text_elem(
+            writer,
+            "GoodsSubType",
+            ad.goods_sub_type.as_deref().unwrap_or("Сыпучие материалы"),
+        )?;
+        let bulk_material_type = resolve_bulk_material_type(ad)?;
+        let bulk_material_sub_type = ad
+            .bulk_material_sub_type
             .as_deref()
-            .map(format_flakiness_index)
-            .filter(|value| !value.is_empty())
-        {
-            text_elem(writer, "FlakinessIndex", &flakiness)?;
-        }
-        if let Some(concrete_grade) = ad.concrete_grade.as_ref() {
-            text_elem(writer, "ConcreteGrade", concrete_grade)?;
-        }
-        if let Some(frost) = ad.frost_resistance.as_ref() {
-            text_elem(writer, "FrostResistance", frost)?;
+            .unwrap_or(DEFAULT_BULK_MATERIAL_SUBTYPE);
+        text_elem(writer, "BulkMaterialType", &bulk_material_type)?;
+        text_elem(writer, "BulkMaterialSubType", bulk_material_sub_type)?;
+
+        if bulk_material_type == "Щебень, гравий" && bulk_material_sub_type == "Щебень" {
+            if let Some(rubble_type) = ad.rubble_type.clone().or_else(|| {
+                extract_rubble_type_from_text(ad.title.as_deref(), ad.description.as_deref())
+            }) {
+                text_elem(writer, "RubbleType", &rubble_type)?;
+            }
+
+            if let Some(fraction) = ad
+                .fraction
+                .clone()
+                .or_else(|| extract_fraction_from_text(ad.description.as_deref()))
+            {
+                text_elem(writer, "Fraction", &fraction)?;
+            }
+
+            if let Some(flakiness) = ad
+                .flakiness_index
+                .as_deref()
+                .map(format_flakiness_index)
+                .filter(|value| !value.is_empty())
+            {
+                text_elem(writer, "FlakinessIndex", &flakiness)?;
+            }
+            if let Some(concrete_grade) = ad.concrete_grade.as_ref() {
+                text_elem(writer, "ConcreteGrade", concrete_grade)?;
+            }
+            if let Some(frost) = ad.frost_resistance.as_ref() {
+                text_elem(writer, "FrostResistance", frost)?;
+            }
         }
     }
 
     if let Some(color) = ad.color.as_ref() {
         text_elem(writer, "Color", color)?;
     }
-    text_elem(
-        writer,
-        "TargetAudience",
-        ad.target_audience
-            .as_deref()
-            .unwrap_or(DEFAULT_TARGET_AUDIENCE),
-    )?;
+    if !is_service {
+        text_elem(
+            writer,
+            "TargetAudience",
+            ad.target_audience
+                .as_deref()
+                .unwrap_or(DEFAULT_TARGET_AUDIENCE),
+        )?;
+    }
     end_elem(writer, "Ad")?;
     Ok(())
+}
+
+fn is_service_ad(ad: &Ad) -> bool {
+    let category = ad.category.as_deref().unwrap_or("").to_lowercase();
+    category.contains("услуг")
+        || ad
+            .service_type
+            .as_deref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
+        || ad
+            .service_subtype
+            .as_deref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
+        || ad
+            .waste_type
+            .as_deref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
+}
+
+fn normalize_work_days(value: &str) -> String {
+    let raw = value.to_lowercase().replace('.', " ");
+    let mut days = Vec::new();
+    for token in raw.split(|c: char| !c.is_alphabetic()) {
+        if token.is_empty() {
+            continue;
+        }
+        let key = token.chars().take(2).collect::<String>();
+        let mapped = match key.as_str() {
+            "пн" => Some("пн."),
+            "вт" => Some("вт."),
+            "ср" => Some("ср."),
+            "чт" => Some("чт."),
+            "пт" => Some("пт."),
+            "сб" => Some("сб."),
+            "вс" => Some("вс."),
+            _ => None,
+        };
+        if let Some(day) = mapped {
+            if !days.contains(&day) {
+                days.push(day);
+            }
+        }
+    }
+    if days.is_empty() {
+        value.to_string()
+    } else {
+        days.join(" | ")
+    }
 }
 
 fn pick_address(ad: &Ad) -> Option<&str> {
@@ -345,6 +514,20 @@ fn start_elem(
 fn end_elem(writer: &mut Writer<Cursor<Vec<u8>>>, name: &str) -> Result<(), String> {
     writer
         .write_event(Event::End(BytesEnd::new(name)))
+        .map_err(|e| e.to_string())
+}
+
+fn empty_elem(
+    writer: &mut Writer<Cursor<Vec<u8>>>,
+    name: &str,
+    attrs: &[(&str, &str)],
+) -> Result<(), String> {
+    let mut elem = BytesStart::new(name);
+    for (k, v) in attrs {
+        elem.push_attribute((*k, *v));
+    }
+    writer
+        .write_event(Event::Empty(elem))
         .map_err(|e| e.to_string())
 }
 

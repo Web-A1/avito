@@ -89,10 +89,14 @@ function parseXML(xmlString) {
       GoodsSubType: /<GoodsSubType>(.*?)<\/GoodsSubType>/,
       BulkMaterialType: /<BulkMaterialType>(.*?)<\/BulkMaterialType>/,
       BulkMaterialSubType: /<BulkMaterialSubType>(.*?)<\/BulkMaterialSubType>/,
+      ServiceType: /<ServiceType>(.*?)<\/ServiceType>/,
+      ServiceSubtype: /<ServiceSubtype>(.*?)<\/ServiceSubtype>/,
+      WasteType: /<WasteType>(.*?)<\/WasteType>/,
       PackagingType: /<PackagingType>(.*?)<\/PackagingType>/,
       CompactionCoefficient: /<CompactionCoefficient>(.*?)<\/CompactionCoefficient>/,
       MinSaleQuantity: /<MinSaleQuantity>(.*?)<\/MinSaleQuantity>/,
       PriceFor: /<PriceFor>(.*?)<\/PriceFor>/,
+      Delivery: /<Delivery>(.*?)<\/Delivery>/,
       InternetCalls: /<InternetCalls>(.*?)<\/InternetCalls>/,
       Color: /<Color>(.*?)<\/Color>/,
       Availability: /<Availability>(.*?)<\/Availability>/,
@@ -126,6 +130,16 @@ function parseXML(xmlString) {
   }
 
   return ads;
+}
+
+function isServiceAdRecord(ad) {
+  const categoryRaw = String(ad.Category || '').toLowerCase();
+  return (
+    categoryRaw.includes('услуг') ||
+    !!ad.ServiceType ||
+    !!ad.ServiceSubtype ||
+    !!ad.WasteType
+  );
 }
 
 // Извлекает только блоки 1-6 из описания, исключая блок 7 (технические характеристики)
@@ -402,18 +416,7 @@ function checkRequiredFields(ads) {
     'SellerAddressID',
     'Price',
     'Images',
-    'GoodsType',
-    'AdType',
-    'Condition',
-    'GoodsSubType',
-    'BulkMaterialType',
-    'BulkMaterialSubType',
-    'PackagingType',
     'AdStatus',
-    'CompactionCoefficient',
-    'MinSaleQuantity',
-    'PriceFor',
-    'Delivery',
     'InternetCalls'
     // DateBegin - опциональное поле (не проверяем обязательность, только формат если присутствует)
   ];
@@ -421,12 +424,30 @@ function checkRequiredFields(ads) {
   for (let i = 0; i < ads.length; i++) {
     const ad = ads[i];
     const missingFields = [];
-    const requiredFields = [...baseRequiredFields];
+    let requiredFields = [...baseRequiredFields];
+    const isServiceAd = isServiceAdRecord(ad);
+    if (isServiceAd) {
+      requiredFields.push('ServiceType');
+    } else {
+      requiredFields.push(
+        'GoodsType',
+        'AdType',
+        'Condition',
+        'GoodsSubType',
+        'BulkMaterialType',
+        'BulkMaterialSubType',
+        'PackagingType',
+        'CompactionCoefficient',
+        'MinSaleQuantity',
+        'PriceFor',
+        'Delivery'
+      );
+    }
     
     // DateBegin - опциональное поле (не проверяем обязательность)
     
     // Для щебня и гравия добавляем обязательные поля
-    if (ad.BulkMaterialType === 'Щебень, гравий') {
+    if (!isServiceAd && ad.BulkMaterialType === 'Щебень, гравий') {
       // Fraction обязателен для всех типов щебня/гравия
       requiredFields.push('Fraction');
       
@@ -578,9 +599,10 @@ function checkFieldValues(ads) {
   
   for (let i = 0; i < ads.length; i++) {
     const ad = ads[i];
+    const isServiceAd = isServiceAdRecord(ad);
     
     // Проверка Category
-    if (ad.Category && !ALLOWED_CATEGORIES.includes(ad.Category)) {
+    if (!isServiceAd && ad.Category && !ALLOWED_CATEGORIES.includes(ad.Category)) {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -590,7 +612,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка GoodsType
-    if (ad.GoodsType && !ALLOWED_GOODS_TYPES.includes(ad.GoodsType)) {
+    if (!isServiceAd && ad.GoodsType && !ALLOWED_GOODS_TYPES.includes(ad.GoodsType)) {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -600,7 +622,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка GoodsSubType
-    if (ad.GoodsSubType && !ALLOWED_GOODS_SUB_TYPES.includes(ad.GoodsSubType)) {
+    if (!isServiceAd && ad.GoodsSubType && !ALLOWED_GOODS_SUB_TYPES.includes(ad.GoodsSubType)) {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -610,7 +632,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка AdType - всегда должно быть "Товар от производителя"
-    if (ad.AdType && ad.AdType !== 'Товар от производителя') {
+    if (!isServiceAd && ad.AdType && ad.AdType !== 'Товар от производителя') {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -620,7 +642,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка Condition - всегда должно быть "Новое"
-    if (ad.Condition && ad.Condition !== 'Новое') {
+    if (!isServiceAd && ad.Condition && ad.Condition !== 'Новое') {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -630,7 +652,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка BulkMaterialType
-    if (ad.BulkMaterialType && !ALLOWED_BULK_MATERIAL_TYPES.includes(ad.BulkMaterialType)) {
+    if (!isServiceAd && ad.BulkMaterialType && !ALLOWED_BULK_MATERIAL_TYPES.includes(ad.BulkMaterialType)) {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -640,7 +662,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка BulkMaterialSubType
-    if (ad.BulkMaterialType === 'Песок') {
+    if (!isServiceAd && ad.BulkMaterialType === 'Песок') {
       if (ad.BulkMaterialSubType && !ALLOWED_BULK_MATERIAL_SUB_TYPES_SAND.includes(ad.BulkMaterialSubType)) {
         errors.push({
           adIndex: i + 1,
@@ -649,7 +671,7 @@ function checkFieldValues(ads) {
           message: `Недопустимый подтип песка: "${ad.BulkMaterialSubType}". Допустимые: ${ALLOWED_BULK_MATERIAL_SUB_TYPES_SAND.join(', ')}`
         });
       }
-    } else if (ad.BulkMaterialType === 'Щебень, гравий') {
+    } else if (!isServiceAd && ad.BulkMaterialType === 'Щебень, гравий') {
       if (ad.BulkMaterialSubType && !ALLOWED_BULK_MATERIAL_SUB_TYPES_RUBBLE.includes(ad.BulkMaterialSubType)) {
         errors.push({
           adIndex: i + 1,
@@ -692,7 +714,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка PackagingType - всегда должно быть "Россыпью"
-    if (ad.PackagingType && ad.PackagingType !== 'Россыпью') {
+    if (!isServiceAd && ad.PackagingType && ad.PackagingType !== 'Россыпью') {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -702,7 +724,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка Color
-    if (ad.Color && !ALLOWED_COLORS.includes(ad.Color)) {
+    if (!isServiceAd && ad.Color && !ALLOWED_COLORS.includes(ad.Color)) {
       warnings.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -712,7 +734,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка PriceFor
-    if (ad.PriceFor && !ALLOWED_PRICE_FOR.includes(ad.PriceFor)) {
+    if (!isServiceAd && ad.PriceFor && !ALLOWED_PRICE_FOR.includes(ad.PriceFor)) {
       errors.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -722,14 +744,14 @@ function checkFieldValues(ads) {
     }
     
     // Проверка Availability
-    if (!ad.Availability || ad.Availability.trim() === '') {
+    if (!isServiceAd && (!ad.Availability || ad.Availability.trim() === '')) {
       warnings.push({
         adIndex: i + 1,
         adId: ad.Id,
         type: 'missing_availability',
         message: `Рекомендуется указать Availability. Допустимые значения: ${ALLOWED_AVAILABILITY.join(', ')}`
       });
-    } else if (!ALLOWED_AVAILABILITY.includes(ad.Availability)) {
+    } else if (!isServiceAd && !ALLOWED_AVAILABILITY.includes(ad.Availability)) {
       warnings.push({
         adIndex: i + 1,
         adId: ad.Id,
@@ -759,7 +781,7 @@ function checkFieldValues(ads) {
     }
     
     // Проверка CompactionCoefficient - должно быть числом
-    if (ad.CompactionCoefficient) {
+    if (!isServiceAd && ad.CompactionCoefficient) {
       const coeff = parseFloat(ad.CompactionCoefficient);
       if (isNaN(coeff)) {
         errors.push({
@@ -771,15 +793,16 @@ function checkFieldValues(ads) {
       }
     }
     
-    // Проверка MinSaleQuantity - всегда должно быть 20
-    if (ad.MinSaleQuantity) {
+    // Проверка MinSaleQuantity - 10..20 шаг 2
+    if (!isServiceAd && ad.MinSaleQuantity) {
       const qty = parseFloat(ad.MinSaleQuantity);
-      if (isNaN(qty) || qty !== 20) {
+      const inRange = !isNaN(qty) && qty >= 10 && qty <= 20 && (qty - 10) % 2 === 0;
+      if (!inRange) {
         errors.push({
           adIndex: i + 1,
           adId: ad.Id,
           type: 'invalid_min_sale_quantity',
-          message: `Некорректное минимальное количество: "${ad.MinSaleQuantity}". Должно быть всегда 20`
+          message: `Некорректное минимальное количество: "${ad.MinSaleQuantity}". Ожидается 10–20 с шагом 2`
         });
       }
     }
@@ -795,6 +818,7 @@ function checkMaterialConsistency(ads) {
   
   const sandKeywords = ['песок', 'песка', 'песком', 'песчаный'];
   const rubbleKeywords = ['щебень', 'щебня', 'щебнем', 'щебеночный', 'гравий', 'гравия', 'гравием', 'гравийный'];
+  const serviceKeywords = ['вывоз', 'услуг', 'услуга', 'аренда', 'демонтаж', 'уборка', 'снег', 'мусор'];
   
   // Ключевые слова, которые указывают на раздел ассортимента (игнорируем их)
   const assortmentKeywords = ['ассортимент', 'товаров в наличии', 'в наличии'];
@@ -816,6 +840,10 @@ function checkMaterialConsistency(ads) {
     // Берем только первые 500 символов описания для проверки (основной контент)
     const mainDescription = description.substring(0, 500);
     
+    const isServiceAd =
+      serviceKeywords.some(kw => title.includes(kw)) ||
+      serviceKeywords.some(kw => mainDescription.includes(kw));
+
     if (bulkType === 'Песок') {
       const hasSandInTitle = sandKeywords.some(kw => title.includes(kw));
       const hasSandInDesc = sandKeywords.some(kw => mainDescription.includes(kw));
@@ -851,7 +879,7 @@ function checkMaterialConsistency(ads) {
         });
       }
       // Предупреждение: если нет упоминания песка
-      else if (!hasSandInTitle && !hasSandInDesc) {
+      else if (!hasSandInTitle && !hasSandInDesc && !isServiceAd) {
         warnings.push({
           adIndex: i + 1,
           adId: ad.Id,
@@ -894,7 +922,7 @@ function checkMaterialConsistency(ads) {
         });
       }
       // Предупреждение: если нет упоминания щебня/гравия
-      else if (!hasRubbleInTitle && !hasRubbleInMainDesc) {
+      else if (!hasRubbleInTitle && !hasRubbleInMainDesc && !isServiceAd) {
         warnings.push({
           adIndex: i + 1,
           adId: ad.Id,
