@@ -118,10 +118,23 @@
       { name: 'Москва, Троицк, Индустриальная ул., 1' },
       { name: 'Московская обл., Домодедово, Станционная ул., 26к3' }
     ];
-    const allLocationNames = locations.map((l) => l.name);
+    function normalizeAddress(address) {
+      return String(address || '')
+        .normalize('NFC')
+        .replace(/\u00a0/g, ' ')
+        .replace(/\uFFFD/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    const allLocationNames = locations.map((l) => normalizeAddress(l.name));
     const rubbleLocationNames = locations
       .filter((l) => l.name.includes('Подольск') || l.name.includes('Домодедово'))
-      .map((l) => l.name);
+      .map((l) => normalizeAddress(l.name));
+    const allowedByMaterial = {
+      sand: new Set(allLocationNames),
+      rubble: new Set(rubbleLocationNames)
+    };
     const materialTypeById = new Map(materials.map((m) => [m.id, m.material]));
 
     const dateBeginDisplay = document.getElementById('dateBeginDisplay');
@@ -170,6 +183,7 @@
     let lastExcelRead = null;
     let materialWeights = new Map();
     let typeWeights = new Map();
+    let lastInvalidLocations = [];
 
     function reseed(seed) {
       currentSeed = (seed >>> 0) || 1;
@@ -527,26 +541,48 @@
         const count = parseInt(task.querySelector('.task-count').value, 10) || 0;
         const materialCfg = materials.find(m => m.id === materialId);
         const material = materialCfg && materialCfg.material ? materialCfg.material : 'sand';
-        const addresses = getLocationsByMaterial(material);
+        const addresses = getLocationsByMaterial(material).map(normalizeAddress);
         const locs = distributeEvenly(count, addresses);
         rawTasks.push({ material, materialId, count, locations: locs });
       });
 
+      const issues = [];
       const groups = [];
       rawTasks.forEach((task) => {
+        const allowed = allowedByMaterial[task.material] || new Set(allLocationNames);
         task.locations.forEach((loc) => {
+          const cleanAddress = normalizeAddress(loc.address);
+          if (!allowed.has(cleanAddress)) {
+            issues.push(cleanAddress || loc.address);
+            return;
+          }
           if (loc.count > 0) {
             groups.push({
               material: task.material,
               materialId: task.materialId,
-              location: loc.address,
+              location: cleanAddress,
               count: loc.count
             });
           }
         });
       });
 
-      const publicationQueue = buildSchedule(buildPriorityQueue(groups), dateBeginDt);
+      const rawQueue = buildSchedule(buildPriorityQueue(groups), dateBeginDt);
+      const publicationQueue = rawQueue
+        .map((item) => {
+          const cleanLocation = normalizeAddress(item.location);
+          return { ...item, location: cleanLocation };
+        })
+        .filter((item) => {
+          const materialType = materialTypeById.get(item.materialId) || 'sand';
+          const allowed = allowedByMaterial[materialType] || new Set(allLocationNames);
+          if (!allowed.has(item.location)) {
+            issues.push(item.location);
+            return false;
+          }
+          return true;
+        });
+
       const orderedGroups = [];
       const seen = new Set();
       publicationQueue.forEach((item) => {
@@ -557,9 +593,11 @@
         }
       });
 
-      const groupCountMap = new Map(
-        groups.map(group => [`${group.materialId}::${group.location}`, group.count])
-      );
+      const groupCountMap = new Map();
+      publicationQueue.forEach((item) => {
+        const key = `${item.materialId}::${item.location}`;
+        groupCountMap.set(key, (groupCountMap.get(key) || 0) + 1);
+      });
       const tasks = orderedGroups.map((group) => {
         const key = `${group.materialId}::${group.location}`;
         const groupCount = groupCountMap.get(key) || 0;
@@ -576,6 +614,11 @@
         tasks,
         publicationQueue
       };
+      if (issues.length) {
+        lastInvalidLocations = Array.from(new Set(issues)).filter(Boolean);
+      } else {
+        lastInvalidLocations = [];
+      }
       updateLastDate(publicationQueue);
       return plan;
     }
@@ -634,7 +677,11 @@
       const plan = buildPlan();
       const validation = validatePlan(plan);
       const capacityHint = buildCapacityHint(plan.publicationQueue.length || 0);
-      warnDiv.textContent = [validation.message, capacityHint].filter(Boolean).join(' ');
+      const warningLines = [validation.message, capacityHint].filter(Boolean);
+      if (lastInvalidLocations.length) {
+        warningLines.push(`Удалены неизвестные адреса: ${lastInvalidLocations.join(', ')}`);
+      }
+      warnDiv.textContent = warningLines.filter(Boolean).join(' ');
       dateBeginDisplay.textContent = plan.DateBegin || '';
       outputPre.textContent = JSON.stringify(plan, null, 2);
       return plan;

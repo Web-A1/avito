@@ -25,6 +25,88 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 const INDEX_PATH = path.join(__dirname, 'index.html');
 
+const MATERIALS = [
+  { id: 'karier_neseyan_nemyt_pesok', material: 'sand' },
+  { id: 'karier_seyan_nemyt_pesok', material: 'sand' },
+  { id: 'karier_seyan_myt_pesok_1.5', material: 'sand' },
+  { id: 'karier_seyan_myt_pesok_2', material: 'sand' },
+  { id: 'karier_seyan_myt_pesok_2.5', material: 'sand' },
+  { id: 'scheben_vtorichnyi_5_20', material: 'rubble' },
+  { id: 'scheben_vtorichnyi_40_70', material: 'rubble' }
+];
+const MATERIAL_TYPE_BY_ID = new Map(MATERIALS.map((m) => [m.id, m.material]));
+const LOCATIONS = [
+  'Московская обл., Бронницы, Магистральная ул., 3',
+  'Московская обл., Чехов, ул. Чехова, 20Бк5',
+  'Московская обл., Подольск, ул. Лапшенкова, 3',
+  'Москва, Троицк, Индустриальная ул., 1',
+  'Московская обл., Домодедово, Станционная ул., 26к3'
+];
+
+function normalizeAddress(address) {
+  return String(address || '')
+    .normalize('NFC')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\uFFFD/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const ALL_LOCATION_NAMES = LOCATIONS.map(normalizeAddress);
+const RUBBLE_LOCATION_NAMES = ALL_LOCATION_NAMES.filter(
+  (name) => name.includes('Подольск') || name.includes('Домодедово')
+);
+const ALLOWED_BY_TYPE = {
+  sand: new Set(ALL_LOCATION_NAMES),
+  rubble: new Set(RUBBLE_LOCATION_NAMES)
+};
+
+function sanitizePlan(plan) {
+  if (!plan || !Array.isArray(plan.publicationQueue)) return { plan, removed: [] };
+  const removed = [];
+  const cleanedQueue = plan.publicationQueue
+    .map((item) => {
+      const location = normalizeAddress(item.location);
+      const materialType = MATERIAL_TYPE_BY_ID.get(item.materialId) || 'sand';
+      const allowed = ALLOWED_BY_TYPE[materialType] || ALLOWED_BY_TYPE.sand;
+      if (!allowed.has(location)) {
+        removed.push(item.location);
+        return null;
+      }
+      return { ...item, location };
+    })
+    .filter(Boolean);
+
+  const counts = new Map();
+  const order = [];
+  cleanedQueue.forEach((item) => {
+    const key = `${item.materialId}::${item.location}`;
+    if (!counts.has(key)) order.push(key);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+
+  const tasks = order.map((key) => {
+    const [materialId, location] = key.split('::');
+    const count = counts.get(key) || 0;
+    const material = MATERIAL_TYPE_BY_ID.get(materialId) || 'sand';
+    return {
+      material,
+      materialId,
+      count,
+      locations: [{ address: location, count }]
+    };
+  });
+
+  return {
+    plan: {
+      ...plan,
+      tasks,
+      publicationQueue: cleanedQueue
+    },
+    removed: Array.from(new Set(removed)).filter(Boolean)
+  };
+}
+
 function findSingleXlsx(dir) {
   const files = fsSync.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.xlsx'));
   if (files.length === 0) {
@@ -179,12 +261,13 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.url === '/api/save-plan' && req.method === 'POST') {
-      const plan = await readJsonBody(req);
+      const rawPlan = await readJsonBody(req);
+      const { plan, removed } = sanitizePlan(rawPlan);
       const planPath = path.join(ROOT, 'data', 'plan.json');
       await fs.writeFile(planPath, JSON.stringify(plan, null, 2), 'utf-8');
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ ok: true, path: planPath }));
+      res.end(JSON.stringify({ ok: true, path: planPath, removedInvalidLocations: removed }));
       return;
     }
 

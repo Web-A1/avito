@@ -64,6 +64,7 @@ pub fn upload_photos_rust(
     date_label: &str,
     out_dir: &PathBuf,
     photos_manifest: Option<&PathBuf>,
+    fast_upload: bool,
 ) -> Result<PhotoMapping, String> {
     let token = std::env::var("YANDEX_DISK_TOKEN")
         .map_err(|_| "Не задан YANDEX_DISK_TOKEN для загрузки на Я.Диск".to_string())?;
@@ -75,7 +76,12 @@ pub fn upload_photos_rust(
     }
     let folder = date_label.replace(' ', "_");
     let disk_prefix = format!("{}/{}", disk_root, folder);
-    let client = YandexClient::new(token).with_retries(20, Duration::from_millis(1000));
+    let client = YandexClient::new(token)
+        .with_retries(20, Duration::from_millis(1000))
+        .with_curl(!fast_upload);
+    if let Err(e) = client.ensure_folder(&disk_prefix) {
+        eprintln!("⚠️  Не удалось создать папку на Я.Диске: {}", e);
+    }
 
     let files = if let Some(manifest) = photos_manifest {
         collect_manifest_files(manifest)?
@@ -91,8 +97,33 @@ pub fn upload_photos_rust(
         disk_prefix
     );
 
-    let (items, uploaded, failed) =
-        upload_files_parallel(files, &client, &disk_prefix, 4, 2, 2);
+    let (upload_concurrency, publish_concurrency, skip_exists, batch_size) = if fast_upload {
+        (8usize, 8usize, true, Some(50usize))
+    } else {
+        (4usize, 2usize, false, None)
+    };
+    if fast_upload {
+        println!(
+            "[UPLOAD] Режим: быстрый (upload {}, links {}, skip_exists=true)",
+            upload_concurrency, publish_concurrency
+        );
+        if let Some(size) = batch_size {
+            println!(
+                "[UPLOAD] Подпапки: включены (batch ~{} файлов",
+                size
+            );
+        }
+    }
+    let (items, uploaded, failed) = upload_files_parallel(
+        files,
+        &client,
+        &disk_prefix,
+        upload_concurrency,
+        publish_concurrency,
+        2,
+        skip_exists,
+        batch_size,
+    );
 
     let mapping = PhotoMapping {
         date: Some(date_label.to_string()),
@@ -216,6 +247,78 @@ fn collect_manifest_files(path: &PathBuf) -> Result<Vec<PathBuf>, String> {
     Ok(out)
 }
 
+fn maybe_throttle_upload(
+    upload_423_cnt: &std::sync::atomic::AtomicUsize,
+    upload_done: &std::sync::atomic::AtomicUsize,
+    max_inflight: &std::sync::atomic::AtomicUsize,
+    throttle_level: &std::sync::atomic::AtomicUsize,
+    base_concurrency: usize,
+    total_files: usize,
+) {
+    use std::sync::atomic::Ordering;
+    let done = upload_done.load(Ordering::SeqCst);
+    if done < 10 {
+        return;
+    }
+    let c423 = upload_423_cnt.load(Ordering::SeqCst);
+    let ratio = (c423 * 100) / done.max(1);
+    let level = throttle_level.load(Ordering::SeqCst);
+    if level == 0 && c423 >= 40 && ratio >= 15 {
+        let new_max = (base_concurrency / 2).max(2);
+        if new_max < max_inflight.load(Ordering::SeqCst) {
+            max_inflight.store(new_max, Ordering::SeqCst);
+            throttle_level.store(1, Ordering::SeqCst);
+            println!(
+                "Авто-троттлинг: снижены потоки до {} (423={}, прогресс {}/{})",
+                new_max, c423, done, total_files
+            );
+        }
+    } else if level == 1 && c423 >= 80 && ratio >= 25 {
+        let new_max = (base_concurrency / 3).max(1);
+        if new_max < max_inflight.load(Ordering::SeqCst) {
+            max_inflight.store(new_max, Ordering::SeqCst);
+            throttle_level.store(2, Ordering::SeqCst);
+            println!(
+                "Авто-троттлинг: снижены потоки до {} (423={}, прогресс {}/{})",
+                new_max, c423, done, total_files
+            );
+        }
+    }
+}
+
+fn classify_http_code(err: &str) -> Option<u16> {
+    if let Some(pos) = err.find("HTTP ") {
+        let rest = &err[pos + 5..];
+        let code: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        return code.parse::<u16>().ok();
+    }
+    None
+}
+
+fn hash_file_name(name: &str) -> u64 {
+    let mut h: u64 = 0;
+    for b in name.bytes() {
+        h = h.wrapping_mul(131).wrapping_add(b as u64);
+    }
+    h
+}
+
+fn resolve_disk_path(
+    disk_prefix: &str,
+    file_name: &str,
+    bucket_count: usize,
+    batch_size: Option<usize>,
+) -> (String, Option<String>) {
+    if bucket_count <= 1 || batch_size.is_none() {
+        return (format!("{}/{}", disk_prefix, file_name), None);
+    }
+    let idx = (hash_file_name(file_name) % bucket_count as u64) as usize;
+    let width = if bucket_count < 100 { 2 } else { 3 };
+    let batch_name = format!("batch_{:0width$}", idx + 1, width = width);
+    let batch_path = format!("{}/{}", disk_prefix, batch_name);
+    (format!("{}/{}", batch_path, file_name), Some(batch_path))
+}
+
 fn upload_files_parallel(
     files: Vec<PathBuf>,
     client: &YandexClient,
@@ -223,12 +326,65 @@ fn upload_files_parallel(
     upload_concurrency: usize,
     publish_concurrency: usize,
     upload_retries: usize,
+    skip_exists: bool,
+    batch_size: Option<usize>,
 ) -> (Vec<PhotoMappingItem>, Vec<PathBuf>, Vec<PathBuf>) {
     use std::sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex};
+    let upload_ok = Arc::new(AtomicUsize::new(0));
+    let upload_skipped = Arc::new(AtomicUsize::new(0));
+    let upload_failed = Arc::new(AtomicUsize::new(0));
+    let upload_retries_cnt = Arc::new(AtomicUsize::new(0));
+    let upload_423_cnt = Arc::new(AtomicUsize::new(0));
+    let upload_429_cnt = Arc::new(AtomicUsize::new(0));
+    let publish_ok = Arc::new(AtomicUsize::new(0));
+    let publish_failed = Arc::new(AtomicUsize::new(0));
+    let publish_404_cnt = Arc::new(AtomicUsize::new(0));
+    let upload_start = std::time::Instant::now();
+    let upload_done = Arc::new(AtomicUsize::new(0));
     let upload_idx = Arc::new(AtomicUsize::new(0));
+    let inflight = Arc::new(AtomicUsize::new(0));
+    let max_inflight = Arc::new(AtomicUsize::new(upload_concurrency));
+    let throttle_level = Arc::new(AtomicUsize::new(0));
     let files = Arc::new(files);
+    let bucket_count = match batch_size {
+        Some(size) if size > 0 => (files.len() + size - 1) / size,
+        _ => 1,
+    };
+    println!("[ЗАГРУЗКА НА Я.ДИСК]");
+    println!("Файлов {}, потоки {}.", files.len(), upload_concurrency);
+    if bucket_count > 1 {
+        println!(
+            "Подпапки: batch_* ({} папок по ~{} файлов)",
+            bucket_count,
+            batch_size.unwrap_or(0)
+        );
+    }
     let uploaded_tasks: Arc<Mutex<Vec<(PathBuf, String)>>> = Arc::new(Mutex::new(Vec::new()));
     let failed_upload: Arc<Mutex<Vec<PathBuf>>> = Arc::new(Mutex::new(Vec::new()));
+    let ensured_batches: Arc<Mutex<std::collections::HashSet<String>>> =
+        Arc::new(Mutex::new(std::collections::HashSet::new()));
+    struct InflightGuard<'a>(&'a AtomicUsize);
+    impl<'a> Drop for InflightGuard<'a> {
+        fn drop(&mut self) {
+            self.0.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
+    let acquire_inflight = |inflight: &AtomicUsize, max_inflight: &AtomicUsize| {
+        loop {
+            let current = inflight.load(Ordering::SeqCst);
+            let max = max_inflight.load(Ordering::SeqCst).max(1);
+            if current < max {
+                if inflight
+                    .compare_exchange(current, current + 1, Ordering::SeqCst, Ordering::SeqCst)
+                    .is_ok()
+                {
+                    break;
+                }
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+    };
 
     let mut handles = Vec::new();
     for _ in 0..upload_concurrency {
@@ -239,6 +395,19 @@ fn upload_files_parallel(
         let client = client.clone();
         let disk_prefix = disk_prefix.to_string();
         let upload_retries = upload_retries;
+        let upload_ok = Arc::clone(&upload_ok);
+        let upload_skipped = Arc::clone(&upload_skipped);
+        let upload_failed = Arc::clone(&upload_failed);
+        let upload_retries_cnt = Arc::clone(&upload_retries_cnt);
+        let upload_423_cnt = Arc::clone(&upload_423_cnt);
+        let upload_429_cnt = Arc::clone(&upload_429_cnt);
+        let upload_done = Arc::clone(&upload_done);
+        let inflight = Arc::clone(&inflight);
+        let max_inflight = Arc::clone(&max_inflight);
+        let throttle_level = Arc::clone(&throttle_level);
+        let ensured_batches = Arc::clone(&ensured_batches);
+        let bucket_count = bucket_count;
+        let batch_size = batch_size;
         let handle = std::thread::spawn(move || {
             loop {
                 let i = upload_idx.fetch_add(1, Ordering::SeqCst);
@@ -254,27 +423,67 @@ fn upload_files_parallel(
                         continue;
                     }
                 };
-                let disk_path = format!("{}/{}", disk_prefix, file_name);
-                println!("  uploading {}", file_name);
-                if let Ok(true) = client.resource_exists(&disk_path) {
-                    println!("  → {} (уже на диске, skip upload)", file_name);
-                    uploaded_tasks.lock().unwrap().push((path.clone(), disk_path));
-                    continue;
+                acquire_inflight(&inflight, &max_inflight);
+                let _guard = InflightGuard(&inflight);
+                let (disk_path, batch_path) = resolve_disk_path(
+                    &disk_prefix,
+                    &file_name,
+                    bucket_count,
+                    batch_size,
+                );
+                if let Some(batch_path) = batch_path {
+                    let mut guard = ensured_batches.lock().unwrap();
+                    let need_create = guard.insert(batch_path.clone());
+                    drop(guard);
+                    if need_create {
+                        if let Err(e) = client.ensure_folder(&batch_path) {
+                            eprintln!("⚠️  Не удалось создать папку {}: {}", batch_path, e);
+                        }
+                    }
+                }
+                if !skip_exists {
+                    if let Ok(true) = client.resource_exists(&disk_path) {
+                        uploaded_tasks.lock().unwrap().push((path.clone(), disk_path));
+                        upload_skipped.fetch_add(1, Ordering::SeqCst);
+                        let done = upload_done.fetch_add(1, Ordering::SeqCst) + 1;
+                        if done % 20 == 0 || done == files.len() {
+                            println!("Прогресс: {}/{}", done, files.len());
+                        }
+                        continue;
+                    }
                 }
                 let mut attempt = 0;
                 let mut done = false;
                 while attempt <= upload_retries && !done {
                     match client.upload_only(&path, &disk_path) {
                         Ok(res) => {
-                            println!("  → {} ({} bytes)", file_name, res.size);
                             uploaded_tasks.lock().unwrap().push((path.clone(), res.disk_path));
+                            upload_ok.fetch_add(1, Ordering::SeqCst);
                             done = true;
                         }
                         Err(e) => {
                             attempt += 1;
+                            upload_retries_cnt.fetch_add(1, Ordering::SeqCst);
+                            let es = e.to_string();
+                            if let Some(code) = classify_http_code(&es) {
+                                if code == 423 {
+                                    upload_423_cnt.fetch_add(1, Ordering::SeqCst);
+                                    maybe_throttle_upload(
+                                        &upload_423_cnt,
+                                        &upload_done,
+                                        &max_inflight,
+                                        &throttle_level,
+                                        upload_concurrency,
+                                        files.len(),
+                                    );
+                                } else if code == 429 {
+                                    upload_429_cnt.fetch_add(1, Ordering::SeqCst);
+                                }
+                            }
                             if attempt > upload_retries {
                                 eprintln!("⚠️  Upload failed {}: {}", path.display(), e);
                                 failed_upload.lock().unwrap().push(path.clone());
+                                upload_failed.fetch_add(1, Ordering::SeqCst);
                                 break;
                             }
                             std::thread::sleep(std::time::Duration::from_millis(
@@ -282,6 +491,10 @@ fn upload_files_parallel(
                             ));
                         }
                     }
+                }
+                let done = upload_done.fetch_add(1, Ordering::SeqCst) + 1;
+                if done % 20 == 0 || done == files.len() {
+                    println!("Прогресс: {}/{}", done, files.len());
                 }
             }
         });
@@ -293,44 +506,188 @@ fn upload_files_parallel(
 
     let mut uploaded_tasks = Arc::try_unwrap(uploaded_tasks).unwrap().into_inner().unwrap();
     let mut failed_upload = Arc::try_unwrap(failed_upload).unwrap().into_inner().unwrap();
+    let failed_initial = failed_upload.len();
 
     if !failed_upload.is_empty() {
-        eprintln!(
-            "⚠️  Повторная попытка upload для {} файлов (serial)",
-            failed_upload.len()
-        );
-        let mut remaining = Vec::new();
-        for path in failed_upload.drain(..) {
-            let file_name = match path.file_name().and_then(|s| s.to_str()) {
-                Some(v) => v.to_string(),
-                None => {
-                    remaining.push(path);
+        let retry_count = failed_upload.len();
+        if retry_count >= 5 {
+            eprintln!(
+                "⚠️  Повторная попытка upload для {} файлов (adaptive, concurrency=2)",
+                retry_count
+            );
+            let retry_idx = Arc::new(AtomicUsize::new(0));
+            let retry_files = Arc::new(failed_upload);
+            let remaining: Arc<Mutex<Vec<PathBuf>>> = Arc::new(Mutex::new(Vec::new()));
+            let mut retry_handles = Vec::new();
+            for _ in 0..2 {
+                let retry_idx = Arc::clone(&retry_idx);
+                let retry_files = Arc::clone(&retry_files);
+                let remaining = Arc::clone(&remaining);
+                let client = client.clone();
+                let disk_prefix = disk_prefix.to_string();
+                let upload_ok = Arc::clone(&upload_ok);
+                let upload_failed = Arc::clone(&upload_failed);
+                let ensured_batches = Arc::clone(&ensured_batches);
+                let bucket_count = bucket_count;
+                let batch_size = batch_size;
+                let handle = std::thread::spawn(move || {
+                    loop {
+                        let i = retry_idx.fetch_add(1, Ordering::SeqCst);
+                        if i >= retry_files.len() {
+                            break;
+                        }
+                        let path = retry_files[i].clone();
+                        let file_name = match path.file_name().and_then(|s| s.to_str()) {
+                            Some(v) => v.to_string(),
+                            None => {
+                                remaining.lock().unwrap().push(path);
+                                continue;
+                            }
+                        };
+                        let (disk_path, batch_path) = resolve_disk_path(
+                            &disk_prefix,
+                            &file_name,
+                            bucket_count,
+                            batch_size,
+                        );
+                        if let Some(batch_path) = batch_path {
+                            let mut guard = ensured_batches.lock().unwrap();
+                            let need_create = guard.insert(batch_path.clone());
+                            drop(guard);
+                            if need_create {
+                                if let Err(e) = client.ensure_folder(&batch_path) {
+                                    eprintln!("⚠️  Не удалось создать папку {}: {}", batch_path, e);
+                                }
+                            }
+                        }
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                        match client.upload_only(&path, &disk_path) {
+                            Ok(res) => {
+                                println!("  → {} ({} bytes) [retry]", file_name, res.size);
+                                upload_ok.fetch_add(1, Ordering::SeqCst);
+                                // сохраняем для publish
+                                // (вернем во внешний список позже)
+                            }
+                            Err(e) => {
+                                eprintln!("⚠️  Upload failed (retry) {}: {}", path.display(), e);
+                                remaining.lock().unwrap().push(path);
+                                upload_failed.fetch_add(1, Ordering::SeqCst);
+                            }
+                        }
+                    }
+                });
+                retry_handles.push(handle);
+            }
+            for h in retry_handles {
+                let _ = h.join();
+            }
+            let rem = Arc::try_unwrap(remaining).unwrap().into_inner().unwrap();
+            let retry_files = Arc::try_unwrap(retry_files).unwrap();
+            // Успешные retry возвращаем в uploaded_tasks
+            for path in retry_files.iter() {
+                if rem.iter().any(|p| p == path) {
                     continue;
                 }
-            };
-            let disk_path = format!("{}/{}", disk_prefix, file_name);
-            std::thread::sleep(std::time::Duration::from_secs(5));
-            match client.upload_only(&path, &disk_path) {
-                Ok(res) => {
-                    println!("  → {} ({} bytes) [retry]", file_name, res.size);
-                    uploaded_tasks.push((path, res.disk_path));
-                }
-                Err(e) => {
-                    eprintln!("⚠️  Upload failed (retry) {}: {}", path.display(), e);
-                    remaining.push(path);
+                if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
+                    let (disk_path, batch_path) = resolve_disk_path(
+                        disk_prefix,
+                        file_name,
+                        bucket_count,
+                        batch_size,
+                    );
+                    if let Some(batch_path) = batch_path {
+                        let mut guard = ensured_batches.lock().unwrap();
+                        let need_create = guard.insert(batch_path.clone());
+                        drop(guard);
+                        if need_create {
+                            if let Err(e) = client.ensure_folder(&batch_path) {
+                                eprintln!(
+                                    "⚠️  Не удалось создать папку {}: {}",
+                                    batch_path, e
+                                );
+                            }
+                        }
+                    }
+                    uploaded_tasks.push((path.clone(), disk_path));
                 }
             }
+            failed_upload = rem;
+        } else {
+            eprintln!(
+                "⚠️  Повторная попытка upload для {} файлов (serial)",
+                retry_count
+            );
+            let mut remaining = Vec::new();
+            for path in failed_upload.drain(..) {
+                let file_name = match path.file_name().and_then(|s| s.to_str()) {
+                    Some(v) => v.to_string(),
+                    None => {
+                        remaining.push(path);
+                        continue;
+                    }
+                };
+                let (disk_path, batch_path) = resolve_disk_path(
+                    disk_prefix,
+                    &file_name,
+                    bucket_count,
+                    batch_size,
+                );
+                if let Some(batch_path) = batch_path {
+                    let mut guard = ensured_batches.lock().unwrap();
+                    let need_create = guard.insert(batch_path.clone());
+                    drop(guard);
+                    if need_create {
+                        if let Err(e) = client.ensure_folder(&batch_path) {
+                            eprintln!("⚠️  Не удалось создать папку {}: {}", batch_path, e);
+                        }
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                match client.upload_only(&path, &disk_path) {
+                    Ok(res) => {
+                        println!("  → {} ({} bytes) [retry]", file_name, res.size);
+                        uploaded_tasks.push((path, res.disk_path));
+                        upload_ok.fetch_add(1, Ordering::SeqCst);
+                    }
+                    Err(e) => {
+                        eprintln!("⚠️  Upload failed (retry) {}: {}", path.display(), e);
+                        remaining.push(path);
+                        upload_failed.fetch_add(1, Ordering::SeqCst);
+                    }
+                }
+            }
+            failed_upload = remaining;
         }
-        failed_upload = remaining;
     }
+    let upload_secs = upload_start.elapsed().as_secs();
+    println!("\nИтоги:");
+    println!(
+        "Всего {}: \n- успешно {}, \n- пропущено {}, \n- ошибок до ретраев {}, \n- ошибок после ретраев {}.",
+        files.len(),
+        upload_ok.load(Ordering::SeqCst),
+        upload_skipped.load(Ordering::SeqCst),
+        failed_initial,
+        failed_upload.len()
+    );
+    println!(
+        "\nОшибка 423 - {}, \nОшибка 429 - {}.",
+        upload_423_cnt.load(Ordering::SeqCst),
+        upload_429_cnt.load(Ordering::SeqCst)
+    );
+    println!("\nРетраи: {}", upload_retries_cnt.load(Ordering::SeqCst));
+    println!("\nВремя: {} сек", upload_secs);
 
     let publish_idx = Arc::new(AtomicUsize::new(0));
+    let publish_done = Arc::new(AtomicUsize::new(0));
     let uploaded_tasks = Arc::new(uploaded_tasks);
     let items: Arc<Mutex<Vec<PhotoMappingItem>>> = Arc::new(Mutex::new(Vec::new()));
     let uploaded_files: Arc<Mutex<Vec<PathBuf>>> = Arc::new(Mutex::new(Vec::new()));
     let failed_publish: Arc<Mutex<Vec<PathBuf>>> = Arc::new(Mutex::new(Vec::new()));
 
     let mut pub_handles = Vec::new();
+    let publish_start = std::time::Instant::now();
+    println!("\n[ССЫЛКИ]");
+    println!("Задач {}, потоки {}.", uploaded_tasks.len(), publish_concurrency);
     for _ in 0..publish_concurrency {
         let publish_idx = Arc::clone(&publish_idx);
         let uploaded_tasks = Arc::clone(&uploaded_tasks);
@@ -338,6 +695,10 @@ fn upload_files_parallel(
         let uploaded_files = Arc::clone(&uploaded_files);
         let failed_publish = Arc::clone(&failed_publish);
         let client = client.clone();
+        let publish_ok = Arc::clone(&publish_ok);
+        let publish_failed = Arc::clone(&publish_failed);
+        let publish_404_cnt = Arc::clone(&publish_404_cnt);
+        let publish_done = Arc::clone(&publish_done);
         let handle = std::thread::spawn(move || {
             loop {
                 let i = publish_idx.fetch_add(1, Ordering::SeqCst);
@@ -360,10 +721,26 @@ fn upload_files_parallel(
                             public_url: Some(url),
                         });
                         uploaded_files.lock().unwrap().push(path);
+                        publish_ok.fetch_add(1, Ordering::SeqCst);
+                        let done = publish_done.fetch_add(1, Ordering::SeqCst) + 1;
+                        if done % 20 == 0 || done == uploaded_tasks.len() {
+                            println!("Прогресс: {}/{}", done, uploaded_tasks.len());
+                        }
                     }
                     Err(e) => {
                         eprintln!("⚠️  Publish failed {}: {}", disk_path, e);
                         failed_publish.lock().unwrap().push(path);
+                        publish_failed.fetch_add(1, Ordering::SeqCst);
+                        let es = e.to_string();
+                        if let Some(code) = classify_http_code(&es) {
+                            if code == 404 {
+                                publish_404_cnt.fetch_add(1, Ordering::SeqCst);
+                            }
+                        }
+                        let done = publish_done.fetch_add(1, Ordering::SeqCst) + 1;
+                        if done % 20 == 0 || done == uploaded_tasks.len() {
+                            println!("Прогресс: {}/{}", done, uploaded_tasks.len());
+                        }
                     }
                 }
             }
@@ -379,6 +756,18 @@ fn upload_files_parallel(
     let failed_publish = Arc::try_unwrap(failed_publish).unwrap().into_inner().unwrap();
     let mut failed = failed_upload;
     failed.extend(failed_publish);
+    let publish_secs = publish_start.elapsed().as_secs();
+    println!("\nИтоги:");
+    println!(
+        "Всего {}: \n- успешно {}, \n- ошибок {}.",
+        uploaded_tasks.len(),
+        publish_ok.load(Ordering::SeqCst),
+        publish_failed.load(Ordering::SeqCst)
+    );
+    if publish_404_cnt.load(Ordering::SeqCst) > 0 {
+        println!("Ошибка 404 - {}.", publish_404_cnt.load(Ordering::SeqCst));
+    }
+    println!("Время: {} сек", publish_secs);
     (items, uploaded_files, failed)
 }
 

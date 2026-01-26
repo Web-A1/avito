@@ -35,6 +35,24 @@ pub fn generate_xml(ads: &[Ad], date_label: Option<&str>) -> Result<String, Stri
     String::from_utf8(bytes).map_err(|e| e.to_string())
 }
 
+/// Генерирует XML Avito с отступами (pretty-print).
+pub fn generate_xml_pretty(ads: &[Ad], date_label: Option<&str>) -> Result<String, String> {
+    let mut writer = Writer::new_with_indent(Cursor::new(Vec::new()), b' ', 2);
+    start_elem(
+        &mut writer,
+        "Ads",
+        &[("formatVersion", "3"), ("target", "Avito.ru")],
+    )?;
+
+    for (idx, ad) in ads.iter().enumerate() {
+        write_ad(&mut writer, ad, idx, date_label)?;
+    }
+
+    end_elem(&mut writer, "Ads")?;
+    let bytes = writer.into_inner().into_inner();
+    String::from_utf8(bytes).map_err(|e| e.to_string())
+}
+
 fn resolve_id(ad: &Ad, idx: usize, date_label: Option<&str>) -> String {
     if let Some(id) = ad
         .ad_id

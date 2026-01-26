@@ -1,4 +1,5 @@
 use clap::Parser;
+use chrono::Local;
 use dotenvy::dotenv;
 use feed_core::{
     read_ads_from_excel, read_plan, validate_plan_counts, validate_plan_step_intervals,
@@ -13,7 +14,7 @@ use crate::util::{
 use feed_core::PhotoOptions;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::SystemTime;
+use std::time::{Instant, SystemTime};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -102,6 +103,10 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     upload_rust_only: bool,
 
+    /// Быстрый режим загрузки (больше параллелизма, без resource_exists)
+    #[arg(long, default_value_t = false)]
+    fast_upload: bool,
+
     /// Очистка каталога вывода от старых ads/manifest/photos_links
     #[arg(long, default_value_t = false)]
     cleanup: bool,
@@ -142,8 +147,22 @@ pub struct Args {
 pub fn run() {
     dotenv().ok();
     let args = Args::parse();
+    const TOTAL_STEPS: u8 = 9;
+    let overall_start = Instant::now();
+    let step_start = |n: u8, msg: &str| -> Instant {
+        println!();
+        println!("════════════════════════════════════════════════════");
+        println!("[ШАГ {}/{}] {}", n, TOTAL_STEPS, msg);
+        println!("════════════════════════════════════════════════════");
+        Instant::now()
+    };
+    let step_done = |n: u8, msg: &str, started: Instant| {
+        let secs = started.elapsed().as_secs_f64();
+        println!("[ШАГ {}/{}] Завершено: {} ({:.2} сек)", n, TOTAL_STEPS, msg, secs);
+    };
 
     if let Some(glob) = &args.make_watermark_settings {
+        let s = step_start(1, "Генерация шаблона watermark-settings");
         match feed_core::generate_watermark_settings_template(glob, false) {
             Ok(list) => {
                 let path = std::path::PathBuf::from("data/watermark-settings.json");
@@ -164,10 +183,12 @@ pub fn run() {
             }
             Err(e) => eprintln!("Ошибка генерации шаблона настроек: {}", e),
         }
+        step_done(1, "шаблон создан", s);
         return;
     }
 
     if let Some(src) = &args.photos_preview {
+        let s = step_start(1, "Генерация превью водяных знаков");
         let ops = parse_opacities(&args.preview_opacities);
         let settings_path = std::path::PathBuf::from("data/watermark-settings.json");
         let settings = if args.preview_ignore_settings {
@@ -194,9 +215,11 @@ pub fn run() {
                 std::process::exit(1);
             }
         }
+        step_done(1, "превью готово", s);
         return;
     }
 
+    let s1 = step_start(1, "Загрузка конфига и плана");
     let cfg = FeedConfig::load(&args.config).unwrap_or_else(|_| FeedConfig::default());
     let plan = read_plan(&args.plan).unwrap_or_else(|e| {
         eprintln!("Не удалось прочитать план: {}", e);
@@ -206,7 +229,14 @@ pub fn run() {
         eprintln!("План пустой или отсутствует publicationQueue");
         std::process::exit(1);
     }
+    println!(
+        "План загружен: задач {}, слотов публикации {}",
+        plan.tasks.len(),
+        plan.publication_queue.len()
+    );
+    step_done(1, "план загружен", s1);
 
+    let s2 = step_start(2, "Валидация плана");
     if let Err(e) = validate_plan_counts(&plan) {
         fail(e);
     }
@@ -216,22 +246,30 @@ pub fn run() {
     if let Err(e) = validate_plan_step_intervals(&plan, &cfg) {
         fail(e);
     }
+    step_done(2, "план валиден", s2);
 
     // Чтение Excel (каркас; ошибки не блокируют валидацию плана)
+    let s3 = step_start(3, "Чтение текущих объявлений из Excel");
     let mut current_ads = Vec::new();
     if let Some(path) = find_single_xlsx(&args.current_dir) {
         match read_ads_from_excel(&path) {
-            Ok(ads) => current_ads = ads,
+            Ok(ads) => {
+                println!("Excel: прочитано объявлений {}", ads.len());
+                current_ads = ads;
+            }
             Err(e) => eprintln!(
                 "Excel прочитан с ошибкой (не критично для валидаций): {}",
                 e
             ),
         }
     }
+    step_done(3, "Excel обработан", s3);
 
     // Чтение правил обновления (для будущих шагов)
+    let s4 = step_start(4, "Чтение правил обновления");
     let update_rules_path = resolve_optional_parent(&args.update_rules);
     let update_rules = feed_core::read_update_rules(&update_rules_path).ok();
+    step_done(4, "правила загружены", s4);
 
     if args.photos && args.photos_rust {
         eprintln!("Нужно выбрать либо --photos (JS), либо --photos-rust (Rust)");
@@ -243,6 +281,7 @@ pub fn run() {
     }
 
     if args.clean_run && args.photos_rust {
+        let s5 = step_start(5, "Очистка выходных артефактов и фото (pre-run)");
         let mut keep = Vec::new();
         if let Some(ref_path) = &args.xml_compare {
             if let Some(name) = ref_path.file_name().and_then(|n| n.to_str()) {
@@ -251,6 +290,7 @@ pub fn run() {
         }
         crate::util::cleanup_output(&args.out_dir, &keep);
         clean_photos_root(&args.photos_root);
+        step_done(5, "очистка завершена", s5);
     }
 
     let date_label = if args.date_label.is_empty() {
@@ -261,6 +301,7 @@ pub fn run() {
 
     // Генерация фото на Rust (без загрузки)
     if args.photos_rust {
+        let s6 = step_start(6, "Генерация фото (Rust)");
         let settings_path = std::path::PathBuf::from("data/watermark-settings.json");
         let settings = feed_core::load_watermark_settings(&settings_path).unwrap_or_else(|e| {
             eprintln!(
@@ -310,11 +351,13 @@ pub fn run() {
                 std::process::exit(1);
             }
         }
+        step_done(6, "фото сгенерированы", s6);
     }
 
     // Фото-этапы через JS (опционально), Rust upload или чтение готового маппинга
     let mut photo_map: Option<HashMap<String, String>> = None;
     if args.photos {
+        let s6 = step_start(6, "Генерация фото (JS)");
         println!("→ Генерация фото через JS...");
         if let Err(e) = generate_photos(&args.plan) {
             fail(PlanValidationError::CountsMismatch(format!(
@@ -322,7 +365,9 @@ pub fn run() {
                 e
             )));
         }
+        step_done(6, "фото сгенерированы (JS)", s6);
 
+        let s6u = step_start(6, "Загрузка фото (JS)");
         println!("→ Загрузка фото через JS...");
         if let Err(e) = upload_photos(&args.plan, &args.disk_root, &date_label, &args.out_dir) {
             fail(PlanValidationError::CountsMismatch(format!(
@@ -330,6 +375,7 @@ pub fn run() {
                 e
             )));
         }
+        step_done(6, "фото загружены (JS)", s6u);
 
         let mapping_path = if let Some(p) = &args.photos_mapping {
             p.clone()
@@ -343,6 +389,7 @@ pub fn run() {
     }
 
     if args.upload_rust {
+        let s6u = step_start(6, "Загрузка фото (Rust)");
         let mapping = match crate::photo::upload_photos_rust(
             &plan,
             &args.photos_root,
@@ -350,6 +397,7 @@ pub fn run() {
             &date_label,
             &args.out_dir,
             args.photos_manifest.as_ref(),
+            args.fast_upload,
         ) {
             Ok(mapping) => mapping,
             Err(e) => {
@@ -362,11 +410,17 @@ pub fn run() {
             return;
         }
         photo_map = Some(mapping_to_map(mapping));
+        step_done(6, "фото загружены", s6u);
     } else if let Some(mapping_path) = &args.photos_mapping {
+        let s6m = step_start(6, "Загрузка маппинга фото");
         photo_map = load_mapping(mapping_path);
+        step_done(6, "маппинг загружен", s6m);
+    } else {
+        step_start(6, "Шаг фото пропущен");
     }
 
     // Применение правил обновления к старым объявлениям (без генерации текстов)
+    let s7 = step_start(7, "Применение правил к старым объявлениям");
     let updated_current = if let Some(rules) = update_rules {
         let rules_map = feed_core::build_update_map(&rules, &current_ads);
         let updated = feed_core::apply_updates(current_ads, &rules_map, photo_map.as_ref())
@@ -382,8 +436,10 @@ pub fn run() {
     } else {
         current_ads
     };
+    step_done(7, "правила применены", s7);
 
     // Генерация новых объявлений строго по publicationQueue
+    let s8 = step_start(8, "Генерация новых объявлений");
     let mut new_ads = Vec::new();
     if let Some(pm) = &photo_map {
         let existing_ids: std::collections::HashSet<String> = updated_current
@@ -409,10 +465,15 @@ pub fn run() {
     } else {
         println!("Фото-маппинг не загружен, новые объявления не генерируются");
     }
-
     let old_count = updated_current.len();
     let new_count = new_ads.len();
     let total_ads = old_count + new_count;
+    println!(
+        "Новые объявления: {} (всего к выгрузке будет {})",
+        new_ads.len(),
+        total_ads
+    );
+    step_done(8, "новые объявления сгенерированы", s8);
     let all_ads: Vec<feed_core::Ad> = updated_current
         .into_iter()
         .chain(new_ads.into_iter())
@@ -424,20 +485,24 @@ pub fn run() {
     );
 
     // Генерация XML и манифеста
+    let s9 = step_start(9, "Формирование XML");
     let xml_label = date_label.clone();
     let file_label = sanitize_label_for_file(&xml_label);
-    let xml = match feed_core::generate_xml(&all_ads, Some(&xml_label)) {
+    if !args.out_dir.exists() {
+        std::fs::create_dir_all(&args.out_dir).ok();
+    }
+    // Единственный XML (pretty), с читаемым именем
+    let pretty_label = Local::now().format("%d.%m-%H-%M").to_string();
+    let pretty_file = format!("ads_{}.xml", sanitize_label_for_file(&pretty_label));
+    let xml_path = args.out_dir.join(&pretty_file);
+    let pretty_xml = match feed_core::generate_xml_pretty(&all_ads, Some(&xml_label)) {
         Ok(x) => x,
         Err(e) => {
             eprintln!("Ошибка генерации XML: {}", e);
             std::process::exit(1);
         }
     };
-    if !args.out_dir.exists() {
-        std::fs::create_dir_all(&args.out_dir).ok();
-    }
-    let xml_path = args.out_dir.join(format!("ads_{}.xml", file_label));
-    if let Err(e) = std::fs::write(&xml_path, &xml) {
+    if let Err(e) = std::fs::write(&xml_path, &pretty_xml) {
         eprintln!("Ошибка записи XML: {}", e);
         std::process::exit(1);
     }
@@ -468,7 +533,10 @@ pub fn run() {
         "status": "success",
         "timestamp": SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs(),
         "counts": { "old": old_count, "new": new_count, "total": total_ads },
-        "files": { "xml": xml_path.file_name().unwrap_or_default(), "manifest": manifest_path.file_name().unwrap_or_default() },
+        "files": {
+            "xml": xml_path.file_name().unwrap_or_default(),
+            "manifest": manifest_path.file_name().unwrap_or_default()
+        },
     });
     let build_log_path = args.out_dir.join(format!("build-log_{}.json", file_label));
     let _ = std::fs::write(
@@ -502,18 +570,44 @@ pub fn run() {
         }
     }
 
+    let mut final_xml_path = xml_path.clone();
+    let mut final_manifest_path = manifest_path.clone();
+    let mut final_build_log_path = build_log_path.clone();
     if args.archive_runs {
-        archive_run_outputs(&args.out_dir, &file_label, &date_label);
+        archive_run_outputs(&args.out_dir, &file_label, &date_label, Some(&pretty_file));
+        final_xml_path = args
+            .out_dir
+            .join("runs")
+            .join(&file_label)
+            .join(&pretty_file);
+        final_manifest_path = args
+            .out_dir
+            .join("runs")
+            .join(&file_label)
+            .join("ads_manifest.json");
+        final_build_log_path = args
+            .out_dir
+            .join("runs")
+            .join(&file_label)
+            .join("build-log.json");
         println!(
             "Артефакты запуска перемещены в {}/runs/{}",
             args.out_dir.display(),
             file_label
         );
     }
-
-    println!("XML записан: {}", xml_path.display());
-    println!("Манифест записан: {}", manifest_path.display());
-    println!("build-log записан: {}", build_log_path.display());
+    step_done(9, "XML сформирован", s9);
+    println!();
+    println!("════════════════════════════════════════════════════");
+    println!("ИТОГО");
+    println!("════════════════════════════════════════════════════");
+    println!(
+        "Выполнение заняло {:.2} сек",
+        overall_start.elapsed().as_secs_f64()
+    );
+    println!("XML записан: {}", final_xml_path.display());
+    println!("Манифест записан: {}", final_manifest_path.display());
+    println!("build-log записан: {}", final_build_log_path.display());
     println!(
         "OK: план валиден (counts/windows/steps). Объявлений собрано: {}.",
         all_ads.len()
@@ -732,16 +826,34 @@ fn validate_base_price_share(ads: &[feed_core::Ad]) -> Result<(), String> {
         entry.1 += 1;
     }
     let mut bad = Vec::new();
+    let mut skipped = Vec::new();
+    let min_strict = 10u32;
     for ((mat, addr), (base, total)) in stats {
         if total == 0 {
             continue;
         }
         let pct = base as f64 / total as f64 * 100.0;
+        if total < min_strict {
+            skipped.push(format!(
+                "{} @ {}: базовых {:.1}% ({} шт., малое количество)",
+                mat, addr, pct, total
+            ));
+            continue;
+        }
         if pct < 40.0 || pct > 60.0 {
             bad.push(format!(
-                "{} @ {}: базовых {:.1}%, ожидается 40-60%",
-                mat, addr, pct
+                "{} @ {}: базовых {:.1}% ({} шт.), ожидается 40-60%",
+                mat, addr, pct, total
             ));
+        }
+    }
+    if !skipped.is_empty() {
+        println!(
+            "Валидация цен: количество менее {} (малый объём, проверка нестрогая):",
+            min_strict
+        );
+        for line in skipped {
+            println!("{}", line);
         }
     }
     if bad.is_empty() {

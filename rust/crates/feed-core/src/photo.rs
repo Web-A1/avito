@@ -97,6 +97,7 @@ struct GeneratedVariant {
     hash: String,
     attempts: u32,
     file_name: String,
+    elapsed_ms: u128,
 }
 
 fn ahash(img: &DynamicImage) -> String {
@@ -482,10 +483,37 @@ pub fn generate_plan_photos(
     let jobs = collect_photo_jobs(plan, photos_root, opts.count, date_label)?;
     let mut out = Vec::new();
     for job in jobs {
+        let source_name = job
+            .source
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown");
+        let city = city_from_address(job.address.as_deref().unwrap_or(""));
+        println!(
+            "> {} | {} | количество: {}",
+            source_name,
+            city,
+            job.count
+        );
         let mut variants = generate_job_variants(&job, opts)?;
         out.append(&mut variants);
     }
     Ok(out)
+}
+
+fn city_from_address(addr: &str) -> String {
+    let parts: Vec<String> = addr
+        .split(',')
+        .map(|p| p.trim().to_string())
+        .filter(|p| !p.is_empty())
+        .collect();
+    if parts.len() >= 2 {
+        parts[1].clone()
+    } else if parts.len() == 1 {
+        parts[0].clone()
+    } else {
+        "-".to_string()
+    }
 }
 
 /// Собирает задания по плану: распределяет count по адресам и исходникам (originals).
@@ -822,6 +850,7 @@ fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<Phot
     };
 
     let mut generate_variant = |idx: usize, base_only: bool, aggressive: bool, attempt: u32| -> Result<GeneratedVariant, String> {
+        let gen_start = std::time::Instant::now();
         let mut source_path = job.source.clone();
         if base_only {
             if let Some(flagship) = job.flagship_source.as_ref() {
@@ -870,21 +899,21 @@ fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<Phot
             let work_w = ((base_w as f32 * scale * overscale).round().max(32.0)) as u32;
             let work_h = ((base_h as f32 * scale * overscale).round().max(32.0)) as u32;
             let t = TransformParams {
-                brightness: rng.gen_range(0.94..1.08_f32),
-                saturation: rng.gen_range(0.93..1.08_f32),
-                hue_deg: rng.gen_range(-12.0..12.0_f32),
-                contrast: rng.gen_range(0.97..1.06_f32),
+                brightness: rng.gen_range(0.97..1.05_f32),
+                saturation: rng.gen_range(0.96..1.05_f32),
+                hue_deg: rng.gen_range(-6.0..6.0_f32),
+                contrast: rng.gen_range(0.985..1.03_f32),
                 flip: rng.gen_bool(0.5),
                 shift_x: rng.gen_range(-0.04..0.04_f32),
                 shift_y: rng.gen_range(-0.04..0.04_f32),
                 rotate_deg: rng.gen_range(-rotate_range..rotate_range),
                 work_w,
                 work_h,
-                channel_shift: if rng.gen_bool(0.5) {
+                channel_shift: if rng.gen_bool(0.25) {
                     Some((
-                        rng.gen_range(-2..=2),
-                        rng.gen_range(-2..=2),
-                        rng.gen_range(-2..=2),
+                        rng.gen_range(-1..=1),
+                        rng.gen_range(-1..=1),
+                        rng.gen_range(-1..=1),
                     ))
                 } else {
                     None
@@ -892,26 +921,20 @@ fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<Phot
             };
             let mut dyn_img = DynamicImage::ImageRgba8(img);
             dyn_img = apply_transforms(dyn_img, t);
-            apply_pattern_overlay(&mut dyn_img, effective.pattern_opacity);
-            apply_text_to_image(
-                &mut dyn_img,
-                effective.text_opacity,
-                &effective.text,
-                &effective.text_color,
-                effective.text_color_overridden,
-            )?;
-            img = dyn_img.to_rgba8();
-        } else {
-            let mut dyn_img = DynamicImage::ImageRgba8(img);
-            apply_text_to_image(
-                &mut dyn_img,
-                effective.text_opacity,
-                &effective.text,
-                &effective.text_color,
-                effective.text_color_overridden,
-            )?;
             img = dyn_img.to_rgba8();
         }
+
+        // Водяной знак и паттерн наносятся последним шагом.
+        let mut dyn_img = DynamicImage::ImageRgba8(img);
+        apply_pattern_overlay(&mut dyn_img, effective.pattern_opacity);
+        apply_text_to_image(
+            &mut dyn_img,
+            effective.text_opacity,
+            &effective.text,
+            &effective.text_color,
+            effective.text_color_overridden,
+        )?;
+        img = dyn_img.to_rgba8();
 
         let hash = ahash(&DynamicImage::ImageRgba8(img.clone()));
         let file_name = make_file_name(idx);
@@ -920,17 +943,26 @@ fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<Phot
         DynamicImage::ImageRgba8(img)
             .save(&out_path)
             .map_err(|e| format!("Не удалось сохранить {}: {}", out_path.display(), e))?;
+        let elapsed_ms = gen_start.elapsed().as_millis();
         Ok(GeneratedVariant {
             path: out_path,
             hash,
             attempts: attempt,
             file_name,
+            elapsed_ms,
         })
     };
 
     for idx in 0..count {
         let base_only = idx == 0 && allow_clean;
         let gen = generate_variant(idx, base_only, aggressive_mode, 1)?;
+        println!(
+            "            {} (попытка {}, чистое={}, {} мс)",
+            gen.file_name,
+            gen.attempts,
+            base_only,
+            gen.elapsed_ms
+        );
         generated[idx] = Some(gen);
     }
 
@@ -959,6 +991,12 @@ fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<Phot
                 let _ = std::fs::remove_file(&prev.path);
             }
             let gen = generate_variant(idx, idx == 0 && allow_clean, aggressive_mode, attempts + 1)?;
+            println!(
+                "            {} (перегенерация, попытка {}, {} мс)",
+                gen.file_name,
+                gen.attempts,
+                gen.elapsed_ms
+            );
             generated[idx] = Some(gen);
         }
     }
@@ -1378,6 +1416,7 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (u8, u8, u8) {
     (r, g, b)
 }
 
+#[allow(dead_code)]
 fn apply_text_watermark(
     source: &Path,
     out: &Path,

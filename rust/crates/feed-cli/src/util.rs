@@ -96,7 +96,12 @@ fn move_if_exists(src: &PathBuf, dst: &PathBuf) {
 }
 
 /// Складывает артефакты текущего запуска в runs/<label>/ и переносит старые запуски в archive/.
-pub fn archive_run_outputs(out_dir: &PathBuf, file_label: &str, date_label: &str) {
+pub fn archive_run_outputs(
+    out_dir: &PathBuf,
+    file_label: &str,
+    date_label: &str,
+    pretty_file: Option<&str>,
+) {
     let runs_dir = out_dir.join("runs");
     let archive_dir = out_dir.join("archive");
     let _ = std::fs::create_dir_all(&runs_dir);
@@ -106,10 +111,6 @@ pub fn archive_run_outputs(out_dir: &PathBuf, file_label: &str, date_label: &str
     let _ = std::fs::create_dir_all(&run_dir);
 
     move_if_exists(
-        &out_dir.join(format!("ads_{}.xml", file_label)),
-        &run_dir.join("ads.xml"),
-    );
-    move_if_exists(
         &out_dir.join(format!("ads_{}_manifest.json", file_label)),
         &run_dir.join("ads_manifest.json"),
     );
@@ -117,6 +118,9 @@ pub fn archive_run_outputs(out_dir: &PathBuf, file_label: &str, date_label: &str
         &out_dir.join(format!("build-log_{}.json", file_label)),
         &run_dir.join("build-log.json"),
     );
+    if let Some(pretty_file) = pretty_file {
+        move_if_exists(&out_dir.join(pretty_file), &run_dir.join(pretty_file));
+    }
     move_if_exists(
         &out_dir.join(format!("photos_run_{}.json", file_label)),
         &run_dir.join("photos_run.json"),

@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use mime_guess::MimeGuess;
 use reqwest::blocking::{Client, Response};
@@ -15,6 +15,7 @@ pub struct YandexClient {
     retry_attempts: u32,
     retry_delay: Duration,
     base_url: String,
+    use_curl: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -60,12 +61,18 @@ impl YandexClient {
             retry_attempts: 4,
             retry_delay: Duration::from_millis(300),
             base_url: "https://cloud-api.yandex.net".to_string(),
+            use_curl: true,
         }
     }
 
     pub fn with_retries(mut self, attempts: u32, delay: Duration) -> Self {
         self.retry_attempts = attempts.max(1);
         self.retry_delay = delay;
+        self
+    }
+
+    pub fn with_curl(mut self, enabled: bool) -> Self {
+        self.use_curl = enabled;
         self
     }
 
@@ -145,9 +152,14 @@ impl YandexClient {
         })?;
         self.ensure_folder_parent(disk_path)?;
         let target = self.get_upload_url(disk_path)?;
-        // Попытка через curl (проверено, что Я.Диск принимает).
-        if let Err(e) = upload_via_curl(path_ref, &target.href) {
-            eprintln!("⚠️  curl upload failed, fallback to HTTP: {}", e);
+        // Попытка через curl (если включено).
+        if self.use_curl {
+            if let Err(e) = upload_via_curl(path_ref, &target.href) {
+                eprintln!("⚠️  curl upload failed, fallback to HTTP: {}", e);
+                let mime = mime_from_path(path_ref);
+                self.put_bytes_with_retry(&target.href, data.clone(), &mime, target.method)?;
+            }
+        } else {
             let mime = mime_from_path(path_ref);
             self.put_bytes_with_retry(&target.href, data.clone(), &mime, target.method)?;
         }
@@ -245,8 +257,27 @@ impl YandexClient {
                             Err(e) => eprintln!("⚠️  ureq fallback failed: {}", e),
                         }
                     }
+                    if status == StatusCode::LOCKED {
+                        // 423: загрузка недоступна (лимит/техработы). Ретраим только при блокировке ресурса.
+                        if is_traffic_limit(&body_text) {
+                            eprintln!("⚠️  423 Locked: лимит загрузки/техработы (не ретраим)");
+                            return Err(YandexError::Http {
+                                status,
+                                body: body_text,
+                            });
+                        }
+                        if is_resource_locked(&body_text) && attempt < self.retry_attempts {
+                            eprintln!("⚠️  423 Locked: ресурс занят, ретрай {}", attempt);
+                            std::thread::sleep(backoff_with_jitter(self.retry_delay, attempt));
+                            continue;
+                        }
+                        return Err(YandexError::Http {
+                            status,
+                            body: body_text,
+                        });
+                    }
                     if retryable(status) && attempt < self.retry_attempts {
-                        std::thread::sleep(self.retry_delay * attempt);
+                        std::thread::sleep(backoff_with_jitter(self.retry_delay, attempt));
                         continue;
                     }
                     return Err(YandexError::Http {
@@ -256,7 +287,7 @@ impl YandexClient {
                 }
                 Err(err) => {
                     if attempt < self.retry_attempts {
-                        std::thread::sleep(self.retry_delay * attempt);
+                        std::thread::sleep(backoff_with_jitter(self.retry_delay, attempt));
                         continue;
                     }
                     return Err(YandexError::Request(err.to_string()));
@@ -286,6 +317,17 @@ impl YandexClient {
             let body = res.text().unwrap_or_default();
             eprintln!("⚠️  publish failed {}: {}", status, body);
             last_err = Some(YandexError::Http { status, body });
+            if status == StatusCode::NOT_FOUND && attempt < self.retry_attempts {
+                // Ресурс мог ещё не появиться после upload — подождём и проверим наличие.
+                if let Ok(true) = self.resource_exists(disk_path) {
+                    // Если ресурс есть — попробуем получить public_url.
+                    if let Ok(url) = self.fetch_public_url(disk_path) {
+                        return Ok(url);
+                    }
+                }
+                std::thread::sleep(self.retry_delay * attempt);
+                continue;
+            }
             if is_retryable_status(status) && attempt < self.retry_attempts {
                 std::thread::sleep(self.retry_delay * attempt);
                 continue;
@@ -318,6 +360,10 @@ impl YandexClient {
                 let body = res.text().unwrap_or_default();
                 eprintln!("⚠️  info failed {}: {}", status, body);
                 last_err = Some(YandexError::Http { status, body });
+                if status == StatusCode::NOT_FOUND && attempt < self.retry_attempts {
+                    std::thread::sleep(self.retry_delay * attempt);
+                    continue;
+                }
             } else {
                 let json: serde_json::Value =
                     res.json().map_err(|e| YandexError::Parse(e.to_string()))?;
@@ -352,6 +398,29 @@ fn to_http_error(res: Response) -> Result<YandexError, YandexError> {
     Err(YandexError::Http { status, body })
 }
 
+fn is_traffic_limit(body: &str) -> bool {
+    body.contains("UPLOAD_TRAFFIC_LIMIT_EXCEEDED")
+        || body.contains("DiskTrafficLimitExceededError")
+        || body.contains("traffic limit")
+}
+
+fn is_resource_locked(body: &str) -> bool {
+    body.contains("DiskResourceLockedError")
+        || body.contains("Resource is locked")
+        || body.contains("Ресурс заблокирован")
+}
+
+fn backoff_with_jitter(base: Duration, attempt: u32) -> Duration {
+    let base_ms = base.as_millis() as u64;
+    let jitter = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .subsec_millis() as u64
+        % 250;
+    let mult = attempt as u64;
+    Duration::from_millis(base_ms.saturating_mul(mult).saturating_add(jitter))
+}
+
 fn mime_from_path(path: &Path) -> String {
     MimeGuess::from_path(path)
         .first()
@@ -365,23 +434,36 @@ struct UploadTarget {
 }
 
 fn upload_via_curl(path: &Path, url: &str) -> Result<(), YandexError> {
-    eprintln!("→ curl PUT {}", url);
-    let status = Command::new("curl")
+    let output = Command::new("curl")
         .arg("-s")
         .arg("-X")
         .arg("PUT")
         .arg("-T")
         .arg(path)
+        .arg("-o")
+        .arg("-")
+        .arg("-w")
+        .arg("\n%{http_code}")
         .arg(url)
-        .status()
+        .output()
         .map_err(|e| YandexError::Request(e.to_string()))?;
-    if status.success() {
+    if !output.status.success() {
+        return Err(YandexError::Request(format!(
+            "curl failed with status {:?}",
+            output.status.code()
+        )));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let (body, code_str) = match stdout.rsplit_once('\n') {
+        Some((b, c)) => (b.to_string(), c.trim().to_string()),
+        None => ("".to_string(), stdout.trim().to_string()),
+    };
+    let code: u16 = code_str.parse().unwrap_or(0);
+    let status = StatusCode::from_u16(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    if status.is_success() {
         Ok(())
     } else {
-        Err(YandexError::Request(format!(
-            "curl failed with status {:?}",
-            status.code()
-        )))
+        Err(YandexError::Http { status, body })
     }
 }
 
