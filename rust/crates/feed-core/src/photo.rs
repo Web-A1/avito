@@ -1,16 +1,17 @@
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use chrono::Utc;
+use chrono::{Duration, Local, NaiveDate, NaiveDateTime, Utc};
 use image::{
-    imageops::{blur, contrast, crop_imm, flip_horizontal_in_place, resize},
+    imageops::{crop_imm, flip_horizontal_in_place, resize},
     DynamicImage, GenericImage, GenericImageView, ImageReader, Rgba,
 };
+use imageproc::geometric_transformations::{rotate_about_center, Interpolation};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Plan, WatermarkOverride};
+use crate::{Plan, WatermarkSettings};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PhotoVariant {
@@ -28,7 +29,10 @@ pub struct PhotoOptions {
     pub text_opacity: Option<f64>,
     pub text_color: Option<String>,
     pub text_watermark: Option<String>,
-    pub overrides: Vec<WatermarkOverride>,
+    pub watermark_settings: Vec<WatermarkSettings>,
+    pub overshoot: Option<f64>,
+    pub test_out_dir: Option<PathBuf>,
+    pub write_history: bool,
     /// Количество вариантов на исходник (для будущей генерации)
     pub count: u32,
 }
@@ -41,7 +45,10 @@ impl Default for PhotoOptions {
             text_opacity: None,
             text_color: None,
             text_watermark: Some("NERUDA".to_string()),
-            overrides: Vec::new(),
+            watermark_settings: Vec::new(),
+            overshoot: None,
+            test_out_dir: None,
+            write_history: true,
             count: 1,
         }
     }
@@ -54,8 +61,10 @@ pub struct PhotoJob {
     pub material_id: Option<String>,
     pub address: Option<String>,
     pub safe_address: String,
+    pub date_begin: String,
     pub date_label: String,
     pub history_dir: Option<PathBuf>,
+    pub flagship_source: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -64,23 +73,30 @@ struct EffectiveWatermark {
     text_color: String,
     text_opacity: f64,
     pattern_opacity: f64,
-    text_opacity_overridden: bool,
     text_color_overridden: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
 struct TransformParams {
-    crop: f32,
     brightness: f32,
     saturation: f32,
     hue_deg: f32,
     contrast: f32,
-    blur: f32,
     flip: bool,
-    scale: f32,
     shift_x: f32,
     shift_y: f32,
+    rotate_deg: f32,
+    work_w: u32,
+    work_h: u32,
     channel_shift: Option<(i32, i32, i32)>,
+}
+
+#[derive(Debug, Clone)]
+struct GeneratedVariant {
+    path: PathBuf,
+    hash: String,
+    attempts: u32,
+    file_name: String,
 }
 
 fn ahash(img: &DynamicImage) -> String {
@@ -171,26 +187,31 @@ pub fn generate_preview_grid(
         .and_then(|s| s.to_str())
         .unwrap_or("jpg");
 
-    let wm_override = resolve_override(source, &opts.overrides);
-    let override_opacity = wm_override.and_then(|o| o.text_opacity);
-    let override_color = wm_override.and_then(|o| o.text_color.clone());
-    let override_text = wm_override.and_then(|o| o.text_watermark.clone());
-    let override_pattern = wm_override.and_then(|o| o.pattern_opacity);
+    let settings = resolve_watermark_settings(source, &opts.watermark_settings);
+    let settings_opacity = settings.and_then(|o| o.text_opacity);
+    let settings_color = settings.and_then(|o| o.text_color.clone());
+    let settings_text = settings.and_then(|o| o.text_watermark.clone());
+    let settings_pattern = settings.and_then(|o| o.pattern_opacity);
     let eff = effective_watermark(
         opts,
-        &WatermarkOverride {
+        &WatermarkSettings {
             file: "".to_string(),
-            pattern_opacity: override_pattern,
-            text_opacity: override_opacity,
-            text_watermark: override_text.clone(),
-            text_color: override_color.clone(),
+            pattern_opacity: settings_pattern,
+            text_opacity: settings_opacity,
+            text_watermark: settings_text.clone(),
+            text_color: settings_color.clone(),
         },
     );
-    let use_ops: Vec<f64> = if let Some(op) = override_opacity {
+    let use_ops: Vec<f64> = if let Some(op) = settings_opacity {
         vec![op]
     } else {
         opacities.to_vec()
     };
+
+    let base_img = ImageReader::open(source)
+        .map_err(|e| format!("Не удалось открыть {}: {}", source.display(), e))?
+        .decode()
+        .map_err(|e| format!("Не удалось декодировать {}: {}", source.display(), e))?;
 
     let mut variants = Vec::new();
     for (i, op) in use_ops.iter().enumerate() {
@@ -198,20 +219,22 @@ pub fn generate_preview_grid(
         let mut out_path = opts.out_dir.clone();
         out_path.push(&file_name);
 
-        apply_text_watermark(
-            source,
-            &out_path,
+        let mut img = base_img.clone();
+        apply_text_to_image(
+            &mut img,
             *op,
-            override_text
+            settings_text
                 .as_deref()
                 .or_else(|| Some(&eff.text))
                 .unwrap_or("NERUDA"),
-            override_color
+            settings_color
                 .as_deref()
                 .or_else(|| Some(&eff.text_color))
                 .unwrap_or("#FFFFFF"),
-            override_color.is_some(),
+            settings_color.is_some(),
         )?;
+        img.save(&out_path)
+            .map_err(|e| format!("Не удалось сохранить {}: {}", out_path.display(), e))?;
 
         println!("✔️ превью {} с opacity {}", file_name, op);
         variants.push(PhotoVariant {
@@ -226,14 +249,14 @@ pub fn generate_preview_grid(
     Ok(variants)
 }
 
-fn resolve_override<'a>(
+fn resolve_watermark_settings<'a>(
     source: &Path,
-    overrides: &'a [WatermarkOverride],
-) -> Option<&'a WatermarkOverride> {
+    settings: &'a [WatermarkSettings],
+) -> Option<&'a WatermarkSettings> {
     let name = source.file_name()?.to_str()?;
     let stem = Path::new(name).file_stem().and_then(|s| s.to_str());
     let full = source.to_string_lossy();
-    overrides.iter().find(|o| {
+    settings.iter().find(|o| {
         o.file == name
             || stem.map_or(false, |s| o.file == s)
             || o.file == full.as_ref()
@@ -260,18 +283,176 @@ fn sanitize_token(input: &str) -> String {
 fn sanitize_for_path(input: &str) -> String {
     let mut out = String::new();
     for ch in input.chars() {
-        if matches!(ch, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
-            out.push('_');
-        } else if ch.is_whitespace() {
+        if matches!(ch, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || ch.is_whitespace()
+        {
             out.push('_');
         } else {
-            out.push(ch);
+            out.push(ch.to_ascii_lowercase());
         }
     }
     while out.contains("__") {
         out = out.replace("__", "_");
     }
     out.trim_matches('_').to_string()
+}
+
+fn sanitize_ad_id_part(input: &str) -> String {
+    let mut out = String::new();
+    for ch in input.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
+            out.push(ch.to_ascii_lowercase());
+        } else {
+            out.push('_');
+        }
+    }
+    while out.contains("__") {
+        out = out.replace("__", "_");
+    }
+    let trimmed = out.trim_matches('_').to_string();
+    if trimmed.is_empty() {
+        "photo".to_string()
+    } else {
+        trimmed
+    }
+}
+
+fn source_base_from_path(path: &Path) -> String {
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("photo");
+    let normalized = sanitize_for_path(stem);
+    sanitize_ad_id_part(&normalized)
+}
+
+fn format_ad_id_date(dt: &NaiveDateTime) -> String {
+    let day = dt.format("%d%m").to_string();
+    let full = dt.format("%d%m%y-%H%M%S").to_string();
+    let run_id = short_run_id(&full, 4);
+    format!("{day}-{run_id}")
+}
+
+fn short_run_id(input: &str, len: usize) -> String {
+    let mut hash: u64 = 1469598103934665603;
+    for b in input.as_bytes() {
+        hash ^= *b as u64;
+        hash = hash.wrapping_mul(1099511628211);
+    }
+    let base36 = to_base36(hash);
+    if base36.len() <= len {
+        base36
+    } else {
+        base36[base36.len() - len..].to_string()
+    }
+}
+
+fn to_base36(mut n: u64) -> String {
+    if n == 0 {
+        return "0".to_string();
+    }
+    let mut buf = [0u8; 32];
+    let mut i = buf.len();
+    while n > 0 {
+        let rem = (n % 36) as u8;
+        let ch = if rem < 10 {
+            b'0' + rem
+        } else {
+            b'a' + (rem - 10)
+        };
+        i -= 1;
+        buf[i] = ch;
+        n /= 36;
+    }
+    String::from_utf8_lossy(&buf[i..]).to_string()
+}
+
+fn parse_date_label(label: &str) -> Option<NaiveDateTime> {
+    if let Ok(dt) = NaiveDateTime::parse_from_str(label, "%d.%m.%Y %H-%M-%S") {
+        Some(dt)
+    } else if let Ok(dt) = NaiveDateTime::parse_from_str(label, "%d.%m.%Y %H:%M") {
+        Some(dt)
+    } else if let Ok(dt) = NaiveDateTime::parse_from_str(label, "%d%m%y-%H%M%S") {
+        Some(dt)
+    } else if let Ok(d) = NaiveDate::parse_from_str(label, "%d.%m.%Y") {
+        d.and_hms_opt(0, 0, 0)
+    } else if let Ok(d) = NaiveDate::parse_from_str(label, "%d%m%y") {
+        d.and_hms_opt(0, 0, 0)
+    } else {
+        None
+    }
+}
+
+fn calculate_inscribed_rectangle(
+    width: u32,
+    height: u32,
+    angle_deg: f32,
+    safety: f32,
+) -> (u32, u32) {
+    let mut angle_abs = angle_deg.abs() % 180.0;
+    if angle_abs > 90.0 {
+        angle_abs = 180.0 - angle_abs;
+    }
+    let theta = angle_abs.to_radians();
+    let s = theta.sin();
+    let c = theta.cos();
+    let sin2 = (2.0 * theta).sin();
+    let cos2 = c * c - s * s;
+
+    let (w, h) = (width as f32, height as f32);
+    let (mut crop_w, mut crop_h) = if w >= h {
+        if h <= w * sin2 {
+            (h / (2.0 * s), h / (2.0 * c))
+        } else {
+            ((w * c - h * s) / cos2, (h * c - w * s) / cos2)
+        }
+    } else if w <= h * sin2 {
+        (w / (2.0 * c), w / (2.0 * s))
+    } else {
+        ((w * c - h * s) / cos2, (h * c - w * s) / cos2)
+    };
+
+    crop_w = (crop_w * safety).max(1.0);
+    crop_h = (crop_h * safety).max(1.0);
+    (crop_w.floor() as u32, crop_h.floor() as u32)
+}
+
+fn average_color(img: &DynamicImage) -> Rgba<u8> {
+    let (r, g, b) = channel_means(img);
+    Rgba([
+        r.round().clamp(0.0, 255.0) as u8,
+        g.round().clamp(0.0, 255.0) as u8,
+        b.round().clamp(0.0, 255.0) as u8,
+        255,
+    ])
+}
+
+fn apply_linear_contrast(img: DynamicImage, contrast: f32) -> DynamicImage {
+    let mut out = img.to_rgba8();
+    for px in out.pixels_mut() {
+        for i in 0..3 {
+            let v = px[i] as f32;
+            let adjusted = (v - 128.0) * contrast + 128.0;
+            px[i] = adjusted.round().clamp(0.0, 255.0) as u8;
+        }
+    }
+    DynamicImage::ImageRgba8(out)
+}
+
+fn resolve_city_alias(address: &str) -> Result<String, String> {
+    use crate::constants::{CITY_ALIASES, SELLER_ADDRESS_ALIASES};
+    if address.trim().is_empty() {
+        return Err("Адрес не указан для генерации adId".to_string());
+    }
+    let cleaned = address.trim();
+    let canonical = SELLER_ADDRESS_ALIASES
+        .get(cleaned)
+        .copied()
+        .unwrap_or(cleaned);
+    CITY_ALIASES
+        .get(canonical)
+        .copied()
+        .map(|s| s.to_string())
+        .ok_or_else(|| format!("Адрес не найден в CITY_ALIASES: {}", address))
 }
 
 /// Черновой генератор вариантов для одного исходника (count берется из opts или job.count).
@@ -282,8 +463,10 @@ pub fn generate_variants(source: &Path, opts: &PhotoOptions) -> Result<Vec<Photo
         material_id: None,
         address: None,
         safe_address: String::new(),
+        date_begin: String::new(),
         date_label: "".to_string(),
         history_dir: None,
+        flagship_source: None,
     };
     generate_job_variants(&job, opts)
 }
@@ -312,113 +495,207 @@ pub fn collect_photo_jobs(
     default_per_location: u32,
     date_label: &str,
 ) -> Result<Vec<PhotoJob>, String> {
+    use std::collections::HashMap;
+
     let aliases = plan.aliases.clone().unwrap_or_default();
     let mut jobs = Vec::new();
+    let mut addr_counts: HashMap<(String, String), u32> = HashMap::new();
+    let mut folders: HashMap<String, (String, String, String, PathBuf)> = HashMap::new();
+    let plan_date_begin = plan.date_begin.clone();
 
     for task in &plan.tasks {
-        let material = aliases
-            .materials
-            .get(&task.material_id)
-            .cloned()
-            .unwrap_or_else(|| task.material_id.clone());
-        let locations = if !task.locations.is_empty() {
-            task.locations.clone()
-        } else if let Some(addrs) = &task.addresses {
-            addrs.clone()
+        let material_raw = if !task.material_id.is_empty() {
+            task.material_id.clone()
         } else {
-            vec![crate::Location {
-                address: "default".to_string(),
-                count: default_per_location,
-                percent: None,
-                addr: None,
-            }]
+            task.material.clone().unwrap_or_default()
         };
-        let loc_len = std::cmp::max(1, locations.len());
-        let originals = list_originals(photos_root, &material)?;
-        if originals.is_empty() {
+        let material_id = aliases
+            .materials
+            .get(&material_raw)
+            .cloned()
+            .unwrap_or(material_raw);
+        let photo_key = task
+            .photo_key
+            .clone()
+            .unwrap_or_else(|| material_id.clone());
+        let slots = if let Some(slots) = &task.slots {
+            if slots.is_empty() {
+                vec![crate::TaskSlot::default()]
+            } else {
+                slots.clone()
+            }
+        } else {
+            vec![crate::TaskSlot::default()]
+        };
+
+        for slot in slots {
+            let slot_date_begin = slot
+                .date_begin
+                .clone()
+                .or_else(|| task.date_begin.clone())
+                .or_else(|| if plan_date_begin.is_empty() { None } else { Some(plan_date_begin.clone()) })
+                .unwrap_or_default();
+            let locs = if !slot.locations.is_empty() {
+                slot.locations.clone()
+            } else if !task.locations.is_empty() {
+                task.locations.clone()
+            } else if let Some(addrs) = &task.addresses {
+                addrs.clone()
+            } else {
+                vec![crate::Location {
+                    address: "default".to_string(),
+                    count: default_per_location,
+                    percent: None,
+                    addr: None,
+                }]
+            };
+            let total_slot_count = if slot.count > 0 {
+                slot.count
+            } else {
+                task.count
+            };
+            let mut remaining = total_slot_count as i64;
+            let mut loc_counts: HashMap<String, u32> = HashMap::new();
+
+            for loc in &locs {
+                if loc.count > 0 {
+                    loc_counts.insert(loc.address.clone(), loc.count);
+                    remaining -= loc.count as i64;
+                }
+            }
+
+            if remaining > 0 {
+                let without_count: Vec<&crate::Location> =
+                    locs.iter().filter(|l| l.count == 0).collect();
+                if !without_count.is_empty() {
+                    let per_loc = remaining as u32 / without_count.len() as u32;
+                    let remainder = remaining as u32 % without_count.len() as u32;
+                    for (idx, loc) in without_count.iter().enumerate() {
+                        let add = per_loc + if idx < remainder as usize { 1 } else { 0 };
+                        loc_counts.insert(loc.address.clone(), add);
+                    }
+                } else if !locs.is_empty() && total_slot_count > 0 {
+                    let last_addr = locs
+                        .last()
+                        .and_then(|l| if l.address.is_empty() { None } else { Some(l.address.clone()) })
+                        .unwrap_or_else(|| "default".to_string());
+                    let entry = loc_counts.entry(last_addr).or_insert(0);
+                    *entry += remaining as u32;
+                }
+            }
+
+            if loc_counts.is_empty() && total_slot_count == 0 {
+                let per_loc = 1u32 / locs.len().max(1) as u32;
+                let remainder = 1u32 % locs.len().max(1) as u32;
+                for (idx, loc) in locs.iter().enumerate() {
+                    let add = per_loc + if idx < remainder as usize { 1 } else { 0 };
+                    loc_counts.insert(loc.address.clone(), add);
+                }
+            }
+
+            let resolved_folder = aliases
+                .photos
+                .get(&photo_key)
+                .map(PathBuf::from)
+                .unwrap_or_else(|| {
+                    let dir = if material_id.is_empty() {
+                        photo_key.clone()
+                    } else {
+                        material_id.clone()
+                    };
+                    photos_root.join(dir).join("originals")
+                });
+
+            for loc in locs {
+                let addr_raw = if loc.address.is_empty() {
+                    "default".to_string()
+                } else {
+                    loc.address.clone()
+                };
+                let addr_formatted = addr_raw.split_whitespace().collect::<Vec<_>>().join(" ");
+                let safe_address = if addr_formatted.is_empty() {
+                    "default".to_string()
+                } else {
+                    sanitize_for_path(&addr_formatted)
+                };
+                let add_count = loc_counts.get(&addr_raw).copied().unwrap_or(0);
+                let key = (material_id.clone(), safe_address.clone());
+                *addr_counts.entry(key).or_insert(0) += add_count;
+
+                let folder_key = format!("{}|{}", resolved_folder.display(), safe_address);
+                folders
+                    .entry(folder_key)
+                    .or_insert((material_id.clone(), addr_formatted, slot_date_begin.clone(), resolved_folder.clone()));
+            }
+        }
+    }
+
+    for (_key, (material_id, address, date_begin, folder)) in folders {
+        if !folder.exists() {
+            continue;
+        }
+        let mut files = Vec::new();
+        for entry in std::fs::read_dir(&folder)
+            .map_err(|e| format!("Не удалось прочитать {}: {}", folder.display(), e))?
+        {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                let ext = ext.to_ascii_lowercase();
+                if ["jpg", "jpeg", "png", "webp"].contains(&ext.as_str()) {
+                    files.push(path);
+                }
+            }
+        }
+        files.sort();
+        let flagship = files.iter().find(|p| {
+            p.file_name()
+                .and_then(|s| s.to_str())
+                .map(|s| s.to_ascii_lowercase().contains("fs"))
+                .unwrap_or(false)
+        });
+        let total = addr_counts
+            .get(&(material_id.clone(), sanitize_for_path(&address)))
+            .copied()
+            .unwrap_or(0);
+        if files.is_empty() {
             return Err(format!(
-                "Не найдены исходники в {}/{}",
-                photos_root.display(),
-                material
+                "Не найдены исходники в {}",
+                folder.display()
             ));
         }
-        for loc in locations {
-            let resolved_address = aliases
-                .addresses
-                .get(&loc.address)
-                .cloned()
-                .unwrap_or_else(|| loc.address.clone());
-            let target = if loc.count > 0 {
-                loc.count
-            } else if task.count > 0 {
-                std::cmp::max(1, task.count / loc_len as u32)
-            } else {
-                std::cmp::max(1, default_per_location)
-            };
-            let safe_address = if resolved_address.is_empty() {
-                "default".to_string()
-            } else {
-                sanitize_for_path(&resolved_address.to_lowercase())
-            };
-            let per_file = std::cmp::max(1, target as usize / originals.len());
-            let remainder = target as usize % originals.len();
-            for (idx, src) in originals.iter().enumerate() {
-                let add = per_file as u32 + if idx < remainder { 1 } else { 0 };
-                if add == 0 {
-                    continue;
-                }
-                jobs.push(PhotoJob {
-                    source: src.clone(),
-                    count: add,
-                    material_id: Some(material.clone()),
-                    address: Some(resolved_address.clone()),
-                    safe_address: safe_address.clone(),
-                    date_label: date_label.to_string(),
-                    history_dir: Some(photos_root.join(&material).join(&safe_address)),
-                });
-            }
+        let per_file = total / files.len() as u32;
+        let remainder = total % files.len() as u32;
+        for (idx, src) in files.iter().enumerate() {
+            let add = per_file + if idx < remainder as usize { 1 } else { 0 };
+            jobs.push(PhotoJob {
+                source: src.clone(),
+                count: add,
+                material_id: if material_id.is_empty() { None } else { Some(material_id.clone()) },
+                address: if address.is_empty() { None } else { Some(address.clone()) },
+                safe_address: sanitize_for_path(&address),
+                date_begin: date_begin.clone(),
+                date_label: date_label.to_string(),
+                history_dir: Some(photos_root.join(&material_id).join(sanitize_for_path(&address))),
+                flagship_source: flagship.cloned(),
+            });
         }
     }
 
     Ok(jobs)
 }
 
-fn list_originals(root: &Path, material: &str) -> Result<Vec<PathBuf>, String> {
-    let dir = root.join(material).join("originals");
-    if !dir.exists() {
-        return Ok(Vec::new());
-    }
-    let mut files = Vec::new();
-    for entry in std::fs::read_dir(&dir)
-        .map_err(|e| format!("Не удалось прочитать {}: {}", dir.display(), e))?
-    {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-            let ext = ext.to_ascii_lowercase();
-            if ["jpg", "jpeg", "png", "webp"].contains(&ext.as_str()) {
-                files.push(path);
-            }
-        }
-    }
-    files.sort();
-    Ok(files)
-}
-
 fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<PhotoVariant>, String> {
     if !job.source.exists() {
         return Err(format!("Исходник не найден: {}", job.source.display()));
     }
-    if job.count == 0 && opts.count == 0 {
+    if job.count == 0 {
         return Ok(Vec::new());
     }
-    let count = if job.count > 0 { job.count } else { opts.count };
-    let eff_override = resolve_override(&job.source, &opts.overrides).cloned();
-    let effective = effective_watermark(opts, &eff_override.unwrap_or_default());
-
+    let count = job.count as usize;
     let base_name = job
         .source
         .file_name()
@@ -438,45 +715,39 @@ fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<Phot
         .as_deref()
         .map(sanitize_token)
         .unwrap_or_else(|| "mat".to_string());
-    let variant_token = {
-        let v = sanitize_token(stem);
-        if v.is_empty() {
-            "variant".to_string()
-        } else {
-            v
-        }
-    };
-    let city_token = {
-        let v = if job.safe_address.is_empty() {
-            "city".to_string()
-        } else {
-            sanitize_token(&job.safe_address)
-        };
-        if v.is_empty() {
-            "city".to_string()
-        } else {
-            v
-        }
-    };
-    let date_token = {
-        let v = if job.date_label.is_empty() {
-            "date".to_string()
-        } else {
-            sanitize_token(&job.date_label)
-        };
-        if v.is_empty() {
-            "date".to_string()
-        } else {
-            v
-        }
+    let source_base = source_base_from_path(&job.source);
+    let use_ad_id = job
+        .address
+        .as_deref()
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false)
+        && job.material_id.is_some();
+    let city_token = if use_ad_id {
+        resolve_city_alias(job.address.as_deref().unwrap_or(""))?
+    } else if job.safe_address.is_empty() {
+        "city".to_string()
+    } else {
+        sanitize_token(&job.safe_address)
     };
 
-    let mut out_dir = opts.out_dir.clone();
-    if !material_token.is_empty() {
-        out_dir.push(&material_token);
-    }
-    if !city_token.is_empty() {
-        out_dir.push(&city_token);
+    let mut out_dir = if let Some(test_dir) = &opts.test_out_dir {
+        test_dir.clone()
+    } else if use_ad_id {
+        if let Some(dir) = job.history_dir.as_ref() {
+            dir.join("variants")
+        } else {
+            opts.out_dir.clone()
+        }
+    } else {
+        opts.out_dir.clone()
+    };
+    if !use_ad_id {
+        if !material_token.is_empty() {
+            out_dir.push(&material_token);
+        }
+        if !city_token.is_empty() {
+            out_dir.push(&city_token);
+        }
     }
     if !out_dir.exists() {
         std::fs::create_dir_all(&out_dir)
@@ -488,13 +759,22 @@ fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<Phot
         .decode()
         .map_err(|e| format!("Не удалось декодировать {}: {}", job.source.display(), e))?
         .to_rgba8();
+    let (base_w, base_h) = base_img.dimensions();
+    let small_image = base_w.min(base_h) < 1400;
+    let overshoot_safe = opts.overshoot.unwrap_or(0.0).max(0.0) as f32;
+    let zoom_boost_base = 1.0_f32 + overshoot_safe.min(0.05);
+    let angle_boost_base = 1.0_f32 + overshoot_safe.min(0.05);
 
-    let mut history = if let Some(dir) = job.history_dir.as_ref() {
-        if !dir.exists() {
-            std::fs::create_dir_all(dir)
-                .map_err(|e| format!("Не удалось создать {}: {}", dir.display(), e))?;
+    let mut history = if opts.write_history {
+        if let Some(dir) = job.history_dir.as_ref() {
+            if !dir.exists() {
+                std::fs::create_dir_all(dir)
+                    .map_err(|e| format!("Не удалось создать {}: {}", dir.display(), e))?;
+            }
+            load_history(dir)
+        } else {
+            PhotoHistoryFile::default()
         }
-        load_history(dir)
     } else {
         PhotoHistoryFile::default()
     };
@@ -503,107 +783,220 @@ fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<Phot
         .iter()
         .filter_map(|ad| ad.hash.clone())
         .collect();
-    let has_clean = history_has_clean(&history.ads, &variant_token, &city_token);
+    let has_clean = if use_ad_id {
+        history_has_clean(&history.ads, &source_base, &city_token)
+    } else {
+        false
+    };
     let allow_clean = !has_clean;
 
     let mut rng = rand::thread_rng();
-    let mut variants = Vec::new();
-    let mut seen_hashes: Vec<String> = Vec::new();
-    for idx in 0..count {
-        let mut attempts = 0;
-        let mut saved = false;
-        while attempts < 6 && !saved {
-            attempts += 1;
-            let mut img = DynamicImage::ImageRgba8(base_img.clone());
-            let needs_transform = idx > 0 || !allow_clean;
-            if needs_transform {
-                let t = TransformParams {
-                    crop: rng.gen_range(0.0..0.06_f32),
-                    brightness: rng.gen_range(0.94..1.08_f32),
-                    saturation: rng.gen_range(0.93..1.08_f32),
-                    hue_deg: rng.gen_range(-12.0..12.0_f32),
-                    contrast: rng.gen_range(-0.15..=0.15),
-                    blur: rng.gen_range(0.0..0.7),
-                    flip: rng.gen_bool(0.3),
-                    scale: rng.gen_range(0.92..1.08_f32),
-                    shift_x: rng.gen_range(-0.04..0.04_f32),
-                    shift_y: rng.gen_range(-0.04..0.04_f32),
-                    channel_shift: if rng.gen_bool(0.5) {
-                        Some((
-                            rng.gen_range(-2..=2),
-                            rng.gen_range(-2..=2),
-                            rng.gen_range(-2..=2),
-                        ))
-                    } else {
-                        None
-                    },
-                };
-                img = apply_transforms(img, t);
-                apply_pattern_overlay(&mut img, effective.pattern_opacity);
-            }
-        apply_text_to_image(
-            &mut img,
-            effective.text_opacity,
-            &effective.text,
-            &effective.text_color,
-            effective.text_opacity_overridden,
-            effective.text_color_overridden,
-        )?;
+    let base_time = parse_date_label(&job.date_label).unwrap_or_else(|| Local::now().naive_local());
+    let max_retries_per_index = 5;
+    let max_global_passes = 5;
+    let mut aggressive_mode = false;
+    let mut generated: Vec<Option<GeneratedVariant>> = vec![None; count];
 
-            let hash = ahash(&img);
-            if is_too_close(&hash, &seen_hashes, &history_hashes) && attempts < 6 {
-                continue;
-            }
-            seen_hashes.push(hash.clone());
-
-            let file_name = format!(
-                "{}_{}_{}_{}_{}.{}",
-                material_token,
-                variant_token,
+    let make_file_name = |idx: usize| -> String {
+        if use_ad_id {
+            let date_token = format_ad_id_date(&(base_time + Duration::seconds(idx as i64)));
+            let ad_id = format!(
+                "{}_{}_{}_{}",
+                source_base,
                 city_token,
                 date_token,
+                idx + 1
+            );
+            format!("{}.jpg", ad_id)
+        } else {
+            format!(
+                "{}_{}_{}_{}_{}.{}",
+                material_token,
+                sanitize_token(stem),
+                city_token,
+                sanitize_token(&job.date_label),
                 idx + 1,
                 ext
-            );
-            let mut out_path = out_dir.clone();
-            out_path.push(&file_name);
-            img.save(&out_path)
-                .map_err(|e| format!("Не удалось сохранить {}: {}", out_path.display(), e))?;
-            let ad_id = Path::new(&file_name)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .map(|s| s.to_string());
-            history.ads.push(PhotoHistoryEntry {
-                ad_id,
-                hash: Some(hash),
-                material_id: job.material_id.clone(),
-                address: job.address.clone(),
-                date_begin: Some(job.date_label.clone()),
-                photo_path: Some(file_name.clone()),
-                timestamp: Some(Utc::now().to_rfc3339()),
-            });
-            variants.push(PhotoVariant {
-                source: job.source.clone(),
-                file_name,
-                material_id: job.material_id.clone(),
-                address: job.address.clone(),
-                url: Some(out_path.display().to_string()),
-            });
-            saved = true;
+            )
         }
-        if !saved {
+    };
+
+    let mut generate_variant = |idx: usize, base_only: bool, aggressive: bool, attempt: u32| -> Result<GeneratedVariant, String> {
+        let mut source_path = job.source.clone();
+        if base_only {
+            if let Some(flagship) = job.flagship_source.as_ref() {
+                let src_stem = job
+                    .source
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                let flag_stem = flagship.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                if !src_stem.is_empty() && src_stem == flag_stem {
+                    source_path = flagship.clone();
+                }
+            }
+        }
+        let settings = resolve_watermark_settings(&source_path, &opts.watermark_settings);
+        let effective = effective_watermark(
+            opts,
+            settings.unwrap_or(&WatermarkSettings::default()),
+        );
+        if settings.and_then(|o| o.text_opacity).is_none() {
             return Err(format!(
-                "Не удалось получить уникальный вариант для {} ({} попыток)",
-                job.source.display(),
-                attempts
+                "Нет фиксированного textOpacity для исходника: {}",
+                source_path.display()
             ));
+        }
+
+        let mut img = if base_only && source_path != job.source {
+            ImageReader::open(&source_path)
+                .map_err(|e| format!("Не удалось открыть {}: {}", source_path.display(), e))?
+                .decode()
+                .map_err(|e| format!("Не удалось декодировать {}: {}", source_path.display(), e))?
+                .to_rgba8()
+        } else {
+            base_img.clone()
+        };
+
+        if !base_only {
+            let attempt_boost = if aggressive { 1.2_f32 } else { 1.0_f32 };
+            let scale_min = if small_image { 0.95 } else { 0.92 };
+            let scale_max = if small_image { 1.05 } else { 1.08 };
+            let scale = rng.gen_range(scale_min..scale_max);
+            let rotate_range =
+                (if small_image { 10.0_f32 } else { 15.0_f32 }) * angle_boost_base * attempt_boost;
+            let overscale_base = if small_image { 1.02_f32 } else { 1.04_f32 };
+            let overscale = (overscale_base * zoom_boost_base * attempt_boost).min(1.12_f32);
+            let work_w = ((base_w as f32 * scale * overscale).round().max(32.0)) as u32;
+            let work_h = ((base_h as f32 * scale * overscale).round().max(32.0)) as u32;
+            let t = TransformParams {
+                brightness: rng.gen_range(0.94..1.08_f32),
+                saturation: rng.gen_range(0.93..1.08_f32),
+                hue_deg: rng.gen_range(-12.0..12.0_f32),
+                contrast: rng.gen_range(0.97..1.06_f32),
+                flip: rng.gen_bool(0.5),
+                shift_x: rng.gen_range(-0.04..0.04_f32),
+                shift_y: rng.gen_range(-0.04..0.04_f32),
+                rotate_deg: rng.gen_range(-rotate_range..rotate_range),
+                work_w,
+                work_h,
+                channel_shift: if rng.gen_bool(0.5) {
+                    Some((
+                        rng.gen_range(-2..=2),
+                        rng.gen_range(-2..=2),
+                        rng.gen_range(-2..=2),
+                    ))
+                } else {
+                    None
+                },
+            };
+            let mut dyn_img = DynamicImage::ImageRgba8(img);
+            dyn_img = apply_transforms(dyn_img, t);
+            apply_pattern_overlay(&mut dyn_img, effective.pattern_opacity);
+            apply_text_to_image(
+                &mut dyn_img,
+                effective.text_opacity,
+                &effective.text,
+                &effective.text_color,
+                effective.text_color_overridden,
+            )?;
+            img = dyn_img.to_rgba8();
+        } else {
+            let mut dyn_img = DynamicImage::ImageRgba8(img);
+            apply_text_to_image(
+                &mut dyn_img,
+                effective.text_opacity,
+                &effective.text,
+                &effective.text_color,
+                effective.text_color_overridden,
+            )?;
+            img = dyn_img.to_rgba8();
+        }
+
+        let hash = ahash(&DynamicImage::ImageRgba8(img.clone()));
+        let file_name = make_file_name(idx);
+        let mut out_path = out_dir.clone();
+        out_path.push(&file_name);
+        DynamicImage::ImageRgba8(img)
+            .save(&out_path)
+            .map_err(|e| format!("Не удалось сохранить {}: {}", out_path.display(), e))?;
+        Ok(GeneratedVariant {
+            path: out_path,
+            hash,
+            attempts: attempt,
+            file_name,
+        })
+    };
+
+    for idx in 0..count {
+        let base_only = idx == 0 && allow_clean;
+        let gen = generate_variant(idx, base_only, aggressive_mode, 1)?;
+        generated[idx] = Some(gen);
+    }
+
+    for _ in 0..max_global_passes {
+        let mut for_validation = generated.clone();
+        if allow_clean {
+            if !for_validation.is_empty() {
+                for_validation[0] = None;
+            }
+        }
+        let close = find_close_indices(&for_validation, &history_hashes, HASH_THRESHOLD);
+        if close.is_empty() {
+            break;
+        }
+        if close[0].1 == 0 {
+            aggressive_mode = true;
+        }
+        let indices: Vec<usize> = close.into_iter().map(|(idx, _)| idx).collect();
+        let unique: std::collections::HashSet<usize> = indices.into_iter().collect();
+        for idx in unique {
+            let attempts = generated[idx].as_ref().map(|g| g.attempts).unwrap_or(0);
+            if attempts >= max_retries_per_index {
+                continue;
+            }
+            if let Some(prev) = generated[idx].as_ref() {
+                let _ = std::fs::remove_file(&prev.path);
+            }
+            let gen = generate_variant(idx, idx == 0 && allow_clean, aggressive_mode, attempts + 1)?;
+            generated[idx] = Some(gen);
         }
     }
 
-    if let Some(dir) = job.history_dir.as_ref() {
-        save_history_tmp(dir, &history.ads)?;
-        save_history(dir, &history.ads)?;
-        clear_history_tmp(dir)?;
+    let mut variants = Vec::new();
+    for item in generated.iter().flatten() {
+        let ad_id = Path::new(&item.file_name)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_string());
+        history.ads.push(PhotoHistoryEntry {
+            ad_id,
+            hash: Some(item.hash.clone()),
+            material_id: job.material_id.clone(),
+            address: job.address.clone(),
+            date_begin: Some(
+                if job.date_begin.is_empty() {
+                    job.date_label.clone()
+                } else {
+                    job.date_begin.clone()
+                },
+            ),
+            photo_path: Some(item.file_name.clone()),
+            timestamp: Some(Utc::now().to_rfc3339()),
+        });
+        variants.push(PhotoVariant {
+            source: job.source.clone(),
+            file_name: item.file_name.clone(),
+            material_id: job.material_id.clone(),
+            address: job.address.clone(),
+            url: Some(item.path.display().to_string()),
+        });
+    }
+
+    if opts.write_history {
+        if let Some(dir) = job.history_dir.as_ref() {
+            save_history_tmp(dir, &history.ads)?;
+        }
     }
 
     Ok(variants)
@@ -611,28 +1004,24 @@ fn generate_job_variants(job: &PhotoJob, opts: &PhotoOptions) -> Result<Vec<Phot
 
 fn effective_watermark(
     opts: &PhotoOptions,
-    override_opt: &WatermarkOverride,
+    settings: &WatermarkSettings,
 ) -> EffectiveWatermark {
-    let text = override_opt
+    let text = settings
         .text_watermark
         .clone()
         .or_else(|| opts.text_watermark.clone())
         .unwrap_or_else(|| "NERUDA".to_string());
-    let text_color_overridden = override_opt.text_color.is_some() || opts.text_color.is_some();
-    let text_color = override_opt
+    let text_color_overridden = settings.text_color.is_some();
+    let text_color = settings
         .text_color
         .clone()
-        .or_else(|| opts.text_color.clone())
         .unwrap_or_else(|| "#FFFFFF".to_string());
-    let text_opacity_overridden = override_opt.text_opacity.is_some() || opts.text_opacity.is_some();
-    let text_opacity = override_opt
+    let text_opacity = settings
         .text_opacity
-        .or(opts.text_opacity)
         .unwrap_or(0.08_f64)
-        .clamp(0.02, 0.8);
-    let pattern_opacity = override_opt
+        .clamp(0.02, 1.0);
+    let pattern_opacity = settings
         .pattern_opacity
-        .or(opts.pattern_opacity)
         .unwrap_or(0.04_f64)
         .clamp(0.0, 0.25);
 
@@ -641,46 +1030,57 @@ fn effective_watermark(
         text_color,
         text_opacity,
         pattern_opacity,
-        text_opacity_overridden,
         text_color_overridden,
     }
 }
 
 fn apply_transforms(img: DynamicImage, params: TransformParams) -> DynamicImage {
-    let (w, h) = img.dimensions();
-    let scale = params.scale.max(0.5);
-    let scaled_w = (w as f32 * scale).round().max(16.0) as u32;
-    let scaled_h = (h as f32 * scale).round().max(16.0) as u32;
+    let avg = average_color(&img);
     let mut out = DynamicImage::ImageRgba8(resize(
         &img,
-        scaled_w,
-        scaled_h,
+        params.work_w,
+        params.work_h,
         image::imageops::FilterType::Triangle,
     ));
     if params.flip {
         flip_horizontal_in_place(out.as_mut_rgba8().unwrap());
     }
-    let crop_x = (scaled_w as f32 * params.crop) as u32;
-    let crop_y = (scaled_h as f32 * params.crop) as u32;
-    let crop_w = w.min(scaled_w.saturating_sub(crop_x));
-    let crop_h = h.min(scaled_h.saturating_sub(crop_y));
-    let left_max = scaled_w.saturating_sub(crop_w);
-    let top_max = scaled_h.saturating_sub(crop_h);
-    let left = ((left_max as f32 * (0.5 + params.shift_x).clamp(0.0, 1.0)) as u32).min(left_max);
-    let top = ((top_max as f32 * (0.5 + params.shift_y).clamp(0.0, 1.0)) as u32).min(top_max);
-    let cropped = crop_imm(&out, left, top, crop_w.max(16), crop_h.max(16)).to_image();
+    let rotated = rotate_about_center(
+        &out.to_rgba8(),
+        params.rotate_deg.to_radians(),
+        Interpolation::Bilinear,
+        avg,
+    );
+
+    let (rot_w, rot_h) = rotated.dimensions();
+    let (crop_w, crop_h) =
+        calculate_inscribed_rectangle(params.work_w, params.work_h, params.rotate_deg, 0.96);
+    let safe_w = (crop_w as f32 * 0.95).floor().max(1.0) as u32;
+    let safe_h = (crop_h as f32 * 0.95).floor().max(1.0) as u32;
+    let center_x = ((rot_w.saturating_sub(safe_w)) as f32) / 2.0;
+    let center_y = ((rot_h.saturating_sub(safe_h)) as f32) / 2.0;
+    let left = (center_x + params.shift_x * safe_w as f32)
+        .round()
+        .clamp(0.0, (rot_w.saturating_sub(safe_w)) as f32) as u32;
+    let top = (center_y + params.shift_y * safe_h as f32)
+        .round()
+        .clamp(0.0, (rot_h.saturating_sub(safe_h)) as f32) as u32;
+    let cropped = crop_imm(
+        &DynamicImage::ImageRgba8(rotated),
+        left,
+        top,
+        safe_w,
+        safe_h,
+    )
+    .to_image();
     let mut out = DynamicImage::ImageRgba8(cropped);
-    if params.blur > 0.01 {
-        out = DynamicImage::ImageRgba8(blur(&out, params.blur));
-    }
+
     out = apply_color_modulation(out, params.brightness, params.saturation, params.hue_deg);
-    if params.contrast.abs() > f32::EPSILON {
-        out = DynamicImage::ImageRgba8(contrast(&out, params.contrast));
-    }
+    out = apply_linear_contrast(out, params.contrast);
     if let Some(shift) = params.channel_shift {
         out = apply_channel_shift(out, shift);
     }
-    DynamicImage::ImageRgba8(resize(&out, w, h, image::imageops::FilterType::Triangle))
+    out
 }
 
 fn apply_pattern_overlay(img: &mut DynamicImage, opacity: f64) {
@@ -990,7 +1390,7 @@ fn apply_text_watermark(
         .map_err(|e| format!("Не удалось открыть {}: {}", source.display(), e))?
         .decode()
         .map_err(|e| format!("Не удалось декодировать {}: {}", source.display(), e))?;
-    apply_text_to_image(&mut img, opacity, text, color_hex, true, color_overridden)?;
+    apply_text_to_image(&mut img, opacity, text, color_hex, color_overridden)?;
     img.save(out)
         .map_err(|e| format!("Не удалось сохранить {}: {}", out.display(), e))
 }
@@ -1000,14 +1400,9 @@ fn apply_text_to_image(
     opacity: f64,
     text: &str,
     color_hex: &str,
-    opacity_overridden: bool,
     color_overridden: bool,
 ) -> Result<(), String> {
-    let use_opacity = if opacity_overridden {
-        opacity
-    } else {
-        adaptive_text_opacity(img)
-    };
+    let use_opacity = opacity.clamp(0.02, 1.0);
     let palette = pick_text_palette(img, color_hex, color_overridden);
     overlay_text_pattern_image(
         img,
@@ -1063,41 +1458,27 @@ fn blend_overlay(base: &mut DynamicImage, overlay: &image::RgbaImage, opacity: f
                 continue;
             }
             let base_px = base.get_pixel(x, y);
-            let alpha = (over[3] as f32 / 255.0) * alpha_scale;
-            let blended = blend_pixel(base_px, *over, alpha);
+            // resvg/tiny-skia возвращает premultiplied alpha; разворачиваем в straight alpha.
+            let over_alpha = over[3] as f32 / 255.0;
+            let straight = if over_alpha > 0.0 {
+                let inv = (255.0 / over[3] as f32).min(255.0);
+                Rgba([
+                    (over[0] as f32 * inv).round().clamp(0.0, 255.0) as u8,
+                    (over[1] as f32 * inv).round().clamp(0.0, 255.0) as u8,
+                    (over[2] as f32 * inv).round().clamp(0.0, 255.0) as u8,
+                    over[3],
+                ])
+            } else {
+                *over
+            };
+            let alpha = over_alpha * alpha_scale;
+            let blended = blend_pixel(base_px, straight, alpha);
             base.put_pixel(x, y, blended);
         }
     }
 }
 
 
-fn adaptive_text_opacity(img: &DynamicImage) -> f64 {
-    let (w, h) = img.dimensions();
-    if w == 0 || h == 0 {
-        return 0.08;
-    }
-    let step = ((w.min(h) / 80).max(4)) as u32;
-    let mut total = 0.0;
-    let mut count = 0.0;
-    for y in (0..h).step_by(step as usize) {
-        for x in (0..w).step_by(step as usize) {
-            let px = img.get_pixel(x, y);
-            let lum = (0.2126 * px[0] as f64 + 0.7152 * px[1] as f64 + 0.0722 * px[2] as f64)
-                / 255.0;
-            total += lum * 255.0;
-            count += 1.0;
-        }
-    }
-    let avg = if count > 0.0 { total / count } else { 128.0 };
-    let opacity = if avg <= 180.0 {
-        let ratio = avg / 180.0;
-        0.070 + ratio.powf(2.7) * 0.080
-    } else {
-        let ratio = ((avg - 180.0) / 60.0).min(1.0);
-        0.17 + ratio * 0.05
-    };
-    opacity.clamp(0.04, 0.30)
-}
 
 struct TextPalette {
     fill: String,
@@ -1217,12 +1598,14 @@ fn build_text_pattern_svg(
 ) -> String {
     let fill = text_svg_color(fill_color);
     let stroke = text_svg_color(stroke_color);
+    let stroke_opacity = (opacity * 0.75).clamp(0.0, 1.0);
+    let stroke_width = 1.8;
     format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}">
   <defs>
     <pattern id="tp" width="{tile_w}" height="{tile_h}" x="0" y="0" patternUnits="userSpaceOnUse" patternTransform="rotate({rotation} {cx} {cy})">
-      <text x="{x1}" y="{y1}" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="{font_size}" fill="{fill}" fill-opacity="{opacity}" stroke="{stroke}" stroke-opacity="0" stroke-width="0" paint-order="stroke fill" font-weight="700">{text}</text>
-      <text x="{x2}" y="{y2}" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="{font_size}" fill="{fill}" fill-opacity="{opacity}" stroke="{stroke}" stroke-opacity="0" stroke-width="0" paint-order="stroke fill" font-weight="700">{text}</text>
+      <text x="{x1}" y="{y1}" text-anchor="middle" font-family="Arial, sans-serif" font-size="{font_size}" fill="{fill}" fill-opacity="{opacity}" stroke="{stroke}" stroke-opacity="{stroke_opacity}" stroke-width="{stroke_width}" paint-order="stroke fill" font-weight="600">{text}</text>
+      <text x="{x2}" y="{y2}" text-anchor="middle" font-family="Arial, sans-serif" font-size="{font_size}" fill="{fill}" fill-opacity="{opacity}" stroke="{stroke}" stroke-opacity="{stroke_opacity}" stroke-width="{stroke_width}" paint-order="stroke fill" font-weight="600">{text}</text>
     </pattern>
   </defs>
   <rect width="100%" height="100%" fill="url(#tp)" />
@@ -1242,17 +1625,25 @@ fn build_text_pattern_svg(
         fill = fill,
         stroke = stroke,
         opacity = opacity,
+        stroke_opacity = stroke_opacity,
+        stroke_width = stroke_width,
         text = text,
     )
 }
 
-fn fontdb_with_inter() -> std::sync::Arc<usvg::fontdb::Database> {
+fn fontdb_with_arial() -> std::sync::Arc<usvg::fontdb::Database> {
     static DB: OnceLock<std::sync::Arc<usvg::fontdb::Database>> = OnceLock::new();
     DB.get_or_init(|| {
         let mut db = usvg::fontdb::Database::new();
-        db.load_system_fonts();
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/Inter-Regular.ttf");
-        let _ = db.load_font_file(path);
+        let arial_paths = [
+            "/Library/Fonts/Arial.ttf",
+            "/Library/Fonts/Arial Bold.ttf",
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        ];
+        for path in arial_paths {
+            let _ = db.load_font_file(std::path::Path::new(path));
+        }
         std::sync::Arc::new(db)
     })
     .clone()
@@ -1260,7 +1651,7 @@ fn fontdb_with_inter() -> std::sync::Arc<usvg::fontdb::Database> {
 
 fn render_svg_overlay(svg: &str, width: u32, height: u32) -> Option<image::RgbaImage> {
     let mut options = usvg::Options::default();
-    options.fontdb = fontdb_with_inter();
+    options.fontdb = fontdb_with_arial();
     let tree = usvg::Tree::from_str(svg, &options).ok()?;
     let mut pixmap = tiny_skia::Pixmap::new(width, height)?;
     let mut pixmap_mut = pixmap.as_mut();
@@ -1309,18 +1700,6 @@ fn parse_history_raw(raw: &str) -> Vec<PhotoHistoryEntry> {
     Vec::new()
 }
 
-fn save_history(dir: &Path, ads: &[PhotoHistoryEntry]) -> Result<(), String> {
-    let (main_path, _) = history_paths(dir);
-    let data = PhotoHistoryFile {
-        version: 2,
-        ads: ads.to_vec(),
-    };
-    let json = serde_json::to_string_pretty(&data)
-        .map_err(|e| format!("Не удалось сериализовать историю: {}", e))?;
-    std::fs::write(&main_path, json)
-        .map_err(|e| format!("Не удалось записать {}: {}", main_path.display(), e))
-}
-
 fn save_history_tmp(dir: &Path, ads: &[PhotoHistoryEntry]) -> Result<(), String> {
     let (_, tmp_path) = history_paths(dir);
     let data = PhotoHistoryFile {
@@ -1333,22 +1712,32 @@ fn save_history_tmp(dir: &Path, ads: &[PhotoHistoryEntry]) -> Result<(), String>
         .map_err(|e| format!("Не удалось записать {}: {}", tmp_path.display(), e))
 }
 
-fn clear_history_tmp(dir: &Path) -> Result<(), String> {
-    let (_, tmp_path) = history_paths(dir);
-    if tmp_path.exists() {
-        std::fs::remove_file(&tmp_path)
-            .map_err(|e| format!("Не удалось удалить {}: {}", tmp_path.display(), e))?;
-    }
-    Ok(())
-}
-
-fn is_too_close(hash: &str, seen: &[String], history: &[String]) -> bool {
-    for other in seen.iter().chain(history.iter()) {
-        if hamming(hash, other) <= HASH_THRESHOLD {
-            return true;
+fn find_close_indices(
+    items: &[Option<GeneratedVariant>],
+    history: &[String],
+    threshold: u32,
+) -> Vec<(usize, u32)> {
+    let mut result = Vec::new();
+    for i in 0..items.len() {
+        let Some(item) = &items[i] else { continue };
+        let mut min_dist = u32::MAX;
+        for h in history {
+            min_dist = min_dist.min(hamming(&item.hash, h));
+        }
+        for j in 0..items.len() {
+            if i == j {
+                continue;
+            }
+            if let Some(other) = &items[j] {
+                min_dist = min_dist.min(hamming(&item.hash, &other.hash));
+            }
+        }
+        if min_dist < threshold {
+            result.push((i, min_dist));
         }
     }
-    false
+    result.sort_by_key(|(_, dist)| *dist);
+    result
 }
 
 fn history_has_clean(ads: &[PhotoHistoryEntry], source_base: &str, city: &str) -> bool {

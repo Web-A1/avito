@@ -24,6 +24,12 @@ pub struct UploadResult {
     pub size: u64,
 }
 
+#[derive(Debug, Clone)]
+pub struct UploadOnlyResult {
+    pub disk_path: String,
+    pub size: u64,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum YandexError {
     #[error("HTTP {status}: {body}")]
@@ -67,6 +73,28 @@ impl YandexClient {
         format!("OAuth {}", self.token)
     }
 
+    /// Проверяет, существует ли файл на диске.
+    pub fn resource_exists(&self, disk_path: &str) -> Result<bool, YandexError> {
+        let info_url = format!(
+            "{}/v1/disk/resources?path={}",
+            self.base_url,
+            urlencoding::encode(disk_path)
+        );
+        let res = self
+            .client
+            .get(&info_url)
+            .header("Authorization", self.auth_header())
+            .send()
+            .map_err(|e| YandexError::Request(e.to_string()))?;
+        if res.status() == StatusCode::NOT_FOUND {
+            return Ok(false);
+        }
+        if !res.status().is_success() {
+            return Err(to_http_error(res)?);
+        }
+        Ok(true)
+    }
+
     /// PUT /resources to ensure folder exists (409 считается успехом).
     pub fn ensure_folder(&self, disk_path: &str) -> Result<(), YandexError> {
         let url = format!(
@@ -95,6 +123,21 @@ impl YandexClient {
         local_path: impl AsRef<Path>,
         disk_path: &str,
     ) -> Result<UploadResult, YandexError> {
+        let upload = self.upload_only(local_path, disk_path)?;
+        let public_url = self.publish_and_get_public_url(disk_path)?;
+        Ok(UploadResult {
+            disk_path: upload.disk_path,
+            public_url,
+            size: upload.size,
+        })
+    }
+
+    /// Только загрузка (без публикации).
+    pub fn upload_only(
+        &self,
+        local_path: impl AsRef<Path>,
+        disk_path: &str,
+    ) -> Result<UploadOnlyResult, YandexError> {
         let path_ref = local_path.as_ref();
         let data = fs::read(path_ref).map_err(|e| YandexError::Io {
             path: path_ref.display().to_string(),
@@ -108,12 +151,15 @@ impl YandexClient {
             let mime = mime_from_path(path_ref);
             self.put_bytes_with_retry(&target.href, data.clone(), &mime, target.method)?;
         }
-        let public_url = self.publish(disk_path)?;
-        Ok(UploadResult {
+        Ok(UploadOnlyResult {
             disk_path: disk_path.to_string(),
-            public_url,
             size: data.len() as u64,
         })
+    }
+
+    /// Публикация и получение public_url (с ретраями).
+    pub fn publish_and_get_public_url(&self, disk_path: &str) -> Result<String, YandexError> {
+        self.publish_with_retry(disk_path)
     }
 
     fn ensure_folder_parent(&self, disk_path: &str) -> Result<(), YandexError> {
@@ -219,49 +265,85 @@ impl YandexClient {
         }
     }
 
-    fn publish(&self, disk_path: &str) -> Result<String, YandexError> {
+    fn publish_with_retry(&self, disk_path: &str) -> Result<String, YandexError> {
         let publish_url = format!(
             "{}/v1/disk/resources/publish?path={}",
             self.base_url,
             urlencoding::encode(disk_path)
         );
-        let res = self
-            .client
-            .put(&publish_url)
-            .header("Authorization", self.auth_header())
-            .send()
-            .map_err(|e| YandexError::Request(e.to_string()))?;
-        if !res.status().is_success() {
+        let mut last_err: Option<YandexError> = None;
+        for attempt in 1..=self.retry_attempts {
+            let res = self
+                .client
+                .put(&publish_url)
+                .header("Authorization", self.auth_header())
+                .send()
+                .map_err(|e| YandexError::Request(e.to_string()))?;
+            if res.status() == StatusCode::CONFLICT || res.status().is_success() {
+                return self.fetch_public_url(disk_path);
+            }
             let status = res.status();
             let body = res.text().unwrap_or_default();
             eprintln!("⚠️  publish failed {}: {}", status, body);
-            return Err(YandexError::Http { status, body });
+            last_err = Some(YandexError::Http { status, body });
+            if is_retryable_status(status) && attempt < self.retry_attempts {
+                std::thread::sleep(self.retry_delay * attempt);
+                continue;
+            }
+            break;
+        }
+        if let Some(err) = last_err {
+            return Err(err);
         }
 
+        Err(YandexError::MissingPublicUrl)
+    }
+
+    fn fetch_public_url(&self, disk_path: &str) -> Result<String, YandexError> {
         let info_url = format!(
             "{}/v1/disk/resources?path={}",
             self.base_url,
             urlencoding::encode(disk_path)
         );
-        let res = self
-            .client
-            .get(&info_url)
-            .header("Authorization", self.auth_header())
-            .send()
-            .map_err(|e| YandexError::Request(e.to_string()))?;
-        if !res.status().is_success() {
-            let status = res.status();
-            let body = res.text().unwrap_or_default();
-            eprintln!("⚠️  info failed {}: {}", status, body);
-            return Err(YandexError::Http { status, body });
+        let mut last_err: Option<YandexError> = None;
+        for attempt in 1..=self.retry_attempts {
+            let res = self
+                .client
+                .get(&info_url)
+                .header("Authorization", self.auth_header())
+                .send()
+                .map_err(|e| YandexError::Request(e.to_string()))?;
+            if !res.status().is_success() {
+                let status = res.status();
+                let body = res.text().unwrap_or_default();
+                eprintln!("⚠️  info failed {}: {}", status, body);
+                last_err = Some(YandexError::Http { status, body });
+            } else {
+                let json: serde_json::Value =
+                    res.json().map_err(|e| YandexError::Parse(e.to_string()))?;
+                if let Some(public_url) = json.get("public_url").and_then(|v| v.as_str()) {
+                    return Ok(public_url.to_string());
+                }
+                last_err = Some(YandexError::MissingPublicUrl);
+            }
+            if attempt < self.retry_attempts {
+                std::thread::sleep(self.retry_delay * attempt);
+            }
         }
-        let json: serde_json::Value = res.json().map_err(|e| YandexError::Parse(e.to_string()))?;
-        let public_url = json
-            .get("public_url")
-            .and_then(|v| v.as_str())
-            .ok_or(YandexError::MissingPublicUrl)?;
-        Ok(public_url.to_string())
+        Err(last_err.unwrap_or(YandexError::MissingPublicUrl))
     }
+}
+
+fn is_retryable_status(status: StatusCode) -> bool {
+    matches!(
+        status,
+        StatusCode::INTERNAL_SERVER_ERROR
+            | StatusCode::BAD_GATEWAY
+            | StatusCode::SERVICE_UNAVAILABLE
+            | StatusCode::GATEWAY_TIMEOUT
+            | StatusCode::TOO_MANY_REQUESTS
+            | StatusCode::LOCKED
+    )
 }
 
 fn to_http_error(res: Response) -> Result<YandexError, YandexError> {

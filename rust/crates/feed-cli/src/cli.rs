@@ -5,8 +5,11 @@ use feed_core::{
     validate_plan_windows, FeedConfig, PlanValidationError,
 };
 
-use crate::photo::{generate_photos, read_photo_mapping, upload_photos};
-use crate::util::{cleanup_output, default_date_label, find_single_xlsx, sanitize_label_for_file};
+use crate::photo::{clean_photos_root, generate_photos, read_photo_mapping, upload_photos};
+use crate::util::{
+    archive_run_outputs, cleanup_output, default_date_label, find_single_xlsx,
+    sanitize_label_for_file,
+};
 use feed_core::PhotoOptions;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -59,11 +62,11 @@ pub struct Args {
     #[arg(long, default_value_t = 1)]
     photos_default_count: u32,
 
-    /// Прозрачность текстового водяного знака (перекрывает defaults/overrides)
+    /// Прозрачность текстового водяного знака (если задана в настройках файла)
     #[arg(long)]
     photos_text_opacity: Option<f64>,
 
-    /// Прозрачность паттерна/шума (перекрывает defaults/overrides)
+    /// Прозрачность паттерна/шума (если задана в настройках файла)
     #[arg(long)]
     photos_pattern_opacity: Option<f64>,
 
@@ -79,6 +82,14 @@ pub struct Args {
     #[arg(long, default_value = "")]
     date_label: String,
 
+    /// Тестовый каталог для фото (используется только при --photos-rust)
+    #[arg(long)]
+    photos_test_dir: Option<PathBuf>,
+
+    /// Манифест файлов текущего запуска (используется и для генерации, и для upload)
+    #[arg(long)]
+    photos_manifest: Option<PathBuf>,
+
     /// Путь к готовому photos_links_*.json (если нужно прочитать маппинг без запуска upload)
     #[arg(long)]
     photos_mapping: Option<PathBuf>,
@@ -87,13 +98,17 @@ pub struct Args {
     #[arg(long, default_value_t = false)]
     upload_rust: bool,
 
+    /// Остановиться после загрузки фото (не продолжать пайплайн)
+    #[arg(long, default_value_t = false)]
+    upload_rust_only: bool,
+
     /// Очистка каталога вывода от старых ads/manifest/photos_links
     #[arg(long, default_value_t = false)]
     cleanup: bool,
 
-    /// Сгенерировать шаблон watermark-overrides.json (по маске файлов) и выйти
+    /// Сгенерировать шаблон watermark-settings.json (по маске файлов) и выйти
     #[arg(long)]
-    make_wm_template: Option<String>,
+    make_watermark_settings: Option<String>,
 
     /// Превью водяных знаков: исходник
     #[arg(long)]
@@ -103,6 +118,10 @@ pub struct Args {
     #[arg(long, default_value = "0.04,0.06,0.08,0.10,0.12")]
     preview_opacities: String,
 
+    /// Игнорировать watermark-settings при генерации превью
+    #[arg(long, default_value_t = false)]
+    preview_ignore_settings: bool,
+
     /// Куда складывать превью (по умолчанию output/photos_preview)
     #[arg(long, default_value = "output/photos_preview")]
     preview_out: PathBuf,
@@ -110,16 +129,24 @@ pub struct Args {
     /// Сравнить итоговый XML с эталоном (удобно для сверки с JS) после генерации
     #[arg(long)]
     xml_compare: Option<PathBuf>,
+
+    /// Очистить временные файлы/логи перед запуском (output, variants, hashes.json)
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    clean_run: bool,
+
+    /// Архивировать артефакты запуска в runs/<label> и переносить старые в archive/
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    archive_runs: bool,
 }
 
 pub fn run() {
     dotenv().ok();
     let args = Args::parse();
 
-    if let Some(glob) = &args.make_wm_template {
-        match feed_core::generate_overrides_template(glob, false) {
+    if let Some(glob) = &args.make_watermark_settings {
+        match feed_core::generate_watermark_settings_template(glob, false) {
             Ok(list) => {
-                let path = std::path::PathBuf::from("data/watermark-overrides.json");
+                let path = std::path::PathBuf::from("data/watermark-settings.json");
                 if let Some(parent) = path.parent() {
                     std::fs::create_dir_all(parent).ok();
                 }
@@ -127,30 +154,37 @@ pub fn run() {
                 match std::fs::write(&path, json) {
                     Ok(_) => {
                         println!(
-                            "Шаблон watermark-overrides записан: {} ({} записей)",
+                            "Шаблон watermark-settings записан: {} ({} записей)",
                             path.display(),
                             list.len()
                         );
                     }
-                    Err(e) => eprintln!("Не удалось записать шаблон overrides: {}", e),
+                    Err(e) => eprintln!("Не удалось записать шаблон настроек: {}", e),
                 }
             }
-            Err(e) => eprintln!("Ошибка генерации шаблона overrides: {}", e),
+            Err(e) => eprintln!("Ошибка генерации шаблона настроек: {}", e),
         }
         return;
     }
 
     if let Some(src) = &args.photos_preview {
         let ops = parse_opacities(&args.preview_opacities);
-        let overrides_path = std::path::PathBuf::from("data/watermark-overrides.json");
-        let overrides = feed_core::load_overrides(&overrides_path).unwrap_or_default();
+        let settings_path = std::path::PathBuf::from("data/watermark-settings.json");
+        let settings = if args.preview_ignore_settings {
+            Vec::new()
+        } else {
+            feed_core::load_watermark_settings(&settings_path).unwrap_or_default()
+        };
         let opts = PhotoOptions {
             out_dir: args.preview_out.clone(),
             pattern_opacity: args.photos_pattern_opacity,
             text_opacity: args.photos_text_opacity,
             text_color: args.photos_text_color.clone(),
             text_watermark: args.photos_text.clone().or(Some("NERUDA".into())),
-            overrides,
+            watermark_settings: settings,
+            overshoot: None,
+            test_out_dir: None,
+            write_history: true,
             count: 1,
         };
         match feed_core::generate_preview_grid(src, &ops, &opts) {
@@ -208,6 +242,17 @@ pub fn run() {
         std::process::exit(1);
     }
 
+    if args.clean_run && args.photos_rust {
+        let mut keep = Vec::new();
+        if let Some(ref_path) = &args.xml_compare {
+            if let Some(name) = ref_path.file_name().and_then(|n| n.to_str()) {
+                keep.push(name);
+            }
+        }
+        crate::util::cleanup_output(&args.out_dir, &keep);
+        clean_photos_root(&args.photos_root);
+    }
+
     let date_label = if args.date_label.is_empty() {
         default_date_label()
     } else {
@@ -216,10 +261,10 @@ pub fn run() {
 
     // Генерация фото на Rust (без загрузки)
     if args.photos_rust {
-        let overrides_path = std::path::PathBuf::from("data/watermark-overrides.json");
-        let overrides = feed_core::load_overrides(&overrides_path).unwrap_or_else(|e| {
+        let settings_path = std::path::PathBuf::from("data/watermark-settings.json");
+        let settings = feed_core::load_watermark_settings(&settings_path).unwrap_or_else(|e| {
             eprintln!(
-                "Не удалось загрузить watermark-overrides.json (используем дефолты): {}",
+                "Не удалось загрузить watermark-settings.json (используем дефолты): {}",
                 e
             );
             Vec::new()
@@ -230,7 +275,10 @@ pub fn run() {
             text_opacity: args.photos_text_opacity,
             text_color: args.photos_text_color.clone(),
             text_watermark: args.photos_text.clone(),
-            overrides,
+            watermark_settings: settings,
+            overshoot: None,
+            test_out_dir: args.photos_test_dir.clone(),
+            write_history: args.photos_test_dir.is_none(),
             count: args.photos_default_count.max(1),
         };
         match feed_core::generate_plan_photos(&plan, &args.photos_root, &date_label, &opts) {
@@ -245,6 +293,17 @@ pub fn run() {
                         .len()
                 );
                 println!("Каталог фото: {}", args.photos_dir.display());
+                let manifest_path = args.photos_manifest.clone().unwrap_or_else(|| {
+                    let file_label = sanitize_label_for_file(&date_label);
+                    let mut p = args.out_dir.clone();
+                    p.push(format!("photos_run_{}.json", file_label));
+                    p
+                });
+                if let Err(e) = crate::photo::write_photos_manifest(&manifest_path, &date_label, &variants) {
+                    eprintln!("Не удалось записать manifest: {}", e);
+                } else {
+                    println!("Манифест фото: {}", manifest_path.display());
+                }
             }
             Err(e) => {
                 eprintln!("Ошибка генерации фото на Rust: {}", e);
@@ -284,20 +343,25 @@ pub fn run() {
     }
 
     if args.upload_rust {
-        match crate::photo::upload_photos_rust(
-            &args.photos_dir,
+        let mapping = match crate::photo::upload_photos_rust(
+            &plan,
+            &args.photos_root,
             &args.disk_root,
             &date_label,
             &args.out_dir,
+            args.photos_manifest.as_ref(),
         ) {
-            Ok(mapping) => {
-                photo_map = Some(mapping_to_map(mapping));
-            }
+            Ok(mapping) => mapping,
             Err(e) => {
                 eprintln!("Ошибка загрузки фото на Я.Диск: {}", e);
                 std::process::exit(1);
             }
+        };
+        if args.upload_rust_only {
+            println!("Загрузка фото завершена (upload-only).");
+            return;
         }
+        photo_map = Some(mapping_to_map(mapping));
     } else if let Some(mapping_path) = &args.photos_mapping {
         photo_map = load_mapping(mapping_path);
     }
@@ -436,6 +500,15 @@ pub fn run() {
             ),
             Err(e) => eprintln!("Сравнение XML не удалось: {}", e),
         }
+    }
+
+    if args.archive_runs {
+        archive_run_outputs(&args.out_dir, &file_label, &date_label);
+        println!(
+            "Артефакты запуска перемещены в {}/runs/{}",
+            args.out_dir.display(),
+            file_label
+        );
     }
 
     println!("XML записан: {}", xml_path.display());

@@ -4,19 +4,16 @@ set -euo pipefail
 # Быстрый коммит и пуш с автогенерацией сообщения по изменённым файлам.
 # Запуск: ./bin/quick-push.sh [дополнительный текст]
 
-echo "→ Проверка git-репозитория..."
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "❌ Скрипт нужно запускать внутри git-репозитория."
   exit 1
 fi
 
-echo "→ Проверка изменений..."
 if ! git status --porcelain | grep -q .; then
   echo "✅ Нечего коммитить: рабочее дерево чистое."
   exit 0
 fi
 
-echo "→ git add -A"
 git add -A
 
 commit_summary=$(python3 - <<'PY'
@@ -101,7 +98,6 @@ else
   commit_message="${commit_summary}"
 fi
 
-echo "→ git commit -m \"$commit_message\""
 git commit -m "$commit_message"
 
 current_branch=$(git branch --show-current)
@@ -111,7 +107,6 @@ if [[ -z "$current_branch" ]]; then
   exit 1
 fi
 
-echo "→ git push origin \"$current_branch\" (verbose)"
-git push -v origin "$current_branch"
+git push origin "$current_branch"
 
 echo "✅ Изменения отправлены: $commit_message"

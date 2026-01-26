@@ -7,6 +7,8 @@ pub struct Aliases {
     pub materials: std::collections::HashMap<String, String>,
     #[serde(default)]
     pub addresses: std::collections::HashMap<String, String>,
+    #[serde(default)]
+    pub photos: std::collections::HashMap<String, String>,
 }
 
 /// Задача публикации для конкретного материала.
@@ -17,6 +19,12 @@ pub struct Task {
     /// Альтернативное поле material (для совместимости).
     #[serde(default)]
     pub material: Option<String>,
+    /// Альтернативный ключ фото (для планов со своей структурой папок).
+    #[serde(rename = "photoKey", default)]
+    pub photo_key: Option<String>,
+    /// Переопределение даты начала для задачи.
+    #[serde(rename = "DateBegin", default)]
+    pub date_begin: Option<String>,
     #[serde(default)]
     pub count: u32,
     #[serde(default)]
@@ -24,6 +32,9 @@ pub struct Task {
     /// Старое поле addresses (для совместимости).
     #[serde(default)]
     pub addresses: Option<Vec<Location>>,
+    /// Слоты с отдельными count/locations (как в JS-плане).
+    #[serde(default)]
+    pub slots: Option<Vec<TaskSlot>>,
     /// Пользовательские заголовки, если заданы.
     #[serde(default)]
     pub titles: Option<Vec<String>>,
@@ -43,6 +54,17 @@ pub struct Location {
     pub percent: Option<f64>,
     #[serde(default)]
     pub addr: Option<String>,
+}
+
+/// Слот внутри задачи (опционально, как в JS-плане).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TaskSlot {
+    #[serde(rename = "DateBegin", default)]
+    pub date_begin: Option<String>,
+    #[serde(default)]
+    pub count: u32,
+    #[serde(default)]
+    pub locations: Vec<Location>,
 }
 
 /// Очередь публикаций с фиксированными временными слотами.
@@ -274,9 +296,9 @@ pub struct PhotoMapping {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PhotoMappingItem {
-    #[serde(rename = "avitoId", default)]
+    #[serde(rename = "avitoId", default, skip_serializing_if = "Option::is_none")]
     pub avito_id: Option<String>,
-    #[serde(rename = "fileName", default, alias = "file")]
+    #[serde(rename = "file", default, alias = "fileName")]
     pub file_name: Option<String>,
     #[serde(rename = "public_url", default)]
     pub public_url: Option<String>,

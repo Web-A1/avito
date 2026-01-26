@@ -19,8 +19,12 @@ coverage/
 *.swp
 *.swo
 tmp/
+old_trash/
 
 # Временные и артефактные файлы фида/фото
+output/
+rust/output/
+rust/target/
 output/*.backup
 output/photos_links_*.json
 output/test_validation.xml

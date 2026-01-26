@@ -1,0 +1,85 @@
+{
+  "files": {
+    "s00_1": {
+      "textOpacity": 0.45
+    },
+    "s00_2": {
+      "textOpacity": 0.3
+    },
+    "s00_3": {
+      "textOpacity": 0.5
+    },
+    "s00_4": {
+      "textOpacity": 0.45
+    },
+    "s00_5": {
+      "textOpacity": 0.45
+    },
+    "s00_6": {
+      "textOpacity": 0.5
+    },
+    "s00_7": {
+      "textOpacity": 0.55
+    },
+    "s00_8": {
+      "textOpacity": 0.5
+    },
+    "s00_9": {
+      "textOpacity": 0.55
+    },
+    "s00_10": {
+      "textOpacity": 0.45
+    },
+    "s00_11": {
+      "textOpacity": 0.45
+    },
+    "s00_12": {
+      "textOpacity": 0.4
+    },
+    "s00_13": {
+      "textOpacity": 0.4
+    },
+    "s01_1": {
+      "textOpacity": 0.55
+    },
+    "s15_1": {
+      "textOpacity": 0.5
+    },
+    "s15_2": {
+      "textOpacity": 0.55
+    },
+    "s20_1": {
+      "textOpacity": 0.6
+    },
+    "s25_1": {
+      "textOpacity": 0.65
+    },
+    "s25_2": {
+      "textOpacity": 0.75
+    },
+    "s25_3": {
+      "textOpacity": 0.70
+    },
+    "r00-0520_1": {
+      "textOpacity": 0.60
+    },
+    "r00-0520_2": {
+      "textOpacity": 0.65
+    },
+    "r00-0520_3": {
+      "textOpacity": 0.60
+    },
+    "r00-4070_1": {
+      "textOpacity": 0.9
+    },
+    "r00-4070_2": {
+      "textOpacity": 0.7
+    },
+    "r00-4070_3": {
+      "textOpacity": 0.8
+    },
+    "r00-4070_4": {
+      "textOpacity": 0.75
+    }
+  }
+}
